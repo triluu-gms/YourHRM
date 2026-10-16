@@ -7,7 +7,7 @@
 | Item | Value |
 |---|---|
 | Document | `docs/01-requirements/brd/BRD.md` — Master Business Requirements Document |
-| Version | 0.2 (draft) |
+| Version | 0.3 (draft) |
 | Date | 2026-10-16 |
 | Status | Draft for review — Phase 0 |
 | Author | Lead Business Analyst |
@@ -21,6 +21,8 @@
 |---|---|---|
 | 0.1 | 2026-10-16 | First consolidation of module BRDs v0.1 |
 | 0.2 | 2026-10-16 | Applies the sponsor decisions X-04, OD-9, D-09 and D-10 ([decision log](../../00-project-management/decision-log.md)). (1) MVP cut to "core features of each module". Every BR/NFR is re-rated P1/P2/P3 in [mvp-scope.md](mvp-scope.md); that phase overrides MoSCoW for scope. (2) No mobile features in Phase 1: no native app, PWA, GPS/selfie or web check-in, and no push. Pilot attendance comes from time devices and Excel import. ESS stays as a responsive web app. (3) No Oracle migration or parallel run. A generic opening-balance import (Excel templates) is used instead, and the go-live criteria now rely on opening-balance reconciliation. (4) Billable employee = active person at month end per legal entity. Updated §2–§6, §9–§11. |
+| 0.3 | 2026-10-16 | Applies the round 2 sponsor decisions R2-01 – R2-19 ([decision log](../../00-project-management/decision-log.md) §7, §7.1, §7.2; [mvp-scope.md](mvp-scope.md) v0.2 §11). (1) Option B stretch cuts applied: 27 of 29 BRs move to P2. BR-PAY-102 (password-protected PDF payslip, R2-17) and BR-ATT-037 (admin manual timesheet entry, R2-01) stay P1. (2) **No live external integration in Phase 1.** The time-device connector, Zalo/SMS/push, e-sign, VNeID, accounting and bank APIs, job boards, public API/webhooks and the integration hub move to P2. Pilot attendance = Excel import (incl. a device-export-file template), manual entry and correction requests. Notifications = e-mail and in-app. Statutory and finance outputs are file exports. (3) BR-ATT-063 (SI claim data, minimal) and BR-SAAS-073 (one-month payroll comparison) move to P1. (4) Tết policy rules → P2; the bonus/off-cycle run stays P1. Basic concurrent employment across legal entities stays P1. (5) Baseline (always-on) capabilities defined (R2-18). **P1 = 254 BRs + 58 NFRs** (was 281 + 61). Updated §2, §5, §6, §8–§11. |
+| 0.3 (sync) | 2026-10-16 | R2-02 final scope sync. 9 new BA requirements rated: 7 P1 (BR-PPL-023, BR-PAY-065, 085, 086 partly, 087, BR-SAAS-090, 091) and 2 P2 (BR-CORE-088, BR-PPL-039). 5 rows removed after their ownership moved (BR-CORE-038, 039, 042, 113, BR-SAAS-027); their P1 capabilities are confirmed in BR-SAAS-038/039/043/046 (P1, baseline). BR-CORE-086 is now MoSCoW M, still P2. Holiday-calendar/schedule API (ATT-P-16) and gross↔net simulator marked as always-on API services. Phase is now set only in mvp-scope.md §9 (banner in every module BRD). Vendor e-invoicing stays P1 pending a sponsor decision (mvp-scope.md §11.4 R2-C1). **P1 = 259 BRs + 58 NFRs.** Updated §9 and RK5. |
 
 ---
 
@@ -28,7 +30,7 @@
 
 **Problem.** Vietnamese employers run HR and payroll on legacy on-premise systems (such as the Oracle HR database of our pilot customer) or on spreadsheets. Vietnamese payroll is difficult to get right. It combines compulsory insurance (BHXH/BHYT/BHTN) with caps and exemptions, progressive PIT with family deductions, overtime and night-work premiums, regional minimum wages, and frequent legal change. In 2025–2026 alone this includes the SI Law 2024, PIT Law 2025 with new deductions and brackets, the Employment Law 2025, the PDP Law 2025, new regional minimum wages and the merger of provinces. Each change means spreadsheet rework, compliance risk and slow month-end close. Groups with several legal entities duplicate effort per entity.
 
-**Product.** YourHRM is a multi-tenant HRM SaaS built on PostgreSQL and Java Spring Boot. It covers the employer structure and access (Core), the employee lifecycle (People), Time & Attendance, Vietnamese Payroll with SI and PIT, and Recruitment. A commercial SaaS platform layer adds tenant lifecycle, billing, identity, reporting, integration, opening-balance import and a responsive web ESS. A native mobile app follows in Phase 2.
+**Product.** YourHRM is a multi-tenant HRM SaaS built on PostgreSQL and Java Spring Boot. It covers the employer structure and access (Core), the employee lifecycle (People), Time & Attendance, Vietnamese Payroll with SI and PIT, and Recruitment. A commercial SaaS platform layer adds tenant lifecycle, billing, identity, reporting, integration, opening-balance import and a responsive web ESS. A native mobile app and live integrations (time devices, Zalo/SMS, e-sign, bank and accounting APIs) follow in Phase 2. Phase 1 exchanges data with outside systems through file exports and Excel imports only.
 
 **Target customers.** Vietnamese organisations with roughly 20 to 10,000 employees per tenant. This covers SMEs, mid-market companies and multi-entity groups, including labour-intensive sectors (manufacturing, garment, retail) that need shifts, device check-in and the 300-hour overtime regime. All tenant data is hosted in Vietnam.
 
@@ -63,7 +65,7 @@ Targets are proposed for sponsor approval. Baselines will be measured at the pil
 | O5 | | Median approval cycle time for leave requests | ≤ 1 business day | Core R-07 workflow SLA report |
 | O6 | Trust & security | Cross-tenant data incidents | 0; isolation tests block release | BR-SAAS-021/023, NFR-SAAS-001 |
 | O6 | | Monthly availability | ≥ 99.5% (Enterprise ≥ 99.9%) | NFR-SAAS-001 |
-| O7 | Commercial traction | Paying tenants live 12 months after MVP GA | Pilot + TBD (sponsor to set) | Platform usage metering (BR-SAAS-013) |
+| O7 | Commercial traction | Paying tenants live 12 months after MVP GA | Pilot + TBD (sponsor to set) | Month-end billable count (BR-SAAS-012); automated usage metering (BR-SAAS-013) is P2 |
 
 ---
 
@@ -94,24 +96,27 @@ Module BRDs §2 define the detailed actors. This table consolidates them into pr
 
 ### 5.1 Capability map
 
-**Phase rule (changed in v0.2).** MVP = Phase 1 (P1). Each requirement's phase is set in **[mvp-scope.md](mvp-scope.md)**. That re-rating applies the sponsor decisions X-04, OD-9, D-09 and D-10 and **overrides** both the old MoSCoW → phase mapping (M → MVP, S → P2, C → P3) and the module phase tags. In short, Phase 1 is:
+**Phase rule (changed in v0.2 and v0.3).** MVP = Phase 1 (P1). Each requirement's phase is set in **[mvp-scope.md](mvp-scope.md)**. That re-rating applies the sponsor decisions X-04, OD-9, D-09, D-10 and round 2 (R2-01 – R2-19). It **overrides** both the old MoSCoW → phase mapping (M → MVP, S → P2, C → P3) and the module phase tags until the module BRDs are synced (mvp-scope.md §12). In short, Phase 1 is:
 - the core features of each module, delivered as a **responsive web app** (admin + ESS)
 - everything statutory for VN payroll and labour compliance
-- the opening-balance import.
+- the opening-balance import
+- **no live external integration**: data leaves and enters by file export and Excel import, and notifications go by e-mail and in-app only (R2-01).
 
 **No mobile features are in Phase 1.** That means no native app, PWA, push, or GPS/selfie/Wi-Fi/web check-in. Recruitment is a P2 module as a whole (charter §6), but its data contracts with Core, People and Payroll are frozen in Phase 0. The Phase column below summarises the result.
+
+**Baseline capabilities (R2-18).** Whatever modules a tenant buys, these are always on: Core, People basics (person, employment, assignment, salary record), legal parameters, pay scales/bands and the component catalogue, and Excel attendance import. The ID list is in mvp-scope.md §3.4.
 
 | # | Capability | Module | Phase | Detail |
 |---|---|---|---|---|
 | 1 | Legal entities (MST, SI unit code, region), branches/locations with geo-fence | Core | MVP (geo-fence data only used by P2 check-in) | [01 §4.1](modules/01-core.md#41-company-legal-entities-locations) |
 | 2 | Effective-dated org tree, reorganisation packages, positions, grades, cost centres | Core | MVP (reorganisation packages, positions as budgeted seats, interactive org chart: P2; matrix lines: P3) | [01 §4.2–4.3](modules/01-core.md#42-organisation-structure) |
 | 3 | Users, RBAC, data scopes, field masking, local login + MFA, OIDC SSO (Google/Entra) | Core / SaaS | MVP: local login + MFA (OIDC and SAML SSO: P2; SCIM: P3) | [01 §4.4](modules/01-core.md#44-users-roles-permissions-data-scope-sso), [06 §4.D](modules/06-saas-platform.md#4d-identity--authentication) |
-| 4 | Workflow & approval engine (conditions, delegation, SLA, escalation) | Core | MVP (approval delegation, SLA escalation, mobile/email/Zalo approval, parallel branches: P2) | [01 §4.5](modules/01-core.md#45-workflow--approval-engine) |
-| 5 | Notifications: in-app and email | Core | MVP (push, Zalo ZNS: P2; SMS: P3) | [01 §4.6](modules/01-core.md#46-notifications) |
-| 6 | VN master data (34 provinces/wards with old→new mapping), code lists, settings, numbering | Core | MVP | [01 §4.7](modules/01-core.md#47-settings--master-data) |
+| 4 | Workflow & approval engine (conditions, delegation, SLA, escalation) | Core | MVP: engine with vendor-seeded, sequential approval routes and HR reassignment. No-code route designer, any-of/all-of and parallel steps, approver re-resolution on reorg, approval delegation, SLA escalation, mobile/email/Zalo approval: P2 (R2-19) | [01 §4.5](modules/01-core.md#45-workflow--approval-engine) |
+| 5 | Notifications: in-app and email | Core | MVP: in-app + e-mail with vendor-maintained VI/EN templates (tenant template overrides: P2, R2-19; push, Zalo ZNS, SMS: P2, R2-01) | [01 §4.6](modules/01-core.md#46-notifications) |
+| 6 | VN master data (34 provinces/wards with old→new mapping), code lists, settings, numbering | Core | MVP (tenant custom code lists: P2, R2-19) | [01 §4.7](modules/01-core.md#47-settings--master-data) |
 | 7 | Tamper-evident audit log; document service and templates → PDF | Core | MVP (e-sign adapter P2) | [01 §4.8–4.9](modules/01-core.md#48-audit-log) |
 | 8 | Import/export framework incl. opening-balance import mode and templates (D-09; no legacy migration) | Core / SaaS | MVP | [01 §4.10](modules/01-core.md#410-import--export), [06 §4.G](modules/06-saas-platform.md#4g-data-migration--onboarding) |
-| 9 | Person vs employment (rehire, concurrent), personal data, dependants, bank, SI number | People | MVP | [02 §4.1–4.2](modules/02-people.md#41-person--employment) |
+| 9 | Person vs employment (rehire, concurrent), personal data, dependants, bank, SI number | People | MVP, incl. basic concurrent employment across legal entities: primary employment for PIT family deduction, single SI employer (R2-16). Rehire seniority choice, emergency contacts, education records: P2 (R2-19) | [02 §4.1–4.2](modules/02-people.md#41-person--employment) |
 | 10 | Effective-dated assignments, transfers, promotions; salary history | People | MVP (secondment, mass change, step progression: P2) | [02 §4.3–4.4](modules/02-people.md#43-assignments--organisation-placement) |
 | 11 | Labour contracts, probation, appendices, suspension, conversion rules | People | MVP (e-labour contract P2, becomes MVP if mandated) | [02 §4.5](modules/02-people.md#45-labour-contracts) |
 | 12 | Onboarding/offboarding checklists; separation, notice, severance eligibility | People | Separation, notice, severance: MVP. Checklists and pre-hire portal: P2 | [02 §4.6–4.7](modules/02-people.md#46-onboarding--offboarding) |
@@ -119,33 +124,33 @@ Module BRDs §2 define the detailed actors. This table consolidates them into pr
 | 14 | Appraisal (KPI/OKR, calibration) | People | P2 (probation outcome is recorded with the contract in MVP) | [02 §4.9](modules/02-people.md#49-appraisal--performance) |
 | 15 | Training, training bonds | People | P2 | [02 §4.10](modules/02-people.md#410-training) |
 | 16 | Expense claims & cash advances | People | P2 (pending People Q5) | [02 §4.11](modules/02-people.md#411-expense-claims--advances) |
-| 17 | ESS/MSS, HR decisions & letters, labour book, semi-annual labour report, PDP controls | People | MVP, responsive web (MSS team views, HR letters: P2) | [02 §4.12–4.15](modules/02-people.md#412-ess--mss) |
+| 17 | ESS/MSS, HR decisions & letters, labour book, semi-annual labour report, PDP controls | People | MVP, responsive web (MSS team views, HR letters, ESS personal-data change requests, document repository: P2; R2-19) | [02 §4.12–4.15](modules/02-people.md#412-ess--mss) |
 | 18 | Holiday calendars (VN pack incl. lunar Tết, substitute days) | T&A | MVP | [03 §4.1](modules/03-time-attendance.md#41-holiday-calendars) |
 | 19 | Work schedules and shifts (fixed, 5/5.5/6-day, night) | T&A | MVP (rotating, split shifts: P2) | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
 | 20 | Rosters, shift swaps, roster validation | T&A | P2 | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
-| 21 | Punch capture: device import + 1 certified connector, Excel/file import, manual correction | T&A / SaaS | MVP. **Web, PWA and mobile GPS/Wi-Fi/selfie check-in: P2 (OD-9)** | [03 §4.3](modules/03-time-attendance.md#43-check-in-sources-and-raw-punches) |
-| 22 | Daily timesheet processing, corrections (giải trình) | T&A | MVP | [03 §4.4](modules/03-time-attendance.md#44-daily-timesheet-processing) |
+| 21 | Punch capture: Excel/file import, manual entry and correction | T&A / SaaS | MVP: Excel import of punches and timesheets incl. a **device-export-file (CSV/Excel) template**, admin manual entry, ESS correction requests. **Live device connector, offline buffer and punch-rate targets: P2 (R2-01). Web, PWA and mobile GPS/Wi-Fi/selfie check-in: P2 (OD-9)** | [03 §4.3](modules/03-time-attendance.md#43-check-in-sources-and-raw-punches) |
+| 22 | Daily timesheet processing, corrections (giải trình) | T&A | MVP (late/early tolerance policies, OT detection policies, effective-dated policy assignment per group: P2; one policy set per legal entity, OT by pre-approval; R2-19) | [03 §4.4](modules/03-time-attendance.md#44-daily-timesheet-processing) |
 | 23 | Overtime: requests, detection, VN categories, 40/200/300h caps | T&A | MVP | [03 §4.5](modules/03-time-attendance.md#45-overtime) |
-| 24 | Leave types, balances, accrual, seniority, carry-forward, encashment days | T&A | MVP | [03 §4.6](modules/03-time-attendance.md#46-leave-management) |
-| 25 | Business trips / WFH (timesheet effect) | T&A | MVP | [03 §4.7](modules/03-time-attendance.md#47-business-trips-and-remote-work) |
-| 26 | Period close, Attendance Result hand-off, retro deltas | T&A | MVP | [03 §4.8, §7.3](modules/03-time-attendance.md#48-period-close-payroll-hand-off-and-retro) |
+| 24 | Leave types, balances, accrual, seniority, carry-forward, encashment days, SI claim data for sick/maternity leave (minimal, R2-07) | T&A | MVP (cancel/shorten leave with retro: P2, R2-19) | [03 §4.6](modules/03-time-attendance.md#46-leave-management) |
+| 25 | Business trips / WFH (timesheet effect) | T&A | P2 as a request flow (R2-19); in MVP recorded as attendance codes | [03 §4.7](modules/03-time-attendance.md#47-business-trips-and-remote-work) |
+| 26 | Period close, Attendance Result hand-off, retro deltas | T&A | MVP (early close for one employee: P2, R2-19) | [03 §4.8, §7.3](modules/03-time-attendance.md#48-period-close-payroll-hand-off-and-retro) |
 | 27 | Component catalogue, formula engine, effective-dated legal parameters | Payroll | MVP (VN starter templates, multi-currency: P2) | [04 §4.1](modules/04-payroll.md#41-configuration-parameters--components) |
 | 28 | Gross/Net, gross-up, proration, OT/night pay | Payroll | MVP | [04 §4.2](modules/04-payroll.md#42-gross--net-and-earnings-calculation) |
-| 29 | SI/HI/UI/OA-OD, trade union fee, D02-LT files, C12-TS reconciliation | Payroll | MVP (retro SI adjustments, SI arrears: P2; SI benefit claims: P2) | [04 §4.3](modules/04-payroll.md#43-compulsory-insurance--trade-union) |
-| 30 | PIT: resident/non-resident/casual, 08/CK, 05/KK, 05/QTT, e-certificates | Payroll | MVP | [04 §4.4](modules/04-payroll.md#44-personal-income-tax) |
-| 31 | Monthly and off-cycle runs (13th month, Tết), retro pay, final settlement, lock/approve | Payroll | MVP — monthly frequency only (A2) | [04 §4.5](modules/04-payroll.md#45-payroll-runs-lifecycle--control) |
-| 32 | Advances and deductions | Payroll | MVP incl. interest-free employee loans for opening balances (loan interest: P2) | [04 §4.6](modules/04-payroll.md#46-loans-advances--deductions) |
-| 33 | Payslips (ESS, protected PDF) | Payroll | MVP | [04 §4.7](modules/04-payroll.md#47-payslips--ess) |
-| 34 | Bank payment files, GL journal export, cost allocation | Payroll / SaaS | MVP (host-to-host banking, accounting API push: P2) | [04 §4.8](modules/04-payroll.md#48-payment-accounting--cost-allocation) |
+| 29 | SI/HI/UI/OA-OD, trade union fee, D02-LT files, C12-TS reconciliation | Payroll | MVP, as files for upload via the customer's I-VAN (retro SI adjustments, SI arrears, SI benefit-claim processing, I-VAN API: P2) | [04 §4.3](modules/04-payroll.md#43-compulsory-insurance--trade-union) |
+| 30 | PIT: resident/non-resident/casual, 08/CK, 05/KK, 05/QTT, e-certificates | Payroll | MVP: PIT XML for eTax/HTKK as file export; e-certificate XML/PDF (signing route open, mvp-scope.md §11.4 R2-C3) | [04 §4.4](modules/04-payroll.md#44-personal-income-tax) |
+| 31 | Monthly and off-cycle runs (13th month, Tết), retro pay, final settlement, lock/approve | Payroll | MVP — monthly frequency only (A2). Bonus/off-cycle runs with correct PIT: MVP. Tết/13th-month eligibility and proration rules, subset/simulation runs: P2 (R2-14, R2-19) | [04 §4.5](modules/04-payroll.md#45-payroll-runs-lifecycle--control) |
+| 32 | Advances and deductions | Payroll | MVP incl. interest-free employee loans for opening balances (loan interest, salary-advance request flow: P2; advances via the Advance run type) | [04 §4.6](modules/04-payroll.md#46-loans-advances--deductions) |
+| 33 | Payslips (ESS, protected PDF) | Payroll | MVP: ESS web view and password-protected PDF by e-mail (R2-17) | [04 §4.7](modules/04-payroll.md#47-payslips--ess) |
+| 34 | Bank payment files, GL journal export, cost allocation | Payroll / SaaS | MVP as file exports: bank payment file, GL journal in Excel, cost by default cost centre (host-to-host banking, accounting API push, payment-file status import, split cost allocation: P2) | [04 §4.8](modules/04-payroll.md#48-payment-accounting--cost-allocation) |
 | 35 | Staffing plans, requisitions, openings, multi-posting | Recruitment | P2 | [05 §4.1–4.3](modules/05-recruitment.md#41-staffing--headcount-plan) |
 | 36 | Candidates, CV parsing, pipeline, interviews, assessments | Recruitment | P2 | [05 §4.4–4.6](modules/05-recruitment.md#44-candidates-applications-cv-parsing-talent-pool) |
 | 37 | Offers (band check, NET offers via gross-up), pre-boarding, hire hand-off | Recruitment | P2 (hand-off contract frozen in Phase 0) | [05 §4.7–4.8](modules/05-recruitment.md#47-offers) |
 | 38 | Referrals; recruitment analytics & candidate privacy | Recruitment | P2 / P3 | [05 §4.9–4.10](modules/05-recruitment.md#49-referrals) |
-| 39 | Tenant lifecycle, plans, entitlements, feature flags, PEPM billing, VN e-invoice, dunning, offboarding | SaaS | MVP: module subscription, contract price, month-end billable count per legal entity (D-10), e-invoice. Plans/price books, dunning automation, offboarding export/deletion, self-service sign-up, payment gateway: P2 | [06 §4.A](modules/06-saas-platform.md#4a-tenant-lifecycle--commercial) |
+| 39 | Tenant lifecycle, plans, entitlements, feature flags, PEPM billing, VN e-invoice, dunning, offboarding | SaaS | MVP: module subscription, contract price, month-end billable count per legal entity (D-10) from a manual headcount report, e-invoice (provider route open, mvp-scope.md §11.4 R2-C1). Usage metering, feature-flag service, plans/price books, dunning automation, offboarding export/deletion, self-service sign-up, payment gateway: P2 | [06 §4.A](modules/06-saas-platform.md#4a-tenant-lifecycle--commercial) |
 | 40 | Shared tier + RLS isolation, VN residency, vi/en, custom fields | SaaS | MVP (custom fields, dedicated tier, sandbox, white-label, custom domain: P2) | [06 §4.B](modules/06-saas-platform.md#4b-tenancy-isolation-residency--customisation) |
-| 41 | Operator back-office, consent-based support access | SaaS | MVP (impersonation: P2) | [06 §4.C](modules/06-saas-platform.md#4c-operator-back-office--support-access) |
+| 41 | Operator back-office, consent-based support access | SaaS | MVP (impersonation, automated two-person break-glass, tenant-visible operator-access log: P2; log exported on request, R2-19) | [06 §4.C](modules/06-saas-platform.md#4c-operator-back-office--support-access) |
 | 42 | Reporting framework, separate reporting store, statutory report framework | SaaS | MVP (separate reporting store, report designer, dashboards, HR analytics: P2) | [06 §4.E](modules/06-saas-platform.md#4e-reporting--analytics) |
-| 43 | Integration hub; bank, eTax and time-device integrations | SaaS | MVP: file-based bank, GL, eTax and SI outputs + 1 device connector (integration hub, public API, webhooks, VSS I-VAN API: P2; job boards: P3) | [06 §4.F](modules/06-saas-platform.md#4f-integration) |
+| 43 | Integration hub; bank, eTax and time-device integrations | SaaS | MVP: **file exports only** (bank payment file, VSS declaration file, PIT XML for eTax, GL journal in Excel) and Excel imports. All live integrations — time-device connector, Zalo/SMS/push, e-sign, VNeID, accounting and bank APIs, integration hub, public API, webhooks, VSS I-VAN API, job boards: P2 (R2-01) | [06 §4.F](modules/06-saas-platform.md#4f-integration) |
 | 44 | Responsive ESS web | SaaS | MVP (native mobile app and **all** mobile features: P2) | [06 §4.H](modules/06-saas-platform.md#4h-mobile--ess-channel) |
 | 45 | PDP compliance: data inventory, consent, DSR, retention, DPIA, breach, ISO 27001 alignment | SaaS | MVP | [06 §4.I](modules/06-saas-platform.md#4i-compliance-privacy--security) |
 | 46 | Marketplace integrations, AI assistants, regional (non-VN) expansion | — | P3 | Charter §6 |
@@ -154,6 +159,7 @@ Module BRDs §2 define the detailed actors. This table consolidates them into pr
 
 - **Legacy data migration** (D-09, 2026-10-16). There is no Oracle or other legacy migration programme, staging area or parallel run. Customers load opening balances through the standard Excel templates (capability 8, §6.5).
 - **General-ledger accounting.** YourHRM exports journals and is not an accounting system. Expense GL posting is done externally.
+- **Live external integrations in MVP** (R2-01, 2026-10-16): time-device connectors (push/pull, offline buffer), Zalo OA/ZNS, SMS, push, e-signature/CA, VNeID, accounting-system APIs, bank APIs, job boards, public API and webhooks, and the integration hub runtime are all P2. The MVP exchanges data by file export and Excel import, and notifies by e-mail and in-app.
 - **Direct API filing to VSS/GDT in MVP.** The MVP produces files for upload via I-VAN/VssID and eTax/HTKK. T-VAN/I-VAN API filing comes in P2.
 - **Processing of SI benefit claims** (sickness and maternity paid by VSS, form 01B-HSB): P2.
 - **Bank host-to-host payments in MVP.** The MVP provides upload files only.
@@ -184,7 +190,7 @@ Each step names its owning module. Module-level process detail is in each BRD §
 
 ### 6.2 Time-to-pay (monthly cycle; example cut-off 25th, pay date 5th)
 1. **SaaS** — The current legal parameter pack (rates, caps, brackets, holidays) is published and active.
-2. **T&A** — Punches are ingested continuously and processed into daily timesheets. Employees resolve exceptions, and leave, OT, trip and WFH requests are approved via the **Core** workflow.
+2. **T&A** — Punches are imported from the time-device software's export file or an Excel timesheet (Phase 1; live device ingestion is P2) and processed into daily timesheets. HR enters missing days manually. Employees resolve exceptions, and leave, OT, trip and WFH requests are approved via the **Core** workflow.
 3. **People** — Changes for the period (hires, terminations, salary, dependants) are effective by the cut-off.
 4. **T&A** — At period end the exception dashboard is cleared, managers confirm, and the admin **closes** the period. The versioned Attendance Result (with retro deltas) is published to Payroll (+2 working days).
 5. **Payroll** — The run is opened and its inputs snapshotted. Variable inputs are imported. The system calculates gross → proration → OT → SI/HI/UI/TU → PIT → deductions → net, with gross-up for NET employees (+3).
@@ -216,10 +222,10 @@ Each step names its owning module. Module-level process detail is in each BRD §
 ### 6.5 Tenant sign-up-to-go-live (pilot / assisted path, MVP)
 1. **SaaS** — The contract is signed. The operator creates the tenant (legal entities, edition, modules, tier, VN region) and provisions it in ≤ 10 min with reference data and the current legal parameter pack. The DPA is signed.
 2. **Core** — `TenantProvisioned` creates the company group, owner account, system roles, templates and settings. The owner activates MFA (SSO is P2).
-3. **Core / T&A / Payroll** — Configuration: org structure, workflows, holiday calendar, schedules, leave policies, pay groups, components and formulas, bank and GL mapping, and the time-device connector or Excel punch import.
+3. **Core / T&A / Payroll** — Configuration: org structure, workflows, holiday calendar, schedules, leave policies, pay groups, components and formulas, bank and GL mapping, and the Excel punch import with the column layout of the pilot's time-device export file (no live connector in Phase 1, R2-01).
 4. **SaaS / Core** — Opening-balance import (changed in v0.2, D-09; no Oracle migration). The operator and customer agree the go-live month per legal entity (BR-SAAS-088). The customer fills in the standard Excel templates (BR-SAAS-069): employee master, salary history for severance and average bases, SI contribution history, YTD income/insurance/PIT per month of the tax year (BR-SAAS-089), leave balances and YTD OT, and outstanding loans and advances. Each file is validated in validate-only mode until clean, then committed in the **Core** opening-balance import mode (BR-CORE-114).
 5. **SaaS / Payroll / T&A** — Opening balances are reconciled against the customer's control totals: the last legacy payroll register, VSS C12-TS, 05/KK already filed, and the leave report (BR-SAAS-072). This covers payroll YTD, PIT YTD, dependants, SI history, leave balances and loans. The customer's HR/C&B and finance owners sign off.
-6. **Payroll** — The first live payroll is calculated in simulation, and its exception and variance reports are reviewed with the customer before approval. An optional comparison against the customer's last payroll register is P2 (BR-SAAS-073); the sponsor is to re-confirm whether it is needed (mvp-scope.md §8).
+6. **Payroll** — The last pre-go-live month is recomputed in YourHRM from the imported inputs and compared with the customer's payroll register, employee by employee (BR-SAAS-073, P1 since R2-03). The first live payroll is then calculated, and its exception and variance reports are reviewed with the customer before the run is submitted for approval.
 7. **SaaS** — Go-live: the go-live checklist is signed (see §10). Approving the first regular run locks the opening balances of that legal entity (BR-SAAS-088). Billing starts with VN e-invoicing, counting persons active at month end per legal entity (BR-SAAS-012, D-10).
 8. *(P2)* Self-service path: sign-up with OTP and MST validation → trial in ≤ 2 min → onboarding wizard → conversion.
 
@@ -279,7 +285,7 @@ The product-wide NFRs are owned by [06 SaaS Platform §9](modules/06-saas-platfo
 | Availability & maintenance | ≥ 99.5% (≥ 99.9% Enterprise); no maintenance between the 25th and the 5th | NFR-SAAS-001 |
 | Payroll performance | 10,000 employees ≤ 15 min; 1 employee ≤ 5 s | NFR-SAAS-002, NFR-PAY-001 |
 | Interactive performance | p95 ≤ 500 ms transactional; ≤ 3 s standard reports | NFR-SAAS-003, NFR-CORE-002/003, NFR-PPL-003 |
-| Check-in burst | 2,000 events/min per tenant; 20,000/min platform-wide | NFR-SAAS-004, NFR-ATT-001/002 |
+| Check-in burst (P2, with the live device connector, R2-01) | 2,000 events/min per tenant; 20,000/min platform-wide; offline buffer ≥ 7 days | NFR-SAAS-004, NFR-ATT-001/004 |
 | Scalability & fairness | ≥ 500 tenants and 200,000 employees at launch, 5× headroom; noisy tenant capped at 20% of pool | NFR-SAAS-005, NFR-PAY-013 |
 | Backup & DR | RPO ≤ 15 min; RTO ≤ 4 h (≤ 2 h Enterprise); second VN data centre | NFR-SAAS-006 |
 | Security | TLS 1.2+, AES-256, field-level encryption of sensitive data, vault secrets, OWASP ASVS L2, pen tests | NFR-SAAS-007/008/009, NFR-CORE-007/014 |
@@ -300,26 +306,37 @@ The product-wide NFRs are owned by [06 SaaS Platform §9](modules/06-saas-platfo
 - T&A and Payroll added six X-03 close-hold BRs: BR-ATT-079, 087, 088 and BR-PAY-082, 083, 084.
 - SaaS added BR-SAAS-088 and BR-SAAS-089 (D-09).
 - BR-SAAS-073 changed from M to S.
+- R2-02 single-owner sync (v0.3, 2026-10-16): 9 BRs added (BR-CORE-088, BR-PPL-023, 039, BR-PAY-065, 085–087, BR-SAAS-090, 091). 5 rows are now "Removed — owned by …" (BR-CORE-038, 039, 042, 113, BR-SAAS-027). Their IDs stay in the module BRDs, but they are excluded from every count below. BR-CORE-086 changed from S to M.
 
-**MoSCoW** ranks requirements within a phase. **Phase** (P1/P2/P3) is the scope decision, re-rated in **[mvp-scope.md](mvp-scope.md)** for X-04/OD-9/D-09. That document has the rules, the reason for every ID and the list of D-09 changes.
+**MoSCoW** ranks requirements within a phase. **Phase** (P1/P2/P3) is the scope decision, set only in **[mvp-scope.md](mvp-scope.md) §9** (phase banner in every module BRD). It was re-rated for X-04/OD-9/D-09 (v0.1) and round 2 including the R2-02 sync (v0.2). That document has the rules, the reason for every ID, the D-09 changes and the round 2 changes (§11).
 
-| Module | BRD | BR total | BR M | BR S | BR C | **BR P1** | BR P2 | BR P3 | NFR total | **NFR P1** | NFR P2 | Total |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Core | [01-core.md](modules/01-core.md) | 78 | 62 | 11 | 5 | **52** | 21 | 5 | 15 | **13** | 2 | 93 |
-| People | [02-people.md](modules/02-people.md) | 93 | 65 | 23 | 5 | **50** | 38 | 5 | 12 | **10** | 2 | 105 |
-| Time & Attendance | [03-time-attendance.md](modules/03-time-attendance.md) | 80 | 61 | 16 | 3 | **61** | 19 | 0 | 11 | **9** | 2 | 91 |
-| Payroll | [04-payroll.md](modules/04-payroll.md) | 87 | 72 | 12 | 3 | **72** | 12 | 3 | 13 | **11** | 2 | 100 |
-| Recruitment (P2 module) | [05-recruitment.md](modules/05-recruitment.md) | 63 | 42 | 20 | 1 | **0** | 62 | 1 | 11 | **0** | 11 | 74 |
-| SaaS Platform | [06-saas-platform.md](modules/06-saas-platform.md) | 89 | 57 | 26 | 6 | **46** | 39 | 4 | 22 | **18** | 4 | 111 |
-| **Total** | | **490** | **359** | **108** | **23** | **281** | **191** | **18** | **84** | **61** | **23** | **574** |
+In the table, BR M/S/C is the current MoSCoW in the module BRDs, for active rows only. "Total" counts active BR + NFR rows; the 5 removed rows bring the module-row count to 583.
 
-**Phase 1 scope: 281 BRs and 61 NFRs.** In v0.1 the MVP was 310 Must BRs (Recruitment excluded). Including the six X-03 additions, that baseline is now 316. The re-rating moves 41 of those Must BRs to P2 and pulls 4 Should BRs into P1 because they are statutory or needed for D-09. It also adds 2 new D-09 BRs. All Recruitment items are Phase 2.
+| Module | BRD | BR total | BR M | BR S | BR C | BR P1 (v0.2) | **BR P1** | BR P2 | BR P3 | NFR total | NFR P1 (v0.2) | **NFR P1** | NFR P2 | Total |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Core | [01-core.md](modules/01-core.md) | 75 | 60 | 10 | 5 | 52 | **45** | 25 | 5 | 15 | 13 | **13** | 2 | 90 |
+| People | [02-people.md](modules/02-people.md) | 95 | 67 | 23 | 5 | 50 | **46** | 44 | 5 | 12 | 10 | **10** | 2 | 107 |
+| Time & Attendance | [03-time-attendance.md](modules/03-time-attendance.md) | 80 | 61 | 16 | 3 | 61 | **54** | 26 | 0 | 11 | 9 | **7** | 4 | 91 |
+| Payroll | [04-payroll.md](modules/04-payroll.md) | 91 | 76 | 12 | 3 | 72 | **71** | 17 | 3 | 13 | 11 | **11** | 2 | 104 |
+| Recruitment (P2 module) | [05-recruitment.md](modules/05-recruitment.md) | 63 | 42 | 20 | 1 | 0 | **0** | 62 | 1 | 11 | 0 | **0** | 11 | 74 |
+| SaaS Platform | [06-saas-platform.md](modules/06-saas-platform.md) | 90 | 58 | 26 | 6 | 46 | **43** | 43 | 4 | 22 | 18 | **17** | 5 | 112 |
+| **Total** | | **494** | **364** | **107** | **23** | **281** | **259** | **217** | **18** | **84** | **61** | **58** | **26** | **578** |
 
-The sponsor's target was about 180–200 BRs. **That target is not reached**:
-- 107 P1 BRs are statutory (SI, PIT including finalisation, contracts, termination, OT and leave law, labour reports, PDPL, e-invoice).
-- 121 more are the processing chain those statutory outputs depend on.
+**Phase 1 scope: 259 BRs and 58 NFRs** (v0.3, after round 2 and the R2-02 sync). In v0.1 the MVP was 310 Must BRs (Recruitment excluded). Including the six X-03 additions, that baseline became 316, and the round 1 re-rating brought P1 to 281. Round 2 changes P1 as follows:
+- 27 Option B BRs move to P2 (R2-19). BR-PAY-102 and BR-ATT-037 are kept by more specific decisions.
+- 2 live-integration BRs move to P2: the device connector BR-ATT-021 and BR-SAAS-065 (R2-01).
+- 2 BRs return to P1: BR-ATT-063 (R2-07) and BR-SAAS-073 (R2-03).
+- 7 new R2-02 BRs are rated P1: tax residency, the 183-day check, pay group assignment, People pay-impacting events, legal-entity lock state, the job scheduler and the baseline rule. Two more (exchange rates, reorg mapping) are P2.
+- 2 P1 Core rows are removed because SaaS now owns them. Login, password, MFA and sessions are in BR-SAAS-038/039/043, and exports in BR-SAAS-046, all P1 and baseline.
+- 3 punch-rate and buffer NFRs move to P2 (NFR-ATT-001, NFR-ATT-004, NFR-SAAS-004).
 
-A further 29 non-statutory BRs are listed as a sponsor-decided stretch cut ("Option B", mvp-scope.md §4), which would bring P1 to 252. The recommendation is to plan in story points and keep Option B as the descope reserve.
+All Recruitment items are Phase 2.
+
+The sponsor's target was about 180–200 BRs. **That target is still not reached**:
+- 110 P1 BRs are statutory (SI, PIT including finalisation and residency, contracts, termination, OT and leave law, labour reports, PDPL, e-invoice).
+- About 101 more are the processing chain those statutory outputs depend on.
+
+Option B is now used up, so no descope reserve remains short of statutory scope. The plan must be sized in story points (R2-01). One open lever is the sponsor decision on vendor e-invoicing (mvp-scope.md §11.4 R2-C1, −2 BRs if moved to P2).
 
 ---
 
@@ -327,33 +344,39 @@ A further 29 non-statutory BRs are listed as a sponsor-decided stretch cut ("Opt
 
 **Pilot profile.** The pilot is an existing customer that moves to YourHRM as a **new system** (D-09). Its legacy Oracle HR data is not migrated. The pilot loads opening balances from its own records through the standard Excel templates and may go live mid-year. It may have one or more legal entities and pays monthly in VND. Bank list and entity count are to be confirmed (Payroll Q9, Core Q7).
 
-**Delivery channel.** Phase 1 is delivered as a web app only: admin plus a responsive ESS/MSS web. There are **no mobile features**: no native app, PWA, push notifications, or GPS/Wi-Fi/selfie/web check-in. Attendance comes from time devices (one certified connector) and Excel/file import (X-04, OD-9).
+**Delivery channel.** Phase 1 is delivered as a web app only: admin plus a responsive ESS/MSS web. There are **no mobile features**: no native app, PWA, push notifications, or GPS/Wi-Fi/selfie/web check-in (X-04, OD-9). There is **no live external integration** (R2-01):
+- **Attendance** comes from Excel import, including import of the time-device software's export file (CSV/Excel) through a device-column template. It is completed by admin manual entry and ESS correction requests.
+- **Notifications** go by e-mail and in-app only. This covers login, MFA and activation OTPs, approvals and payslip notices.
+- **Statutory and finance outputs are file exports** that the customer uploads itself: the bank payment file, the VSS declaration file (via its I-VAN), the PIT XML for eTax/HTKK and the GL journal in Excel.
 
 ### 10.1 Must-have capabilities
 The exact list is the P1 rows of [mvp-scope.md](mvp-scope.md) §9. In summary:
-1. **Platform.** Assisted provisioning, shared tier with RLS, VN hosting, vi/en, local login with MFA (SSO is P2), operator back-office with consent-based support grants, module subscription with contract price and month-end billable count per legal entity (D-10), VN e-invoice, standard and statutory report framework, e-mail notifications, backup/DR.
-2. **Core.** Legal entities and locations with regions, effective-dated org (reorganisation packages and position control are P2), job titles, grades and cost centres, RBAC with data scopes and masking, workflow (sequential, any-of, all-of, HR reassignment), in-app and e-mail notifications, audit, document templates, and the import framework with **opening-balance import mode**.
-3. **People.** Person and employment records (incl. rehire), personal data and dependants, assignments, salary history, labour contracts, probation and suspension, separation with notice, protection and severance eligibility, ESS web, decisions, labour book, semi-annual and monthly labour reports, PDP controls. Onboarding/offboarding checklists, discipline procedure, rewards, probation appraisal and MSS team views are P2.
-4. **T&A.** VN holiday pack (incl. foreign employees' holidays), fixed weekly and night schedules, punch import plus one certified device connector, Excel punch/timesheet import, timesheets and corrections, OT with categories and legal caps (incl. 300h notice), leave with accrual, seniority and carry-forward, maternity, trips/WFH, period close with close hold (X-03), Attendance Result and retro, and opening leave balances and YTD OT.
-5. **Payroll.** Components and formulas, effective-dated legal parameters, Gross/Net with gross-up, SI/HI/UI/OA-OD/TU, PIT (all regimes, monthly cumulative, finalisation using imported pre-go-live months), monthly and off-cycle runs (incl. 13th month/Tết), retro pay, final settlement and severance, advances and interest-free loans, payslips (ESS web and protected e-mail PDF), bank files for the pilot's banks, GL export, D02-LT, 05/KK and 05/QTT files, e-withholding certificates.
-6. **Opening-balance import** (replaces "Migration", D-09). Standard Excel templates for the employee master, salary history, SI contribution history, YTD income/insurance/PIT per month, leave balances and YTD OT, and loans. Validate-only runs, reconciliation against the customer's control totals with sign-off, and a lock at the first approved run (BR-SAAS-069–072, 088, 089).
+1. **Platform.** Assisted provisioning, shared tier with RLS, VN hosting, vi/en, local login with MFA (SSO is P2), operator back-office with consent-based support grants (manual two-person break-glass), module subscription with contract price, month-end billable count per legal entity from a manual headcount report (D-10), VN e-invoice, standard and statutory report framework, e-mail notifications, backup/DR.
+2. **Core.** Legal entities and locations with regions, effective-dated org (reorganisation packages and position control are P2), job titles, grades and cost centres, RBAC with data scopes and masking, workflow (vendor-seeded sequential routes, HR reassignment), in-app and e-mail notifications with vendor-maintained templates, audit, document templates, and the import framework with **opening-balance import mode**.
+3. **People.** Person and employment records (incl. rehire and basic concurrent employment across legal entities, R2-16), personal data and dependants, assignments, salary history, labour contracts, probation and suspension, separation with notice, protection and severance eligibility, ESS web (view), decisions, labour book, semi-annual and monthly labour reports, PDP controls. Onboarding/offboarding checklists, discipline procedure, rewards, probation appraisal, MSS team views, ESS change requests and the document repository are P2.
+4. **T&A.** VN holiday pack (incl. foreign employees' holidays), fixed weekly and night schedules, **Excel import of punches and timesheets incl. the device-export-file template**, admin manual entry, ESS correction requests, timesheets, OT by pre-approval with categories and legal caps (incl. 300h notice), leave with accrual, seniority and carry-forward, maternity and SI claim data (minimal, R2-07), period close with close hold (X-03), Attendance Result and retro, and opening leave balances and YTD OT. One policy set per legal entity.
+5. **Payroll.** Components and formulas, effective-dated legal parameters, Gross/Net with gross-up (fixed net scope), SI/HI/UI/OA-OD/TU, PIT (all regimes, monthly cumulative, finalisation using imported pre-go-live months), monthly runs and bonus/off-cycle runs with correct PIT (Tết policy rules are P2, R2-14), retro pay, final settlement and severance, interest-free loans, payslips (ESS web and password-protected e-mail PDF, R2-17), and file exports: bank files for the pilot's banks, GL journal in Excel, D02-LT, 05/KK and 05/QTT, e-withholding certificates.
+6. **Opening-balance import** (replaces "Migration", D-09). Standard Excel templates for the employee master, salary history, SI contribution history, YTD income/insurance/PIT per month, leave balances and YTD OT, and loans. Validate-only runs, reconciliation against the customer's control totals with sign-off, a lock at the first approved run, and the one-month payroll comparison against the customer's register (BR-SAAS-069–073, 088, 089).
 
 ### 10.2 Go-live acceptance criteria
 | # | Criterion |
 |---|---|
 | G1 | The opening-balance reconciliation report against the customer's control totals (last legacy payroll register, VSS C12-TS, 05/KK filed for the year, leave report) shows zero unexplained differences and has been signed off by the pilot's HR/C&B and finance owners (BR-SAAS-072). *(changed in v0.2, D-09)* |
-| G2 | Every month of the current tax year before go-live is loaded for every employee (BR-SAAS-089). The first live payroll has been calculated in simulation, and its exception and variance reports have been reviewed and explained with the customer before approval. *(replaces the parallel-run criterion, D-09)* |
+| G2 | Every month of the current tax year before go-live is loaded for every employee (BR-SAAS-089). The one-month comparison of the last pre-go-live month against the customer's payroll register shows no unexplained variance (BR-SAAS-073, R2-03). The first live payroll has been calculated, and its exception and variance reports have been reviewed and explained with the customer before the run is submitted. *(replaces the parallel-run criterion, D-09; changed in v0.3)* |
 | G3 | The golden payroll test pack (≥ 200 scenarios) passes, and the VN consultant has signed off the active legal parameter pack (NFR-PAY-008). |
-| G4 | D02-LT and 05/KK files and the pilot bank files have been validated against current portal and bank templates (NFR-PAY-010). |
+| G4 | The exported D02-LT file, the 05/KK PIT XML and the pilot bank files are accepted by the customer's I-VAN tool, eTax/HTKK and bank portals. The GL Excel journal is accepted by the customer's accounting import (NFR-PAY-010). *(changed in v0.3: file exports only)* |
+| G8 | The pilot's attendance route works end to end: its time-device export file (or Excel timesheet) imports cleanly with the device-column template, and manual entries and correction requests close a full period. E-mail delivery of OTPs, notifications and protected payslips is tested on the pilot's mail domain. Employees without e-mail have an agreed fallback. *(new in v0.3, R2-01)* |
 | G5 | The isolation test suite passes, the penetration-test findings at critical/high level are closed, and the DPA and DPIA inputs are delivered. |
 | G6 | UAT for processes §6.1, §6.2, §6.4 and §6.5 is signed, on the web app only. §6.6 is rehearsed on the **imported** YTD data if go-live falls before year end. |
 | G7 | The cut-over month is agreed per legal entity, and the opening balances lock on approval of the first regular run (BR-SAAS-088). The go/no-go is approved by the sponsor and the pilot customer. *(changed in v0.2, D-09)* |
 
 ### 10.3 Explicitly not required for pilot go-live
 - **Mobile and channels.** All mobile features (native app, PWA, push, GPS/Wi-Fi/selfie and web check-in, mobile approval), Zalo/SMS channels.
-- **People and T&A features.** Recruitment, appraisal (incl. the probation appraisal form), training, expenses, rosters and shift swaps, onboarding/offboarding checklists and the pre-hire portal, discipline procedure, MSS team dashboards.
-- **Platform and integration.** SSO, reorganisation packages and position control, approval delegation and SLA escalation, custom fields, report designer and dashboards, separate reporting store, integration hub, public API and webhooks, VSS/eTax API submission, host-to-host banking.
-- **Commercial.** Plans/price books, dunning automation, tenant offboarding export and deletion, self-service sign-up, sandbox, dedicated tier, white-label.
+- **Live integrations (R2-01).** Time-device connector (push/pull, offline buffer, punch-rate targets), e-signature, VNeID, accounting-system and bank APIs, job boards, public API and webhooks, integration hub runtime, VSS/eTax API submission, host-to-host banking.
+- **People and T&A features.** Recruitment, appraisal (incl. the probation appraisal form), training, expenses, rosters and shift swaps, onboarding/offboarding checklists and the pre-hire portal, discipline procedure, MSS team dashboards. From Option B (R2-19): ESS personal-data change requests, document repository, rehire seniority choice, emergency contacts and education records, late/early and OT detection policies, policy assignment by group, leave cancellation with retro, trip/WFH requests, early close for one employee, device duplicate/clock-drift handling.
+- **Payroll features (R2-14, R2-19).** Tết/13th-month eligibility and proration rules, configurable net scope, subset/simulation runs, salary-advance request flow, payment-file status import, split cost allocation.
+- **Platform.** SSO, reorganisation packages and position control, approval delegation and SLA escalation, no-code workflow designer and parallel steps, tenant template and code-list overrides, custom fields, report designer and dashboards, separate reporting store, feature-flag service, async export service.
+- **Commercial.** Plans/price books, usage metering, dunning automation, tenant offboarding export and deletion, self-service sign-up, sandbox, dedicated tier, white-label.
 - **Migration.** Any legacy data migration or parallel run.
 
 ---
@@ -368,7 +391,7 @@ The exact list is the P1 rows of [mvp-scope.md](mvp-scope.md) §9. In summary:
 | A3 | The tenant is the personal-data controller and the vendor is the processor under a signed DPA. | SaaS A2; Recruitment A-05 |
 | A4 | Hosting is with a VN cloud provider that has two or more sites. No personal data is held in hyperscaler regions outside VN. | SaaS A1 |
 | A5 | The pilot fills in the opening-balance templates from its own records: every month of the current tax year before go-live, at least six months of salary history, SI contribution history, leave balances and loans. It also provides control totals and the data owners who sign off the reconciliation. There is no Oracle access and no parallel run (changed in v0.2, D-09). | SaaS A4; Payroll A5 |
-| A6 | E-invoice, I-VAN, e-signature and VNeID come from certified third-party providers. | SaaS A5/A6; People A6 |
+| A6 | E-invoice, I-VAN, e-signature and VNeID come from certified third-party providers. In Phase 1 the customer uses its own I-VAN, eTax and bank tools to upload YourHRM's export files; the e-invoice provider route for the vendor's own invoices is open (mvp-scope.md §11.4 R2-C1); e-signature and VNeID are P2 (R2-01). | SaaS A5/A6; People A6 |
 | A7 | Biometric matching happens on the device. YourHRM stores no biometric templates. | T&A A5 |
 
 ### 11.2 Constraints
@@ -386,7 +409,8 @@ The exact list is the P1 rows of [mvp-scope.md](mvp-scope.md) §9. In summary:
 | DP2 | Pilot customer: completed opening-balance templates and control totals, reconciliation sign-off owners, bank list, time-device model/firmware, UAT staff | MVP go-live |
 | DP3 | VN cloud/data-centre provider (two sites) | Residency, DR |
 | DP4 | E-invoice provider; I-VAN/T-VAN; banks' file formats; e-signature CA | Billing, statutory filing, payments, e-contracts |
-| DP5 | One certified time-device connector (ZKTeco or Hikvision) | T&A MVP |
+| DP5 | Sample export files from the pilot's time-device software (column layout, encoding, device user IDs) for the device-export-file template; one certified connector only from P2 (R2-01) | T&A MVP |
+| DP7 | A reliable e-mail service for the pilot's users (deliverability to the pilot's domain, SPF/DKIM), and personal e-mail addresses for staff without a work address | Login/OTP, notifications, payslip PDFs (R2-01, R2-17) |
 | DP6 | Architecture decisions: tenancy isolation model, workflow engine build vs embed, reporting store | All modules (see gap analysis) |
 
 ### 11.4 Top risks (consolidated)
@@ -396,12 +420,14 @@ The exact list is the P1 rows of [mvp-scope.md](mvp-scope.md) §9. In summary:
 | RK2 | Cross-tenant data leak | Critical legal and reputational damage | RLS + app filter; release-blocking isolation tests | SAAS R1, CORE R-08 |
 | RK3 | Incomplete or wrong opening balances in the customer's Excel files (no migration, D-09): duplicates, missing IDs, three-level addresses, missing pre-go-live months, YTD/SI history | Wrong monthly PIT and finalisation, severance and leave; go-live delay | Standard templates with validate-only runs; old→new address mapping; full tax-year months mandatory (BR-SAAS-089); reconciliation gate against control totals (BR-SAAS-072); lock and audited adjustments (BR-SAAS-088) | SAAS R3, PAY R7, PPL RK2, CORE R-01, ATT R7 |
 | RK4 | Retro and effective-dating inconsistency across People, T&A and Payroll | Pay and costing errors | Versioned events; Attendance Result retro contract; period locks; contract tests | PAY R4, ATT R2/R4, PPL RK3/RK4, CORE R-06 |
-| RK5 | MVP scope does not fit 16 weeks: P1 is still 281 BRs against a target of about 180–200, because 107 BRs are statutory (X-04) | Delay to pilot go-live and to the first paying tenant | Phase rating in mvp-scope.md; story-point sizing; Option B stretch cut (−29 BRs) as descope reserve; no new P1 items without a matching swap | CORE R-04, PPL RK6, SAAS R8 |
+| RK5 | MVP scope does not fit 16 weeks: P1 is still 259 BRs after round 2 and the R2-02 sync against a target of about 180–200, because 110 BRs are statutory (X-04). Option B is used up, so no descope reserve is left | Delay to pilot go-live and to the first paying tenant | Phase rating in mvp-scope.md; story-point sizing before commitment (R2-01); no new P1 items without a matching swap; next levers listed in mvp-scope.md §11.4 | CORE R-04, PPL RK6, SAAS R8 |
 | RK6 | Exposure of sensitive personal data (salary, bank, CCCD, health; GPS/selfie only from P2) | PDP Law penalties | Field encryption, masking, access logging, consent, DPIA | PPL RK5, PAY R6, ATT R5, SAAS R7 |
-| RK7 | External format/API changes (VSS, eTax, banks, devices, job boards) | Rejected files; integration gaps | Configurable templates; integration hub; connector versioning | PAY R5, SAAS R6, ATT R1, REC RK-02 |
+| RK7 | External format/API changes (VSS, eTax, banks, devices, job boards) | Rejected files; integration gaps | Configurable, versioned export and import templates (P1: bank, VSS, eTax, GL, device-export files); integration hub and connector versioning from P2 | PAY R5, SAAS R6, ATT R1, REC RK-02 |
 | RK8 | Data residency breach via third-party SaaS tools (email, monitoring, CV parser) | Regulatory penalty | Vendor inventory; VN-hosted alternatives; PII scrubbing; tenant opt-in | SAAS R4, REC RK-05 |
-| RK9 | No parallel run before go-live (D-09): calculation or configuration errors first appear on live payslips | Wrong first payroll; loss of pilot confidence | Golden test pack (G3); first run in simulation with variance review (G2); optional comparison against the customer's last payroll register (BR-SAAS-073, sponsor to re-confirm as P1) | SAAS R3, PAY R7 |
-| RK10 | Pilot attendance relies only on time devices and Excel (OD-9). Staff without devices, such as office, field and remote staff, need Excel or correction requests | Missing punches; heavier admin work at period close | Excel timesheet import (BR-ATT-025); ESS correction requests (BR-ATT-036); trips/WFH codes; device coverage agreed with the pilot | ATT R1 |
+| RK9 | No parallel run before go-live (D-09): calculation or configuration errors first appear on live payslips | Wrong first payroll; loss of pilot confidence | Golden test pack (G3); one-month comparison against the customer's last payroll register (BR-SAAS-073, P1 since R2-03); first run reviewed before submission (G2) | SAAS R3, PAY R7 |
+| RK10 | Pilot attendance has no live source (OD-9, R2-01). Device data arrives only as exported files, and staff without devices, such as office, field and remote staff, need Excel or correction requests | Missing punches; heavier admin work at period close | Excel timesheet import and device-export-file template (BR-ATT-025); ESS correction requests (BR-ATT-036); admin manual entry (BR-ATT-037); attendance codes for trips/WFH | ATT R1 |
+| RK11 | **Manual attendance effort and data-entry errors at the pilot** (R2-01, R2-19). Device files are exported and imported by hand on a schedule, and the late/early and OT detection policies, duplicate-punch handling and early close are P2. Late or edited files, wrong columns, duplicate or missing punches and keying errors in manual entries flow into OT caps, leave balances and pay | Wrong OT/leave quantities and pay; OT cap breaches not seen in time; long period close; disputes with employees | Fixed import calendar (e.g. daily or weekly) agreed with the pilot; validate-only dry run with an error file (BR-CORE-111) before every commit; device-column template tested on real export files (G8); mandatory reason and before/after history on manual edits (BR-ATT-037); pre-close exception checklist (BR-ATT-074); OT cap checks at import; ESS timesheet view for employees (BR-ATT-080); size the HR effort with the pilot before go-live | ATT R1, PAY R4 |
+| RK12 | **E-mail dependency** (R2-01, R2-17). With SMS, Zalo and push in P2, e-mail is the only outbound channel for ESS activation and MFA OTPs, former-employee OTP (OD-8), approval notices and password-protected payslips. Many factory workers have no e-mail, and mail can be delayed, filtered as spam or sent to a wrong address | Employees cannot activate ESS or receive payslips; locked-out approvers; payslip sent to the wrong person (PDPL incident) | DP7: deliverability set-up (SPF/DKIM) with the pilot's domain; personal e-mail captured and verified at hire; HR-issued one-time activation codes and printed PDF payslips as a fallback (the employer must still give every employee the payslip details, Labour Code Art. 95(3)); strong payslip passwords (mvp-scope.md §11.4 R2-C7); delivery-status tracking and resend (BR-PAY-102); SMS back as an early P2 item | SAAS R4, PAY R6, CORE R-08 |
 
 ---
 

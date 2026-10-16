@@ -1,6 +1,6 @@
 # ADR-0021: Database roles and privilege model
 
-- **Status:** Accepted (2026-10-16, X-02 — with the read-only reference-data exception listed below)
+- **Status:** Accepted (2026-10-16, X-02 — with the read-only reference-data exception listed below; **the complete exception list, including the tenant override rows of `core.code_value`/`core.exchange_rate` and the plumbing grants on `saas.job` and `audit.audit_event`, accepted in R2-11**). Relay grant on `saas.enqueue_event_delivery()` (R2-01, Phase-1 event bus): Proposed with ADR-0004 rev. 2
 - **Date:** 2026-10-16
 - **Deciders:** Data architect, Solution architect, Security lead
 - **Related:** Architecture brief B3 (modules never touch each other's tables); SA overview §4 "no cross-schema SQL"; BR-SAAS-033/036; NFR-SAAS-008; ADR-0017 (OpenBao dynamic credentials); ADR-0020, ADR-0022; [DESIGN.md](../../../database/postgresql/DESIGN.md) §2.3, §3.4; DDL `000_extensions_roles.sql`
@@ -18,8 +18,8 @@ The modular monolith must not let module X read module Y's tables. Operators mus
 | `yhrm_app` | no | **no** | Group role targeted by all RLS policies |
 | `yhrm_app_{saas,core,hr,att,pay,rec}` | yes | no | One per module, member of `yhrm_app`. DML on **its own schema only**; `INSERT` on `audit.audit_event`; `SELECT` on Core **global** reference tables; `INSERT` on `saas.job` |
 | `yhrm_platform` | yes | no | Operator back-office: platform tables in `saas`, **no grant on module schemas** |
-| `yhrm_relay` | yes | no | Outbox polling relay: `SELECT`, `UPDATE (published_at)` on every `outbox_event` via `USING (true)` policies |
-| `yhrm_cdc` | yes | no | `REPLICATION`; Debezium on a standby for the reporting store only |
+| `yhrm_relay` | yes | no | Outbox polling relay: `SELECT`, `UPDATE (published_at)` on every `outbox_event` via `USING (true)` policies; Phase 1: `EXECUTE` on the SECURITY DEFINER function `saas.enqueue_event_delivery()` (inserts pointer-only delivery jobs, ADR-0004 rev. 2) |
+| `yhrm_cdc` | yes | no | `REPLICATION`; reporting-store feed only (Phase 1 native logical replication with column lists, Phase-2 option Debezium; ADR-0012 Amendment 1) |
 | `yhrm_audit_sealer` | yes | no | `UPDATE` on audit seal columns only |
 | `yhrm_reporting_ro` | yes | no | RLS-bound read of masking views for real-time statutory reports |
 | `yhrm_ops_ro` | yes | no | `pg_monitor`; no table data |
@@ -30,7 +30,7 @@ The modular monolith must not let module X read module Y's tables. Operators mus
 - `PUBLIC` loses `CREATE` on `public`; procedures used by migrations are not executable by `PUBLIC`.
 - Cross-tenant work that apps need (job claiming) goes through **`SECURITY DEFINER` functions** owned by `yhrm_owner` with a fixed `search_path` (for example `saas.claim_jobs`), not through broad policies.
 
-### Cross-schema exception list (X-02, accepted 2026-10-16)
+### Cross-schema exception list (X-02, accepted 2026-10-16; list confirmed in R2-11)
 
 A module app role has **no grant on another module's schema**, with exactly these exceptions. Anything not listed is a build failure.
 

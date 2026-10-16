@@ -1,6 +1,6 @@
 # ADR-0026: PII classification, application-level envelope encryption and crypto-shredding
 
-- **Status:** Accepted (2026-10-16, X-01)
+- **Status:** Accepted (2026-10-16, X-01; P3 list extended the same day with the payslip PDF password, R2-17, accepted)
 - **Date:** 2026-10-16 (amended for X-01)
 - **Deciders:** Data architect, Security lead, DPO, Solution architect; PM arbitration X-01 (sponsor-approved)
 - **Related:** gap-analysis §9 A-9; NFR-SAAS-007, NFR-PPL-005, NFR-PAY-004, NFR-REC-004/009, NFR-ATT-008; PDPL 2025 / Decree 13/2023 `[verify-legal]`; ADR-0017 (OpenBao transit); [DESIGN.md](../../../database/postgresql/DESIGN.md) §9.3–9.4; DDL `saas.tenant_key`, `saas.subject_key`, `*_enc/*_bidx/*_last4` columns
@@ -12,7 +12,7 @@ The NFRs require field-level encryption with per-tenant keys for CCCD/passport n
 ## Decision
 
 1. **Classify every column** as P0–P3 with a `COMMENT 'pii:Px'`. A CI check rejects unclassified columns and feeds the SaaS PD inventory.
-2. **P3** (identity numbers, tax code, SI number, bank account numbers, religion, ethnicity, health/disability, GPS, selfie references, dependants' ID and tax codes, candidate ID documents) is **encrypted by the application** with AES-256-GCM into `<col>_enc bytea`. Equality search uses a blind index `<col>_bidx` (HMAC-SHA256 with a tenant key derived via HKDF, truncated to 16 bytes); display uses `<col>_last4`.
+2. **P3** (identity numbers, tax code, SI number, bank account numbers, religion, ethnicity, health/disability, GPS, selfie references, dependants' ID and tax codes, candidate ID documents, and the employee-set payslip PDF password of R2-17 (`pay.payslip_delivery_preference.pdf_password_enc`, write-only)) is **encrypted by the application** with AES-256-GCM into `<col>_enc bytea`. Equality search uses a blind index `<col>_bidx` (HMAC-SHA256 with a tenant key derived via HKDF, truncated to 16 bytes); display uses `<col>_last4`.
 3. **Key hierarchy:** tenant KEK in OpenBao transit (in VN; software root of trust for the MVP, HSM-backed root before the Enterprise tier, OD-10) → **per-data-subject DEK** (`saas.subject_key.wrapped_dek`; person, candidate, casual payee, family member) → columns. The ciphertext header carries the key id and version.
 4. **Crypto-shredding:**
    * subject level: `wrapped_dek := NULL` (DSR erasure, retention expiry);

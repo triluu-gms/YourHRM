@@ -12,6 +12,9 @@
 -- NOTE: the tenancy helper functions (sys.current_tenant_id, sys.enable_tenant_rls…)
 -- live here rather than in 002_core.sql because 001_saas.sql already needs them.
 -- They are owned by the platform shared kernel; Core consumes them like everyone.
+--
+-- v0.3 (2026-10-16, R2-01): role comments only (relay feeds the Phase-1 DB-backed
+-- bus; yhrm_cdc feeds the reporting store by native logical replication). NOT tested.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -55,8 +58,8 @@ BEGIN
       ('yhrm_app_pay',       true,  false, 'Payroll module runtime (incl. calculation workers).'),
       ('yhrm_app_rec',       true,  false, 'Recruitment module runtime.'),
       ('yhrm_platform',      true,  false, 'Operator back-office. Platform tables in saas only.'),
-      ('yhrm_relay',         true,  false, 'Outbox polling relay (ADR-0004). Reads/marks outbox of all tenants via dedicated policy.'),
-      ('yhrm_cdc',           true,  false, 'Debezium logical decoding on a standby for the reporting store only (ADR-0012).'),
+      ('yhrm_relay',         true,  false, 'Outbox polling relay (ADR-0004 rev. 2). Reads/marks outbox of all tenants via dedicated policy; P1 enqueues bus deliveries via saas.enqueue_event_delivery(), P2 publishes to Kafka.'),
+      ('yhrm_cdc',           true,  false, 'Reporting-store feed only (ADR-0012 amendment): P1 native logical replication (column-listed publications), P2 option Debezium on a standby.'),
       ('yhrm_audit_sealer',  true,  false, 'Seals the audit hash chain (seal columns only).'),
       ('yhrm_reporting_ro',  true,  false, 'Real-time statutory reports on OLTP; RLS applies.'),
       ('yhrm_ops_ro',        true,  false, 'Monitoring only (pg_monitor). No table data.'),
@@ -77,7 +80,7 @@ GRANT yhrm_owner TO yhrm_migrator;                       -- SET ROLE yhrm_owner 
 GRANT yhrm_app   TO yhrm_app_saas, yhrm_app_core, yhrm_app_hr,
                     yhrm_app_att,  yhrm_app_pay,  yhrm_app_rec;
 GRANT pg_monitor TO yhrm_ops_ro;
-ALTER ROLE yhrm_cdc WITH REPLICATION;                    -- reporting CDC only; the business event path is the polling relay
+ALTER ROLE yhrm_cdc WITH REPLICATION;                    -- reporting feed only; the business event path is the polling relay
 
 -- Safe defaults for every application session (also enforced by the pool config).
 ALTER ROLE yhrm_app_saas SET statement_timeout = '30s';

@@ -3,12 +3,14 @@
 | Item | Value |
 |---|---|
 | Document | `docs/02-architecture/architecture-overview.md` |
-| Version | **0.2 — 2026-10-16** (sponsor decisions applied; v0.1 was the draft for review of the same day) |
+| Version | **0.3 — 2026-10-16** (round-2 decisions R2-01 … R2-19 and PM interpretations, decision log §7–§7.2, applied; v0.2 applied round 1; v0.1 was the draft for review) |
 | Author | Solution architect (with the Data architect for X-01/X-02/D-09) |
 | Inputs | [Architecture brief](architecture-brief.md) · [Decision log](../00-project-management/decision-log.md) · [Master BRD](../01-requirements/brd/BRD.md) · [Module BRDs](../01-requirements/brd/modules/) · [Gap analysis](../01-requirements/brd/gap-analysis.md) §5, §6, §7, §9 |
 | Companion | Data architecture: `database/postgresql/DESIGN.md` and ADR 0020–0039 (Data architect). This document refers to it as **"see data architecture (DESIGN.md)"** and does not decide data-model questions. |
 | ADRs | [0001–0019](adr/) — status per ADR in §18 (accepted ones carry the decision ID) |
 | Status | Baseline for SRS and sprint 1. Items that need measurement are marked **[spike]**. Legal values are never quoted here; they live in legal parameter packs. |
+
+**What changed in v0.3 (round 2, decision log §7–§7.2).** **R2-01 / R2-19: Phase 1 has no live external integrations.** Phase 1 keeps e-mail and in-app notifications, **file exports** the customer uploads (bank payment file, VSS insurance declaration file, PIT XML for eTax, GL journal in Excel) and **Excel/CSV imports, including the time-device export file (punch template)**. Moved to Phase 2: the time-device connector agent, its offline buffer, the `hrm-ingest` role and the 500 punches/s target (X-05, SP-3 postponed), Zalo/SMS adapters, e-signature, VNeID, accounting APIs, job boards, public API and webhooks, and the integration-hub runtime (§3.1, §3.2, §7.5, §12; ADR-0016, ADR-0014). Consequently **Kafka is not deployed in Phase 1**: the outbox relay delivers events through ordered delivery jobs on the PostgreSQL job queue and the reporting store is fed by native logical replication; Kafka arrives in Phase 2 behind the same outbox (§7.2, §10.2; ADR-0004 rev. 2, ADR-0012 Amendment 1 — both Proposed). **R2-04:** SSO to Phase 2; Phase 1 = Keycloak username/password + MFA by TOTP or e-mail OTP (§6; ADR-0005). **R2-16:** basic concurrent employment across legal entities (§8.4; DESIGN.md §7.3). **R2-17:** payslips by e-mail as password-protected PDF, password set by the employee in ESS (§9.3, §9.4; ADR-0015). **R2-18:** baseline always-on capabilities and their entitlement design (§5.4; ADR-0003). **R2-11:** X-02 exception list accepted (§3.3). **R2-12:** `SUSPENDED` employees not billable (§17.2). **R2-15:** AR-13 accepted with mitigations (§17.1).
 
 **What changed in v0.2 (decision log 2026-10-16).** X-01: salary amounts are **not** column-encrypted (§13.1). X-02: read-only exception for global reference data (§3.3 rule 4). X-03: period-close hold accepted (§7.4.2). X-04 + OD-9: Phase 1 = core features of each module as responsive web; **no PWA or mobile check-in in Phase 1** — all mobile features are Phase 2; Phase-1 attendance comes from time devices and Excel import (§11.4). X-05: 500 punches/s platform, 50/s per tenant (SP-3 confirms). X-06: three new events in catalogue v1.1. X-07: `saas` schema approved. D-09: **no Oracle migration**; replaced by the generic opening-balance import (§9.6, ADR-0037). OD-1…OD-10: see §17.2.
 
@@ -18,7 +20,9 @@
 
 ## 1. Scope and baseline
 
-This document is the solution architecture for the MVP — Phase 1: the **core features** of Core, People, T&A and Payroll (X-04), platform tenancy/identity/legal parameters, admin web and responsive ESS/MSS web, and the **opening-balance import** for go-live (D-09; there is no Oracle migration) — and the structural provisions for Phase 2 (Recruitment, **all mobile features** including the native app and GPS/Wi-Fi/selfie check-in, public API, dedicated tier, dashboards).
+This document is the solution architecture for the MVP — Phase 1: the **core features** of Core, People, T&A and Payroll (X-04), platform tenancy/identity/legal parameters, admin web and responsive ESS/MSS web, and the **opening-balance import** for go-live (D-09; there is no Oracle migration) — and the structural provisions for Phase 2 (Recruitment, **all mobile features** including the native app and GPS/Wi-Fi/selfie check-in, **all live external integrations** (R2-01: time-device connector and ingestion, Zalo/SMS, e-signature, VNeID, accounting APIs, job boards, public API and webhooks), SSO (R2-04), Kafka, dedicated tier, dashboards).
+
+**Phase 1 external surface (R2-01).** Outbound: e-mail through a VN relay only. Everything else leaves the system as a **file the customer downloads and uploads** (bank payment file, VSS declaration file, PIT XML for eTax, GL journal Excel) and enters as an **imported file** (Excel templates, opening balances, time-device export files). No provider credentials, callbacks or outbound API calls exist in Phase 1.
 
 It is designed against the PM baseline in the [architecture brief](architecture-brief.md) and does not challenge it:
 
@@ -26,11 +30,11 @@ It is designed against the PM baseline in the [architecture brief](architecture-
 |---|---|---|
 | B1 | Gap-analysis §5 single-owner table | Module map §3.3; every shared engine has exactly one home module |
 | B2 | Schemas `saas` (X-07 approved), `core`, `hr`, `att`, `pay`, `rec` + separate reporting store | One backend module per schema; modules never read another module's tables (ADR-0001), except read-only global reference data (X-02, ADR-0021) |
-| B3 | Modular monolith; payroll workers and punch ingestion scale separately | One artifact, three runtime roles (`api`, `worker`, `ingest`) (ADR-0001) |
+| B3 | Modular monolith; payroll workers and punch ingestion scale separately | One artifact; Phase 1 runtime roles `api` and `worker` (several worker pools); the `ingest` role for live punches is **Phase 2** (R2-01, no live device feed in Phase 1); ADR-0001 Amendment 1 |
 | B4 | Shared pool with `tenant_id` + RLS + app guard; Enterprise dedicated DB; VN hosting | Tenant routing layer (§5, ADR-0003); VN-only hosting (ADR-0017) |
-| B5 | Outbox per module, canonical envelope, §6 catalogue v1 | Event backbone (§7, ADR-0004) |
+| B5 | Outbox per module, canonical envelope, §6 catalogue v1 | Event backbone (§7, ADR-0004 rev. 2): outbox + relay; Phase-1 transport = ordered delivery jobs on PostgreSQL, Kafka in Phase 2 |
 | B6 | Effective-dated, versioned legal values; version stamp on each result; reproducible 10 years | Legal Parameter Service (§9.1, ADR-0010) and payroll engine (§8, ADR-0008/0009) |
-| B7 | MVP = core features only (X-04); opening-balance import, no Oracle migration (D-09); no mobile features (OD-9); Recruitment P2 | Phase tags on every component; mobile and PWA components tagged P2 |
+| B7 | MVP = core features only (X-04); opening-balance import, no Oracle migration (D-09); no mobile features (OD-9); Recruitment P2; no live external integrations (R2-01); no SSO (R2-04) | Phase tags on every component; mobile, PWA, integration-hub runtime, ingest, Kafka and SSO components tagged P2 |
 
 ---
 
@@ -45,7 +49,7 @@ It is designed against the PM baseline in the [architecture brief](architecture-
 | D-3 | **Payroll performance** | 10,000 employees × ~60 elements ≤ 15 min; 1,000 ≤ 2 min; one employee ≤ 5 s | NFR-SAAS-002, NFR-PAY-001 | Partitioned parallel calculation on worker pool; bulk I/O; design target 10k ≤ 5 min to keep 3× headroom (§8.4) |
 | D-4 | **Availability** | 99.5% (Enterprise 99.9%); no maintenance on days 25–5; login SLO 99.9% | NFR-SAAS-001, GAP-069 | Stateless pods, rolling releases, local JWT validation, HA PostgreSQL (§14) |
 | D-5 | **Interactive latency** | p95 ≤ 500 ms transactional, ≤ 3 s standard reports; authz overhead ≤ 20 ms p95; as-of org tree ≤ 1 s | NFR-SAAS-003, NFR-CORE-002/003 | Cached authorisation snapshot, index-friendly scope predicates, read replicas (§6) |
-| D-6 | **Check-in burst** | 2,000/min per tenant, 20,000/min platform (≈ 333/s), p95 ack ≤ 1 s; punch-to-timesheet ≤ 5 min; no loss | NFR-SAAS-004, NFR-ATT-001/002 | Dedicated `ingest` role writing to Kafka; asynchronous processing. **Capacity figure accepted (X-05): design for 500 punches/s platform peak, 50/s per tenant**, to be confirmed by SP-3 (resolves GAP-058; covers NFR-ATT-001's 200/s). Phase-1 sources are time devices (connector agent) and file import only (OD-9) |
+| D-6 | **Check-in burst** (**Phase 2**, R2-01) | 2,000/min per tenant, 20,000/min platform (≈ 333/s), p95 ack ≤ 1 s; punch-to-timesheet ≤ 5 min; no loss | NFR-SAAS-004, NFR-ATT-001/002 | **Phase 2:** dedicated `ingest` role writing to Kafka; asynchronous processing; X-05 figure (500 punches/s platform, 50/s per tenant) confirmed by SP-3, both postponed to Phase 2 with the live device connector. **Phase 1:** no live punch stream — punches arrive only in imported device-export files (CSV/Excel), processed as chunked import jobs; target: a 2,000-employee monthly file (~250k punches) validated and committed ≤ 10 min, timesheets recomputed ≤ 15 min after commit |
 | D-7 | **Scalability & fairness** | ≥ 500 tenants, ≥ 200k employees at launch, 5× without re-architecture; a noisy tenant ≤ 20% of pool capacity | NFR-SAAS-005, NFR-PAY-013 | Horizontal pods, multiple pool DB clusters, fair-share job queue, per-tenant rate limits (§5.5) |
 | D-8 | **Peak capacity** | 3× average during days 25–5 and Jan–Mar | NFR-SAAS-021 | HPA on worker queue depth; pre-scaled node pools on a calendar (§14.6) |
 | D-9 | **Backup & DR** | RPO ≤ 15 min; RTO ≤ 4 h (Enterprise ≤ 2 h); second VN DC; per-tenant PITR to sandbox | NFR-SAAS-006 | Streaming replica + WAL archive in DC2, GitOps rebuild, quarterly drill (§14.7) |
@@ -63,7 +67,7 @@ It is designed against the PM baseline in the [architecture brief](architecture-
 | C-2 | All personal data stored and processed in Vietnam, including logs, backups, search indexes, reporting store, e-mail relays and support tooling | BRD §5.2, L15/L16, RK8 |
 | C-3 | Legal values never hard-coded; tagged `[verify-legal]` until consultant sign-off | BRD §1 |
 | C-4 | No maintenance on days 25–5 | NFR-SAAS-001 |
-| C-5 | Certified third-party providers for e-invoice, I-VAN/T-VAN, e-signature CA, VNeID | BRD A6 |
+| C-5 | Certified third-party providers for e-invoice, I-VAN/T-VAN, e-signature CA, VNeID — **all Phase 2** (R2-01); Phase 1 produces files the customer submits through the official portals | BRD A6 |
 | C-6 | No biometric templates stored | BRD A7, NFR-ATT-008 |
 | C-7 | Small-to-mid team building the core features of 4 MVP modules + platform; pilot go-live with opening balances loaded from Excel templates (no Oracle migration) within 16 weeks of contract | BRD O4, X-04, D-09 |
 
@@ -75,7 +79,8 @@ It is designed against the PM baseline in the [architecture brief](architecture-
 | QAS-2 | Performance | C&B officer starts a FINAL run for 10,000 employees on the 2nd of the month while 50 other tenants calculate | Peak, 3× load | Run is partitioned; tenant receives ≤ 20% of worker slots but at least its floor | ≤ 15 min end-to-end; other tenants' p95 UI ≤ 500 ms |
 | QAS-3 | Reproducibility | Labour inspector asks to recompute the March 2027 payslip in 2035 | Engine has moved 8 major versions | Snapshot + stamped engine version reproduce the result | Byte-identical result lines |
 | QAS-4 | Legal change | Government issues a new regional minimum wage 45 days before effective date | Normal ops | Content owner publishes a pack after golden tests; runs dated after the effective date pick it up | Pack live ≥ 7 days before effective date; 0 code deployments |
-| QAS-5 | Burst | 10,000 workers clock in within 15 min at a garment factory | Shift change | `ingest` acknowledges, Kafka buffers, workers process | p95 ack ≤ 1 s; 0 lost punches; timesheet ≤ 5 min |
+| QAS-5 | Burst (**Phase 2**) | 10,000 workers clock in within 15 min at a garment factory | Shift change | `ingest` acknowledges, Kafka buffers, workers process | p95 ack ≤ 1 s; 0 lost punches; timesheet ≤ 5 min |
+| QAS-5a | Punch file (Phase 1) | T&A admin uploads the device-software export of a 2,000-employee site for one month | Normal ops, day 1 of close | Import validates (unknown enrol ids, duplicates, out-of-period rows), commits in chunks, timesheets recompute | ≤ 10 min to commit, 0 duplicate punches on re-upload, exceptions listed per row |
 | QAS-6 | Availability | Node or AZ hosting the primary database fails | Day 28 (payroll window) | Operator promotes synchronous standby automatically | Downtime ≤ 60 s; no committed transaction lost |
 | QAS-7 | DR | DC1 is lost entirely | Any time | DC2 standby promoted, apps redeployed by GitOps, DNS switched | RPO ≤ 15 min, RTO ≤ 4 h |
 | QAS-8 | Consistency | T&A admin re-opens an attendance period after payroll was calculated | Before approval | Run is flagged stale and cannot be approved until recalculated | 0 runs approved on a superseded attendance version |
@@ -107,46 +112,55 @@ flowchart LR
 
   EMP & MGR & HRA & FIN & TIT & CAN & OPS & DPO --> HRM
 
-  subgraph Government
-    VSS[VSS / BHXH<br/>via I-VAN]
-    ETAX[GDT eTax / HTKK<br/>via T-VAN]
-    VNEID[VNeID e-identity]
-  end
-  subgraph Finance
-    BANK[Banks<br/>payment files / H2H P2]
-    ACC[MISA / Fast / SAP<br/>GL journals]
-    EINV[E-invoice provider<br/>subscription billing]
-  end
-  subgraph Trust
-    ESIGN[E-signature CA / e-contract<br/>VNPT, Viettel, FPT...]
-    IDP[Tenant IdPs<br/>Google, Entra ID, SAML]
-  end
-  subgraph Channels
-    MAIL[E-mail relay - VN]
-    ZALO[Zalo ZNS - P2]
-    SMS[SMS brandname - P3]
-    PUSH[FCM / APNs - P2]
-  end
-  subgraph Workplace
-    DEV[Time devices<br/>ZKTeco / Hikvision<br/>via on-prem connector]
-    JOB[Job boards, calendars,<br/>CV parser - P2/P3]
+  subgraph Files[P1 - files moved by the customer, no live link]
+    BFILE[Bank payment file<br/>CSV / XLSX / XML per bank]
+    VFILE[VSS insurance declaration file<br/>D02-LT and related]
+    TFILE[PIT XML for eTax<br/>05/KK, 05/QTT]
+    GFILE[GL journal - Excel]
+    DFILE[Time-device software<br/>export file CSV / Excel]
     OBT[Opening-balance Excel templates<br/>prepared by the customer at go-live]
   end
+  subgraph Channels
+    MAIL[E-mail relay - VN - P1]
+    ZALO[Zalo OA / ZNS - P2]
+    SMS[SMS brandname - P2/P3]
+    PUSH[FCM / APNs - P2]
+  end
+  subgraph Government[Government - live links P2]
+    VSS[VSS / BHXH portal<br/>I-VAN API - P2]
+    ETAX[GDT eTax portal<br/>T-VAN API - P2]
+    VNEID[VNeID e-identity - P2]
+  end
+  subgraph Finance[Finance - live links P2]
+    BANK[Banks<br/>H2H / statements - P2]
+    ACC[MISA / Fast / SAP<br/>APIs - P2]
+    EINV[E-invoice provider<br/>subscription billing - P2]
+  end
+  subgraph Trust[Trust - P2]
+    ESIGN[E-signature CA / e-contract - P2]
+    IDP[Tenant IdPs SSO<br/>Google, Entra ID, SAML - P2]
+  end
+  subgraph Workplace[Workplace - P2]
+    DEV[Time devices via on-prem<br/>connector agent - P2]
+    JOB[Job boards, calendars,<br/>CV parser - P2/P3]
+    WHK[Public API / webhook<br/>consumers - P2]
+  end
 
-  HRM -- D02-LT files / API P2 --> VSS
-  HRM -- 05/KK, 05/QTT XML, e-certificates --> ETAX
-  HRM -- level-2 e-ID check --> VNEID
-  HRM -- bank files --> BANK
-  BANK -- statements / confirmations --> HRM
-  HRM -- journals --> ACC
-  HRM -- invoice requests --> EINV
-  HRM -- sign requests / callbacks --> ESIGN
-  IDP -- OIDC / SAML federation --> HRM
-  HRM --> MAIL & ZALO & SMS & PUSH
-  DEV -- punches --> HRM
-  HRM <-- postings / applications --> JOB
-  OBT -- upload via import engine, validate, reconcile, sign off --> HRM
+  HRM -- P1 download --> BFILE & VFILE & TFILE & GFILE
+  BFILE -. uploaded by customer .-> BANK
+  VFILE -. uploaded by customer .-> VSS
+  TFILE -. uploaded by customer .-> ETAX
+  DFILE -- P1 upload via import engine --> HRM
+  OBT -- P1 upload, validate, reconcile, sign off --> HRM
+  HRM -- P1 e-mail incl. payslip PDF with password --> MAIL
+  HRM -. P2 .-> ZALO & SMS & PUSH
+  HRM -. P2 API .-> VSS & ETAX & VNEID & BANK & ACC & EINV & ESIGN
+  IDP -. P2 OIDC / SAML .-> HRM
+  DEV -. P2 punches .-> HRM
+  HRM -. P2 .-> JOB & WHK
 ```
+
+Solid arrows are Phase 1; dotted arrows are Phase 2 (R2-01). In Phase 1 the only network link to a third party is the VN e-mail relay; all statutory and financial outputs are files the customer downloads and submits through the official portals.
 
 ### 3.2 Containers (C4 level 2)
 
@@ -157,7 +171,7 @@ flowchart TB
     ESS[ESS / MSS responsive web<br/>React + TS, no PWA in P1]
     MOB[Mobile app - P2<br/>React Native, GPS/selfie check-in]
     CAR[Career site - P2<br/>SSR]
-    AGT[Device connector agent<br/>on-prem, buffers 7 days]
+    AGT[Device connector agent - P2<br/>on-prem, buffers 7 days]
   end
 
   subgraph Edge[Edge - VN DC]
@@ -168,58 +182,66 @@ flowchart TB
 
   subgraph App[Application tier - Kubernetes]
     API[hrm-api<br/>modular monolith, role=api<br/>stateless REST]
-    WRK[hrm-worker<br/>same artifact, role=worker<br/>jobs, payroll partitions, outbox relay,<br/>event consumers, connectors]
-    ING[hrm-ingest<br/>punch ingestion endpoint]
-    KC[Keycloak<br/>identity, OIDC/SAML, MFA]
+    WRK[hrm-worker<br/>same artifact, role=worker<br/>pools payroll / general / events / reporting<br/>jobs, imports, file exports, outbox relay,<br/>event delivery; integration pool P2]
+    ING[hrm-ingest - P2<br/>live punch ingestion]
+    KC[Keycloak<br/>password + MFA TOTP / e-mail OTP<br/>OIDC/SAML brokering P2]
     DOC[doc-render<br/>Gotenberg + LibreOffice]
     AV[ClamAV<br/>malware scan]
   end
 
   subgraph Data[Data tier]
-    PGP[(PostgreSQL pool clusters<br/>saas, core, hr, att, pay, rec<br/>RLS)]
+    PGP[(PostgreSQL pool clusters<br/>saas, core, hr, att, pay, rec<br/>RLS; outbox + saas.job = P1 event bus)]
     PGD[(Dedicated tenant DBs - P2)]
-    KAF[[Kafka + Apicurio schema registry]]
+    KAF[[Kafka + Apicurio - P2]]
     VAL[(Valkey<br/>cache, rate limits, sessions)]
     OBJ[(S3-compatible object storage<br/>VN region, per-tenant prefix)]
     BAO[OpenBao<br/>secrets, transit KMS<br/>software root MVP, HSM before Enterprise]
   end
 
   subgraph Analytics
-    CDC[Kafka Connect + Debezium<br/>CDC]
-    RPT[(Reporting store<br/>PostgreSQL, RLS)]
+    RPT[(Reporting store<br/>PostgreSQL, RLS<br/>fed by native logical replication)]
+    CDC[Debezium CDC - P2 option]
     BI[Apache Superset - P2<br/>embedded dashboards]
   end
 
+  MAIL[E-mail relay VN]
   OBS[Observability<br/>OTel Collector, Grafana, Loki, Tempo, Mimir]
 
   WEB & ESS --> CDN
   WEB & ESS --> GW --> BFF --> API
-  MOB & CAR --> GW
-  GW -- public API P2 --> API
-  AGT --> GW --> ING --> KAF
+  MOB & CAR -. P2 .-> GW
+  GW -. public API P2 .-> API
+  AGT -. P2 .-> GW
+  GW -. P2 mTLS .-> ING -.-> KAF
   BFF <--> KC
   API --> KC
   API & WRK --> PGP & PGD
   API & WRK --> VAL
   API & WRK --> OBJ
   API & WRK --> BAO
-  WRK <--> KAF
+  WRK -. P2 .-> KAF
   WRK --> DOC
+  WRK --> MAIL
+  KC --> MAIL
   API --> AV
-  PGP -- logical decoding --> CDC --> KAF --> RPT
-  BI --> RPT
-  API -. embed token .-> BI
+  PGP -- P1 logical replication, column lists --> RPT
+  PGP -. P2 option .-> CDC -.-> KAF
+  BI -. P2 .-> RPT
+  API -. embed token P2 .-> BI
   App -.-> OBS
 ```
 
-| Container | Technology | Scales by | Notes |
-|---|---|---|---|
-| `hrm-api` | Spring Boot (all modules), virtual threads | CPU / RPS (HPA) | Stateless; serves REST for the SPA (via BFF); mobile app and public API in P2 |
-| `hrm-worker` | Same jar, `role=worker` profile | Job queue depth, consumer lag (KEDA) | Runs payroll partitions, imports/exports, document batches, outbox relay, Kafka consumers, connectors. Separate worker pools (`payroll`, `general`, `integration`) are separate Deployments of the same image |
-| `hrm-ingest` | Small Spring Boot app (shares `shared/common`, `att` contracts) | RPS | Authenticates device/agent credential, validates, writes to `att.punch.raw` topic keyed by tenant, acks. Phase 1 accepts device-agent punches only; mobile punches arrive in P2 through the same endpoint |
-| `hrm-bff` | Spring Cloud Gateway (server WebMVC) + Spring Security OAuth2 client | RPS | Holds OIDC tokens server side; browser gets an HttpOnly, SameSite cookie (ADR-0014) |
-| Keycloak | Keycloak 26.x, own PostgreSQL DB | Replicas | Single realm with Organizations; dedicated realm option for Enterprise (ADR-0005) |
-| doc-render | Gotenberg 8 | Replicas | DOCX→PDF/A for tenant-edited templates |
+Solid = Phase 1; dotted = Phase 2 (R2-01, R2-04, OD-9).
+
+| Container | Phase | Technology | Scales by | Notes |
+|---|---|---|---|---|
+| `hrm-api` | P1 | Spring Boot (all modules), virtual threads | CPU / RPS (HPA) | Stateless; serves REST for the SPA (via BFF); mobile app and public API in P2 |
+| `hrm-worker` | P1 | Same jar, `role=worker` profile | Job queue depth per pool (KEDA) | Runs payroll partitions, imports (incl. device-export punch files), file exports (bank, VSS, PIT XML, GL), document batches, the outbox relay and **event-delivery jobs** (pool `events`, ADR-0004 rev. 2). Pools `payroll`, `general`, `events`, `reporting` are separate Deployments of the same image; the `integration` pool (connectors) is **P2** |
+| `hrm-ingest` | **P2** | Small Spring Boot app (shares `shared/common`, `att` contracts) | RPS | **Not deployed in Phase 1** (decision: no live punch source exists, R2-01; device-export files go through the import engine on the `general` pool). In Phase 2 it authenticates the device-agent credential (mTLS), validates, writes to the `att.punch.raw` Kafka topic keyed by tenant and acks; mobile punches use the same endpoint |
+| `hrm-bff` | P1 | Spring Cloud Gateway (server WebMVC) + Spring Security OAuth2 client | RPS | Holds OIDC tokens server side; browser gets an HttpOnly, SameSite cookie (ADR-0014) |
+| Keycloak | P1 | Keycloak 26.x, own PostgreSQL DB | Replicas | Single realm with Organizations; password + MFA (TOTP / e-mail OTP) in P1; SSO brokering P2 (R2-04); dedicated realm option for Enterprise (ADR-0005) |
+| doc-render | P1 | Gotenberg 8 | Replicas | DOCX→PDF/A for tenant-edited templates |
+| Kafka + Apicurio | **P2** | Strimzi / provider-managed | Brokers | Introduced with the live device connector, webhooks or when bus volume exceeds the DB-backed bus (ADR-0004 rev. 2 triggers) |
 
 ### 3.3 Components of the modular monolith (C4 level 3)
 
@@ -233,7 +255,7 @@ flowchart TB
   end
   subgraph Foundation[Foundation modules]
     CORE[core<br/>core<br/>LE, org, positions, authz, workflow,<br/>notification centre, documents, import,<br/>audit, master data, custom fields]
-    SAAS[saas-platform<br/>saas<br/>tenancy, entitlements, flags, identity bridge,<br/>legal parameters, job scheduler, storage,<br/>channels, integration hub, privacy, reporting, ESS shell API]
+    SAAS[saas-platform<br/>saas<br/>tenancy, entitlements, flags, identity bridge,<br/>legal parameters, job scheduler, storage,<br/>e-mail channel, file-export framework P1 / integration hub P2,<br/>privacy, reporting, ESS shell API]
   end
   subgraph Kernel[Shared kernel - libraries, no business state]
     COM[shared/common<br/>tenant context, money, effective dating,<br/>ids, errors, outbox API]
@@ -260,7 +282,7 @@ flowchart TB
 1. Arrows are the **only allowed synchronous (compile-time) dependencies**: `recruitment → payroll → time-attendance → people → core → saas-platform → shared/*`; feature modules may also call `saas-platform` directly (legal parameters, scheduler, storage). Recruitment uses Payroll only for bands and the gross↔net simulator.
 2. A module calls another only through its `api` package (Java interfaces + immutable DTOs from `shared/contracts`). Everything under `internal` is invisible to other modules.
 3. **Reverse flows use events or SPIs, never imports.** Examples: Core consumes `people.EmployeeHired` through the event schema in `shared/contracts`, not through the People module; Core's workflow SLA uses a `WorkingCalendarProvider` SPI declared in Core and implemented by T&A; T&A learns pay calendars and pay-group assignments from `pay.*` events.
-4. **No cross-schema SQL.** Each module's DB role owns its schema; the runtime role of module X has no grant on schema Y (see data architecture (DESIGN.md) for roles and grants). Joins across modules happen in the reporting store only. **Single exception (X-02, accepted 2026-10-16):** every module role may `SELECT` (read-only) the **global reference tables** listed in ADR-0021 — Core `country`, `currency`, `admin_unit`, `admin_unit_mapping`, `bank`, `bank_branch`, `code_list`, `code_value` / `v_code_value_effective`, `exchange_rate`, and the tenant's own `saas.tenant` row. Job enqueue (`saas.job`) and audit append (`audit.audit_event`) are platform plumbing in the same list. The list is guarded by an ArchUnit rule (SQL/jOOQ references) and a DB test (`sys.cross_schema_grant_violations()` returns 0 rows); both fail the build. Legal parameters are **not** in the list: modules use the LPS API.
+4. **No cross-schema SQL.** Each module's DB role owns its schema; the runtime role of module X has no grant on schema Y (see data architecture (DESIGN.md) for roles and grants). Joins across modules happen in the reporting store only. **Single exception (X-02, accepted 2026-10-16):** every module role may `SELECT` (read-only) the **global reference tables** listed in ADR-0021 — Core `country`, `currency`, `admin_unit`, `admin_unit_mapping`, `bank`, `bank_branch`, `code_list`, `code_value` / `v_code_value_effective`, `exchange_rate`, and the tenant's own `saas.tenant` row. Job enqueue (`saas.job`) and audit append (`audit.audit_event`) are platform plumbing in the same list. **R2-11 (2026-10-16): the complete list — including the tenant override rows of `core.code_value` / `core.exchange_rate` and the two plumbing grants — is accepted as covered by X-02.** The list is guarded by an ArchUnit rule (SQL/jOOQ references) and a DB test (`sys.cross_schema_grant_violations()` returns 0 rows); both fail the build. Legal parameters are **not** in the list: modules use the LPS API.
 5. `shared/*` holds no business state and depends on nothing else in the repo.
 6. A module's transaction never spans another module's writes. Cross-module consistency is eventual via outbox events or orchestrated by a saga (§7.4).
 
@@ -268,7 +290,7 @@ flowchart TB
 
 | Module | Owns (system of record) | Shared engines hosted |
 |---|---|---|
-| `saas-platform` | Tenants, plans, subscriptions, invoices, entitlements and feature flags, global identity link, IdP config, API clients, legal parameter packs, consent registry, PD inventory, DSR cases, retention schedule, platform audit | Legal Parameter Service; job scheduler/queue; object storage; channel delivery adapters; integration hub and connectors; go-live onboarding (opening-balance template set, sandbox rehearsal, sign-off; the import engine itself is Core); reporting framework and exports; ESS/MSS shell |
+| `saas-platform` | Tenants, plans, subscriptions, invoices, entitlements and feature flags, global identity link, IdP config, API clients, legal parameter packs, consent registry, PD inventory, DSR cases, retention schedule, platform audit | Legal Parameter Service; job scheduler/queue (also the Phase-1 event-delivery transport); object storage; channel delivery adapters (e-mail P1; Zalo, SMS, push P2); **file-export framework** (bank, VSS, PIT XML, GL templates; P1) and integration hub runtime and connectors (P2, ADR-0016); go-live onboarding (opening-balance template set, sandbox rehearsal, sign-off; the import engine itself is Core); reporting framework and exports; ESS/MSS shell |
 | `core` | Legal entities, locations, org tree, reorg packages, positions + FTE budget, job/grade catalogue, tenant user accounts, roles, data scopes, masking, code lists, global master data, exchange rates, custom fields, settings | Authorisation service; workflow & approvals; notification centre; document service; import engine (incl. opening-balance mode, ADR-0037); audit service and store |
 | `people` | Person, employment, assignment, salary record (GROSS/NET), contracts, dependants, bank accounts, work permits, separation, discipline/rewards, appraisal, assets-lite | Mass-change engine (incl. reorg mapping) |
 | `time-attendance` | Holiday calendars, schedules and assignments, devices, punches, timesheets, OT, leave, trips/WFH, attendance periods and results | Punch processing pipeline |
@@ -289,9 +311,9 @@ flowchart TB
 | Database | **PostgreSQL 17** (18 when the chosen VN provider/operator supports it) | 17.x | RLS, partitioning, logical replication from standbys (CDC off the primary) | — |
 | DB operator | **CloudNativePG** on Kubernetes (or provider-managed PostgreSQL if it offers PITR, logical decoding and RLS-friendly superuser-less roles) | 1.27+ | Same operations on every VN cloud; Barman to S3; replica clusters in DC2 | Patroni (more DIY) |
 | Connection pooling | HikariCP in-app; **PgBouncer** (transaction mode) per cluster | — | Tenant context set with `SET LOCAL` per transaction works in transaction mode | Session pooling (connection explosion) |
-| Messaging | **Apache Kafka 4.x (KRaft)** via **Strimzi** operator; **Apicurio Registry 3** for schemas | Kafka 4.0+ | Ordered per-key logs, replay for new consumers, CDC to reporting, punch buffering, DR mirroring (ADR-0004) | RabbitMQ (no replay, weaker CDC story), Redpanda (licence), NATS JetStream (smaller ecosystem in VN) |
+| Messaging | **Phase 1: no broker** — transactional outbox + polling relay + ordered delivery jobs on the PostgreSQL job queue; JSON Schemas checked in CI. **Phase 2: Apache Kafka 4.x (KRaft)** via **Strimzi** (or provider-managed) + **Apicurio Registry 3** | Kafka 4.0+ (P2) | Phase 1 has no punch stream, webhooks or external consumers (R2-01), so Kafka's ordered logs, replay and buffering are not needed yet; the outbox keeps producers transport-neutral (ADR-0004 rev. 2) | RabbitMQ (no replay, weaker CDC story), Redpanda (licence), NATS JetStream (smaller ecosystem in VN) |
 | Cache / rate limiting | **Valkey 8** + Caffeine (in-process) | 8.x | BSD-licensed Redis fork; authz snapshots, LPS hot cache, Bucket4j limits, BFF sessions | Redis 8 (licence ambiguity with providers) |
-| Identity | **Keycloak 26.x** | 26.x | Self-hosted in VN; OIDC/SAML brokering, MFA/WebAuthn, Organizations for multi-tenant, step-up via ACR (ADR-0005) | Auth0/Entra B2C/Cognito (data outside VN), Zitadel (smaller VN skill base) |
+| Identity | **Keycloak 26.x** | 26.x | Self-hosted in VN; Organizations for multi-tenant, step-up via ACR; **P1: password + MFA by TOTP or e-mail OTP**; OIDC/SAML brokering and WebAuthn **P2** (R2-04, ADR-0005) | Auth0/Entra B2C/Cognito (data outside VN), Zitadel (smaller VN skill base) |
 | Secrets / KMS | **OpenBao** (Vault-compatible), transit engine; **software root of trust for the MVP, HSM-backed root before the Enterprise tier** (OD-10) | 2.x | Open-source (MPL), envelope encryption, per-tenant keys, dynamic DB credentials | HashiCorp Vault (BSL), cloud KMS (not available or not VN-resident at every provider) |
 | Object storage | Provider **S3-compatible** object storage in VN (Viettel, FPT, VNG, CMC) via AWS SDK v2 | — | Residency; lifecycle rules; cross-site replication | Self-run MinIO (licence/ops) |
 | Search | MVP: PostgreSQL `unaccent` + `pg_trgm`. P2: **OpenSearch 2.x** for candidates (500k per tenant, NFR-REC-008) and global search | — | Avoid a second store for MVP | Elasticsearch (licence) |
@@ -299,7 +321,7 @@ flowchart TB
 | Formula engine | Own **YourHRM Formula Language (YFL)** on ANTLR 4, evaluated over `BigDecimal` | ANTLR 4.13 | Sandboxed by construction, deterministic, Excel-like for C&B users (ADR-0008) | SpEL/MVEL/Groovy (sandbox escape), GraalJS (float semantics), CEL (no decimal type) |
 | Workflow | In-house approval engine in Core (ADR-0007) — accepted (OD-4), no BPMN designer | — | Approval semantics are tenant-configured data, not BPMN | Flowable 7, Camunda 8 (licence + ops) |
 | Documents | Thymeleaf HTML → **OpenHTMLtoPDF** (PDF/A) for system documents; **poi-tl** DOCX merge + **Gotenberg** for tenant-edited templates; Apache POI SXSSF for Excel; JAXB + XSD validation for eTax/VSS XML | — | Throughput for payslips; Word-editable templates for HR letters and decisions (ADR-0015) | JasperReports (template authoring UX) |
-| Reporting | CDC (Debezium 3) → Kafka → **PostgreSQL reporting store**; **Apache Superset 5** for dashboards (P2, decided OD-5); operational/statutory reports in-app | — | One SQL dialect, RLS in the store; Superset is self-hosted with RLS and embedding (ADR-0012) | ClickHouse (P2 option if volume demands **[spike]**), Power BI/Metabase cloud (residency) |
+| Reporting | **P1:** native PostgreSQL logical replication (column lists, no P3) → **PostgreSQL reporting store**; P2 option: Debezium 3 → Kafka; **Apache Superset 5** for dashboards (P2, decided OD-5); operational/statutory reports in-app | — | One SQL dialect, RLS in the store; Superset is self-hosted with RLS and embedding (ADR-0012) | ClickHouse (P2 option if volume demands **[spike]**), Power BI/Metabase cloud (residency) |
 | Frontend | **React 19 + TypeScript 5**, Vite 7, **Ant Design 5** (themed design system), TanStack Query + Router, React Hook Form + Zod, react-i18next (ICU) | — | Data-dense enterprise UI, mature vi_VN locale, large VN talent pool (ADR-0013; decided OD-2) | Angular 20 (rejected by OD-2), Vue 3 |
 | Mobile (P2 only) | **React Native (Expo)** sharing TS API client and i18n. **Phase 1 has no mobile app, no PWA and no browser check-in** (OD-9); ESS is responsive web | Expo SDK current | One language across web/mobile; native GPS/selfie/push | Flutter (second language), Capacitor (weaker native check-in) |
 | Edge | **Envoy Gateway** (Kubernetes Gateway API) + provider WAF / ModSecurity-CRS | 1.x | Gateway API standard; global rate limiting; ingress-nginx is retired | Kong OSS, APISIX (both viable for the P2 developer portal) |
@@ -324,7 +346,7 @@ Data-level isolation (keys, RLS policies, `saas` exemptions, partitioning) is ow
 | Custom domain (P2/P3) | `saas.tenant_domain` maps host → tenant; cert-manager issues certificates | Token |
 | Multi-tenant user (GAP-016) | Tenant switcher re-issues a token for another Organization the identity belongs to; never a header switch | Token |
 | Mobile app / public API (both P2) | Bearer token (`tid` claim; API clients are bound to one tenant) | Token |
-| Device agent | mTLS client certificate or device credential → tenant + device id (NFR-ATT-010) | Credential |
+| Device agent (**P2**) | mTLS client certificate or device credential → tenant + device id (NFR-ATT-010). In Phase 1 device data arrives only as files uploaded in a user session (token) | Credential |
 | Operator back-office | Operator token has no `tid`; acting on a tenant needs a **support grant** (consent-based, time-boxed); the grant id becomes part of the context and every action is audited | Grant |
 | Jobs and events | `tenant_id` field in the job row / event envelope | Persisted record |
 
@@ -360,17 +382,19 @@ flowchart LR
 
 - **Entitlements** (`saas`): modules, features, limits (employees, LEs, storage, API calls) per subscription; published by `saas.EntitlementsChanged` and cached per tenant. Enforced by an `@Entitled("payroll.offcycle")` aspect on API and job entry points and by the frontend (menu, route guards) — the backend is authoritative.
 - **Feature flags:** OpenFeature Java/JS SDKs with an in-house provider backed by `saas` flag tables (targeting by tenant, ring, plan). Three flag kinds: *release* (temporary), *ops* (kill switches) and *calc behaviour* (long-lived, versioned; §8.6).
-- **Baseline-always-on capabilities (GAP-060).** These are *not* gated by module subscription, because other modules depend on them at runtime:
+- **Baseline-always-on capabilities (GAP-060; set approved by R2-18, 2026-10-16).** These are *not* gated by module subscription, because other modules depend on them at runtime:
 
-| Capability | Provided by | Needed by | Exposure without subscription |
-|---|---|---|---|
-| Employee master (person, employment, assignment, salary record) | People | Core, T&A, Payroll, Rec | Read APIs + import; HR UI limited to the master record |
-| Holiday calendar + schedule patterns | T&A | Core SLA, Payroll proration, Rec | Calendar API + admin page |
-| Component catalogue, pay scales/bands, gross↔net simulator | Payroll | People salary validation, Rec offers | API + catalogue admin |
-| Legal parameter packs | SaaS | All | Always |
-| **Attendance import → standard Attendance Result** | T&A (import type) | Payroll-without-T&A tenants | Import template producing a `CLOSED` result version, so the period-close protocol is unchanged |
+| Baseline capability (R2-18) | Feature key | Provided by | Needed by | Exposure without subscription |
+|---|---|---|---|---|
+| **Core** (org, LE, positions, users/roles, workflow, notifications, documents, import engine, audit) | `baseline.core` | Core | Everything | Always — Core is not sold separately |
+| **People basics** — employee master (person, employment, assignment, salary record) | `baseline.people.master` | People | Core, T&A, Payroll, Rec | Read APIs + import; HR UI limited to the master record |
+| **Legal parameter packs** | `baseline.legal_params` | SaaS | All | Always (LPS API) |
+| **Pay scales / bands** (gap §5 #7) | `baseline.pay.scales_bands` | Payroll | People salary validation, Rec offers | API + catalogue admin |
+| **Excel attendance import → standard Attendance Result** | `baseline.att.excel_import` | T&A (import type) | Payroll-without-T&A tenants | Import template producing a `CLOSED` result version, so the period-close protocol is unchanged |
 
-The entitlement check therefore gates **features and UIs**, never the shared reference services. The plan catalogue publishes a dependency matrix (e.g. Payroll requires People master + attendance import).
+**Entitlement design (ADR-0003 decision 5).** The baseline set lives in the platform table `saas.baseline_capability`, shipped by the release job; only a product decision changes it. The entitlement resolver writes a `source = BASELINE` row in `saas.entitlement` for every tenant and baseline key; the database accepts such a row only as an enabled, tenant-wide grant, and the one-row-per-feature-per-period exclusion stops any plan or override from disabling it (DESIGN.md §7.1). Module subscriptions add `PLAN`/`ADDON` rows for full module features. `@Entitled`, the frontend route guards and `/me/capabilities` read the same resolved rows, so no code path special-cases "baseline".
+
+The entitlement check gates **features and UIs**, never the shared **runtime reference services** that modules call: besides the five capabilities above, these are the T&A holiday calendar / default schedule (`WorkingCalendarProvider` SPI, national calendar from the legal pack) and the Payroll gross↔net simulator API (People NET salaries). They are API-only for tenants without T&A or Payroll and are not separately listed in R2-18 (PM to confirm). The plan catalogue publishes a dependency matrix (e.g. Payroll requires People master + attendance import).
 
 ### 5.5 Noisy-neighbour controls (≤ 20% of pool per tenant)
 
@@ -380,7 +404,7 @@ The entitlement check therefore gates **features and UIs**, never the shared ref
 | Background jobs | Fair-share queue: max concurrent slots per tenant = 20% of pool's slots (floor 2); weighted round-robin across tenants with pending work | §9.5 |
 | Payroll workers | Same fair-share on the `payroll` pool; Enterprise may buy reserved slots | — |
 | Database | `statement_timeout` per role (API 5 s, report 60 s, job 15 min); per-tenant concurrent report limit; heavy reports on replicas | — |
-| Kafka | Topics keyed by `tenant_id`; consumer processing time budget per batch; quota per producer client for ingest | — |
+| Event delivery | P1: delivery jobs in the fair-share `events` pool (same 20% cap); P2 Kafka: topics keyed by `tenant_id`, consumer time budget per batch, producer quota for ingest | — |
 | Exports/reports | Max concurrent per tenant (3) and queue; 7-day expiry | — |
 | Notifications | Per-tenant send rate per channel; payslip batch throttled to finish ≤ 30 min (NFR-CORE-005) | — |
 
@@ -394,16 +418,16 @@ Saturation per tenant is visible on the operator dashboard (top-N tenants by CPU
 
 | Concern | Owner | Implementation |
 |---|---|---|
-| Credentials, password policy, MFA (TOTP, WebAuthn), OTP for former employees | **SaaS** (identity bridge) | Keycloak |
-| SSO federation: OIDC (Google, Entra ID) MVP; SAML P2; SCIM P3 | SaaS | Keycloak identity brokering per Organization; SCIM via Keycloak extension or in-app endpoint **[spike]** |
-| Sessions, step-up, token issuance, API clients (client credentials) | SaaS | Keycloak sessions; ACR levels `acr=1` (password/SSO), `acr=2` (MFA), `acr=3` (fresh MFA ≤ 5 min) |
+| Credentials, password policy, MFA (**P1: TOTP or e-mail OTP**; WebAuthn P2), OTP for former employees | **SaaS** (identity bridge) | Keycloak; MFA mandatory for HR, C&B, finance, tenant-admin and operator roles, tenant setting for ESS |
+| SSO federation: OIDC (Google, Entra ID) and SAML **Phase 2** (R2-04: no SSO at the pilot); SCIM P3 | SaaS | Keycloak identity brokering per Organization; SCIM via Keycloak extension or in-app endpoint **[spike]** |
+| Sessions, step-up, token issuance, API clients (client credentials, P2) | SaaS | Keycloak sessions; ACR levels `acr=1` (password; SSO from P2), `acr=2` (MFA), `acr=3` (fresh MFA ≤ 5 min) |
 | Global identity ↔ tenant user account link | SaaS stores identity; **Core** stores `user_account.identity_id` | One Keycloak user per natural person/e-mail; membership in n Organizations |
 | User accounts, roles, permissions, data scopes, field masking | **Core** | Authorisation service (§6.3) |
 | API scope → permission/data scope mapping | Core | Mapping table for each API client |
 
 ### 6.2 Authentication flows
 
-- **Browser:** SPA → `hrm-bff` → Keycloak (Authorization Code + PKCE, confidential client). The BFF keeps tokens server side (Valkey, encrypted) and issues an HttpOnly, `Secure`, `SameSite=Strict` session cookie; CSRF token for state-changing calls. The BFF forwards a short-lived access token (5 min) to `hrm-api`.
+- **Browser:** SPA → `hrm-bff` → Keycloak (Authorization Code + PKCE, confidential client). Phase 1 login page: username + password, then TOTP or e-mail OTP when MFA applies (R2-04); Phase 2 adds per-tenant SSO buttons through Keycloak identity brokering without changing the BFF or the tokens. The BFF keeps tokens server side (Valkey, encrypted) and issues an HttpOnly, `Secure`, `SameSite=Strict` session cookie; CSRF token for state-changing calls. The BFF forwards a short-lived access token (5 min) to `hrm-api`.
 - **Resource server:** `hrm-api` validates JWTs locally using cached JWKS (NFR-CORE-006: no IdP call per request). Claims used: `sub` (identity), `tid`, `org`, `acr`, `amr`, `sid`, `azp`. **No roles or permissions in tokens** — they would go stale and bloat tokens; Core resolves them.
 - **Step-up:** bank-account change, payslip PDF download, salary view in bulk, support-grant approval, DSR export require `acr ≥ 2` (or `acr=3`). The API answers `401` with `WWW-Authenticate: … acr_values="3"`; the SPA triggers re-authentication through the BFF.
 - **Mobile (P2):** AppAuth (Authorization Code + PKCE), refresh token rotation, device binding, biometric unlock of the local refresh token.
@@ -433,7 +457,7 @@ stateDiagram-v2
 
 - Core schedules the downgrade from `people.TerminationScheduled.access_revocation_date` (a scheduler job), and confirms on `people.EmployeeTerminated`.
 - `FORMER_EMPLOYEE` role: own payslips, PIT withholding certificates, letters, 08/UQ authorisation (year end); no MSS, no approvals. Pending approvals are reassigned by the workflow engine.
-- SSO link is removed (the tenant IdP no longer vouches for the leaver); login switches to **e-mail OTP** (accepted OD-8; SMS OTP is P3). Personal e-mail must be captured at offboarding (People checklist item, GAP-036).
+- SSO link is removed (Phase 2, once SSO exists: the tenant IdP no longer vouches for the leaver); login switches to **e-mail OTP** (accepted OD-8; SMS OTP is P3). Personal e-mail must be captured at offboarding (People checklist item, GAP-036).
 - `core.UserStatusChanged` drives SaaS (Keycloak) and SCIM (P3).
 
 ---
@@ -445,28 +469,35 @@ stateDiagram-v2
 | Use | When | Example |
 |---|---|---|
 | **Synchronous in-process API** (module `api` interface) | Caller needs the answer to proceed, data is owned elsewhere, and the call follows the allowed dependency direction | Payroll reads Attendance Result v3; People validates salary against Payroll pay scale; any module calls LPS |
-| **Domain event** (outbox → Kafka) | Notify state changes; reverse-direction flows; anything another module must react to | `people.EmployeeHired` → Core, T&A, Payroll |
+| **Domain event** (outbox → bus: delivery jobs in P1, Kafka in P2) | Notify state changes; reverse-direction flows; anything another module must react to | `people.EmployeeHired` → Core, T&A, Payroll |
 | **Command via job** | Long-running or retryable work, possibly in another module | Reorg mapping mass change, final settlement run |
 | **SPI** (interface owned by caller, implemented by provider) | Foundation module needs data from a feature module synchronously | Core `WorkingCalendarProvider` implemented by T&A |
 
 Because the system is a single deployable, in-process API calls are plain method calls; they are still designed as if remote (DTOs, no entity leakage, idempotent commands) so a module can be extracted later.
 
-### 7.2 Outbox → broker (ADR-0004)
+### 7.2 Outbox → bus (ADR-0004 rev. 2)
+
+**Decision for Phase 1 (R2-01, ADR-0004 rev. 2 — Proposed): no Kafka.** Kafka was chosen in v0.2 for three loads: business events, the punch burst buffer and CDC to reporting. R2-01 removes the live punch stream, webhooks and every external consumer from Phase 1, and the reporting feed moves to native logical replication (§10.2). What remains is inter-module business events at pilot volume, which the PostgreSQL job queue (built anyway, ADR-0011) carries with transactional enqueue, retries, dead letters, fair share and per-aggregate order. Operating Strimzi, Apicurio and MirrorMaker 2 for that would cost the small team weeks of ops work during the 16-week plan for no Phase-1 benefit. Kafka arrives in Phase 2 behind the same outbox when the first trigger is met: live device ingestion, public webhooks / external consumers, delivery lag above SLO or volume above the measured DB-bus limit (SP-2), or replay needs beyond 7 days.
 
 ```mermaid
 flowchart LR
   TX[Business transaction<br/>module X] -->|same TX| OB[(X.outbox_event)]
   OB --> REL[Outbox relay<br/>hrm-worker<br/>SKIP LOCKED, batch 500]
-  REL -->|key = tenant_id:aggregate_id| K[[Kafka topic<br/>x.events.v1]]
-  K --> C1[Consumer group<br/>module Y]
-  C1 --> IB[(Y.inbox_event<br/>dedupe by event_id)]
-  C1 --> H[Handler in Y's TX]
-  C1 -->|after N retries| DLT[[x.events.v1.dlt<br/>retry dashboard]]
+  REL -->|P1, same TX as published_at:<br/>one job per consumer,<br/>ordering key consumer:aggregate| JQ[(saas.job<br/>queue events<br/>pointer only)]
+  JQ --> DW[Delivery worker<br/>pool events, fair share]
+  DW -->|reads event via relay connection| OB
+  DW --> H[Handler in Y's TX<br/>Y role]
+  H --> IB[(Y.inbox_message<br/>dedupe by event_id)]
+  DW -->|after N retries| DEAD[[state DEAD<br/>operator replay dashboard]]
+  REL -. P2: key tenant_id:aggregate_id .-> K[[Kafka topic x.events.v1]]
+  K -. P2 .-> H
 ```
 
 - **Outbox per module schema** (tables owned by the Data architect — see data architecture (DESIGN.md)). Written in the same transaction as the business change (NFR-PPL-002, NFR-CORE-004/008).
-- **Relay:** in-app poller in `hrm-worker` (Spring Modulith event externalisation pattern with our own outbox table), leader-less via `FOR UPDATE SKIP LOCKED`, ordered per aggregate by sequence; p95 publish latency ≤ 1 s. Works identically for dedicated DBs (one relay loop per cluster). Debezium is **not** on the business-critical path; it is used only for the reporting CDC (§10).
-- **Topics:** one topic per producing module and major schema version (`people.events.v1`, `att.events.v1`, …), 24–48 partitions, key `tenant_id:aggregate_id` (per-aggregate order, tenant spread). Retention 14 days (replay window); compacted `*.state` topics for reference data where useful (e.g. `saas.tenant.state`). Dedicated topics for high volume: `att.punch.raw` (key `tenant_id:device_id`).
+- **Relay:** in-app poller in `hrm-worker` (our own outbox table), leader-less via `FOR UPDATE SKIP LOCKED`, ordered per aggregate by sequence. Works identically for dedicated DBs (one relay loop per cluster). Debezium is **not** on the business-critical path.
+- **Phase-1 transport (DB-backed bus):** for every outbox row the relay calls `saas.enqueue_event_delivery()` in the transaction that sets `published_at`, creating one `bus.Deliver` job per subscribed consumer in the cluster-local `saas.job` (queue `events`). `idempotency_key = consumer:event_id`; `ordering_key = consumer:aggregate_id`, and the claim function runs at most one non-terminal job per key, oldest first, so each consumer receives one aggregate's events in commit order. The job carries **only a pointer** (cluster, schema, `event_id`); the delivery worker reads the envelope through the relay connection and invokes the consumer's handler in the consumer module's own transaction, DB role and inbox — so payloads with amounts (`people.SalaryChanged`) never land in `saas.job`, which all module roles of the tenant can read. Subscriptions are declared in code (`@EventConsumer`) and compiled into a registry. Platform-cluster events (`saas.LegalParameterPackPublished`, `core.MasterDataReleased`) are enqueued on every pool and dedicated cluster with the sentinel tenant. SLO: relay lag p95 < 5 s, delivery lag p95 < 10 s.
+- **Phase-2 transport (Kafka):** the relay publishes to Kafka instead (`EventTransport` port: `JobQueueTransport` → `KafkaTransport`, switchable per event type during cut-over); outbox, envelope, inbox and handlers are unchanged. Kafka design below.
+- **Topics (Phase 2):** one topic per producing module and major schema version (`people.events.v1`, `att.events.v1`, …), 24–48 partitions, key `tenant_id:aggregate_id` (per-aggregate order, tenant spread). Retention 14 days (replay window); compacted `*.state` topics for reference data where useful (e.g. `saas.tenant.state`). Dedicated topics for high volume: `att.punch.raw` (key `tenant_id:device_id`).
 - **Envelope** (gap §6, CloudEvents-compatible attribute names in Kafka headers + JSON body):
 
 ```json
@@ -480,12 +511,12 @@ flowchart LR
 }
 ```
 
-- **Schemas & versioning:** JSON Schema per event in `shared/contracts`, registered in **Apicurio** with *backward-compatible* rule per subject; additive changes = minor version; breaking change = new `vN` topic, dual-publishing for ≥ 1 release cycle (internal) or ≥ 6 months (public webhooks). Consumer-driven contract tests (Spring Cloud Contract or Pact) run in CI for every catalogue event (People RK4, Rec RK-03).
-- **Payload policy:** events carry identifiers and the changed business facts needed by consumers; highly sensitive values (bank account number, CCCD, salary amounts for non-Payroll consumers) are **not** carried — consumers call the owner's API under their own permissions. `people.SalaryChanged` carries amounts only because Payroll is the sole consumer and the topic has ACLs restricting it to the payroll consumer group.
-- **Idempotent consumers:** inbox table keyed by `(consumer, event_id)`; handlers are idempotent by design (upsert by business key + version check); poison messages → DLT after exponential retries (1 s … 10 min, 10 attempts) with an operator retry dashboard (NFR-REC-005).
+- **Schemas & versioning:** JSON Schema per event in `shared/contracts`; backward compatibility per event type is checked **in CI** in Phase 1 and by **Apicurio** (registered from the repository) once Kafka arrives in Phase 2; additive changes = minor version; breaking change = new `vN` topic, dual-publishing for ≥ 1 release cycle (internal) or ≥ 6 months (public webhooks). Consumer-driven contract tests (Spring Cloud Contract or Pact) run in CI for every catalogue event (People RK4, Rec RK-03).
+- **Payload policy:** events carry identifiers and the changed business facts needed by consumers; highly sensitive values (bank account number, CCCD, salary amounts for non-Payroll consumers) are **not** carried — consumers call the owner's API under their own permissions. `people.SalaryChanged` carries amounts only because Payroll is the sole consumer: in Phase 1 the payload is read from the outbox only by the Payroll handler (delivery jobs hold a pointer); in Phase 2 the topic has ACLs restricting it to the payroll consumer group.
+- **Idempotent consumers:** inbox table keyed by `(consumer, event_id)`; handlers are idempotent by design (upsert by business key + version check); poison messages → dead letter after exponential retries (1 s … 10 min, 10 attempts) with an operator retry dashboard (NFR-REC-005): job state `DEAD` in Phase 1 (replay within the 7-day outbox window, otherwise re-sync from the owner API), DLT topic in Phase 2.
 - **Ordering & effective dating:** consumers must not assume arrival order equals effective order; they apply events by `effective_date` and use aggregate versions to discard stale updates.
 - **Initial-load mode:** events produced by the go-live opening-balance import (§9.6, ADR-0037) are flagged `initial_load=true` (this replaces the v0.1 `migration` flag; there is no Oracle migration, D-09); consumers skip side effects (notifications, user invitations, retro triggers) or process with an initial-load handler, and projections are rebuilt by re-sync jobs.
-- **Catalogue:** gap-analysis §6 is catalogue **v1**. This architecture adds three events, **accepted as catalogue v1.1 (X-06)**: `att.AttendancePeriodHoldGranted/Released` (§7.4.2), `core.ReorgPackageStatusChanged` (§7.4.4), `people.OnboardingReadinessChanged` (§7.4.1).
+- **Catalogue:** gap-analysis §6 is catalogue **v1**. This architecture adds three events, **accepted as catalogue v1.1 (X-06)**: `att.AttendancePeriodHoldGranted/Released` (§7.4.2), `core.ReorgPackageStatusChanged` (§7.4.4), `people.OnboardingReadinessChanged` (§7.4.1). v0.3 proposes one more for R2-16: `people.PrimaryEmploymentChanged` (person, purpose, employment, valid from/to; consumed by Payroll), to be added to the catalogue by the Integration analyst.
 
 ### 7.3 Sagas — style
 
@@ -583,7 +614,7 @@ sequenceDiagram
   PPL-->>CORE: people.EmployeeTerminated
   CORE->>CORE: user -> FORMER_EMPLOYEE, reassign approvals
   CORE-->>SAAS: core.UserStatusChanged(FORMER_EMPLOYEE)
-  SAAS->>SAAS: unlink SSO, enable OTP login
+  SAAS->>SAAS: enable e-mail OTP login (unlink SSO from P2)
   PAY->>PAY: wait for both inputs (or HR override with reason)
   PAY->>PAY: off-cycle FINAL_SETTLEMENT run: prorated salary, encashment, severance base (Payroll-owned), notice, loans/advances, pro-rata 13th, PIT
   PAY->>CORE: approval workflow
@@ -606,22 +637,26 @@ sequenceDiagram
 4. Downstream: T&A re-evaluates schedule rules; Payroll re-evaluates pay-group rules and cost allocation; authorisation snapshots are invalidated.
 5. Back-dated packages crossing an `APPROVED` payroll period require `CORE_REORG_BACKDATE` permission; payroll impact flows as retro.
 
-### 7.5 External integration hub (SaaS)
+### 7.5 File exports (Phase 1) and integration hub (Phase 2) — SaaS (ADR-0016 rev.)
 
-Connectors live in `saas-platform/integration` and run on the `integration` worker pool. Pattern: **anti-corruption adapter per provider**, versioned templates (bank file layouts, eTax/VSS XSDs, GL mappings) stored as configuration artifacts so formats change without a release (NFR-PAY-010), outbound calls via jobs with retry/backoff and circuit breakers (Resilience4j), credentials per tenant in OpenBao, full request/response archive (PII-redacted) for 90 days.
+**Phase 1 = file-export framework only (R2-01).** No connector, outbound API call, provider credential or inbound callback exists in Phase 1, and the `integration` worker pool is not deployed. `saas-platform/integration` provides a **format-template registry** (bank layouts, VSS file layouts, eTax XSDs, GL mappings — versioned, effective-dated, published without a release, NFR-PAY-010, shared with the statutory template framework §10.3) and **writer ports** (`BankPaymentFileWriter`, `SiDeclarationFileWriter`, `PitDeclarationXmlWriter`, `GlJournalWriter`). Payroll supplies the data; the writer renders and validates (XSD, control totals, checksums) on the `general` pool, the file is stored by the Core document service, downloaded with step-up (bank files) and every generation/download is audited with its template version. The customer uploads the file to the bank, VSS or eTax portal. Inbound files (time-device export, VSS C12) are Core import types owned by the receiving module.
 
-| Integration | MVP | P2+ | Mode |
+**Phase 2 = integration hub runtime:** anti-corruption adapter per provider on the `integration` pool, outbound calls via jobs with retry/backoff and circuit breakers (Resilience4j), credentials per tenant in OpenBao, request/response archive (PII-redacted) for 90 days, signed inbound callbacks; Phase-1 writers become the payload builders of the API connectors.
+
+| Integration | Phase 1 (R2-01) | Phase 2+ | Mode |
 |---|---|---|---|
-| Banks (pilot banks) | Payment files (CSV/XLSX/XML per bank, no-diacritics option) | H2H/API, statement import | File / API |
-| eTax (GDT) | 05/KK, 05/QTT XML, e-withholding certificates via certified provider | T-VAN API | File / API |
-| VSS | D02-LT, TK1-TS files; C12-TS import | I-VAN API | File / API |
-| MISA / Fast / SAP | GL journal export (template) | API push | File / API |
-| E-invoice (subscription) | Certified provider API | — | API |
-| E-signature / e-contract | — (adapter P2; MVP if decree mandates) | VNPT SmartCA, Viettel MySign, FPT CA | API + webhook |
+| Banks (pilot banks) | **Payment file export** (CSV/XLSX/XML per bank, no-diacritics option) uploaded by the customer | H2H/API, statement import | File → API |
+| eTax (GDT) | **PIT XML export** (05/KK, 05/QTT + annexes), validated against the XSD, uploaded by the customer; withholding certificates as PDF | T-VAN API, e-withholding certificates via certified provider | File → API |
+| VSS | **Insurance declaration file export** (D02-LT and related) uploaded by the customer; C12-TS file import if used | I-VAN API | File → API |
+| MISA / Fast / SAP | **GL journal export in Excel** (template) | API push | File → API |
+| E-invoice (subscription billing) | — (vendor finance issues invoices outside the platform from the usage report; see §17.1 note) | Certified provider API | API |
+| E-signature / e-contract | — | VNPT SmartCA, Viettel MySign, FPT CA (with e-labour contract, R2-10) | API + webhook |
 | VNeID | — | Level-2 e-ID verification | API |
-| Time devices | 1 certified connector (ZKTeco or Hikvision) + Excel/file import — the **only Phase-1 attendance sources** (OD-9) | More vendors; mobile GPS/Wi-Fi/selfie check-in (app) | Agent → ingest |
-| Zalo ZNS, SMS brandname, push | E-mail only | ZNS P2, SMS P3, FCM/APNs P2 | API |
+| Time devices | **Device-export-file import** (CSV/Excel from the device software, per-vendor column layout; T&A import type) + Excel attendance import — the only Phase-1 attendance sources (OD-9, R2-06) | Live connector agent + offline buffer + `hrm-ingest` (X-05, SP-3); mobile GPS/Wi-Fi/selfie check-in (app) | File → agent → ingest |
+| E-mail | **VN SMTP relay** (login, MFA, OTP, notifications, payslip PDF with password) | — | SMTP |
+| Zalo OA / ZNS, SMS brandname, push | In-app notifications + e-mail only | ZNS P2, SMS P2/P3, FCM/APNs P2 | API |
 | Job boards, calendars, CV parser | — | TopCV, VietnamWorks, ITviec, LinkedIn; Google/M365 calendars | API |
+| Public API, webhooks | — | `/public/v1`, signed webhooks (§12) | API |
 
 ---
 
@@ -659,7 +694,7 @@ At `INPUT_CUTOFF`/start of a FINAL calculation the run seals an immutable **snap
 | Input | Source | Captured as |
 |---|---|---|
 | Population | Pay-group membership as of period | Employee list with `employment_id` |
-| People data | People API as of period end, **as known at watermark** (bi-temporal) | Salary record (GROSS/NET, agreed net), assignments/cost split, contract, dependants, tax profile, residency, bank refs |
+| People data | People API as of period end, **as known at watermark** (bi-temporal) | Salary record (GROSS/NET, agreed net), assignments/cost split, contract, dependants, tax profile, residency, primary-employment designation (R2-16), bank refs |
 | Attendance | T&A Attendance Result version(s) | Result version ids + checksum (data copied into snapshot) |
 | Variable inputs | Payroll imports/API, rewards, advances, loans | Rows with source ids |
 | Legal parameters | LPS `resolveSet(keys, scope, period)` | Pack version + override version + resolved values |
@@ -693,7 +728,7 @@ flowchart LR
 ```
 
 - Each chunk job loads its slice with **one bulk query per input type** (no N+1), evaluates the compiled graph per employee in memory, writes results with `COPY` into the run's result staging, and marks the chunk done. Re-running a chunk deletes and rewrites its rows (idempotent).
-- Concurrent employment (GAP-031): employees of the same person in different LEs are placed in the same chunk only when a cross-LE rule (PIT family deduction on primary employment, OT cap across LEs) requires it; the partitioner groups by `person_id`.
+- **Concurrent employment (GAP-031, R2-16 — basic support in Phase 1):** one person, one employment per legal entity, and an effective-dated **primary employment per purpose** (`PIT_FAMILY_DEDUCTION`, `SOCIAL_INSURANCE`; at most one per person per purpose per period, DESIGN.md §7.3). Each LE withholds PIT on its own payments; only the PIT-primary employment applies the self and dependant deductions; SI is declared only through the SI-primary employment (SI Law 2024 multiple-contract rule `[verify-legal]`). Payroll receives the designation in the snapshot (People API as of period end). The cross-LE annual OT cap is **Phase 2** (R2-08), so in Phase 1 no rule needs both employments in one chunk; the partitioner still sorts by `person_id` so the Phase-2 cross-LE rules can group them.
 - **Budget:** 10,000 × 60 elements = 600k evaluations; at a conservative 50 µs/evaluation ≈ 30 CPU-seconds. I/O dominates: ~40 chunks × (load ≈ 1.5 s + write ≈ 1 s). With 8 parallel slots for the tenant, wall-clock ≈ 1–2 min; design target **≤ 5 min** at 3× peak, leaving the 15-min NFR as a hard ceiling. **[spike]** SP-1 validates on reference data (§17.3).
 - Progress is published to the UI via the job progress API (SSE).
 
@@ -745,8 +780,8 @@ Data model, pack tables and versioning: see data architecture (DESIGN.md). Archi
 
 ### 9.3 Notification hub
 
-- **Core notification centre:** event codes, templates (vi/en, ICU), recipient resolution with scope, preferences, quiet hours, in-app inbox (SSE for ≤ 5 s delivery), fallback rules, no sensitive data in message bodies (deep links by default; GAP-057).
-- **SaaS channel adapters:** e-mail (VN-hosted SMTP relay with DKIM/SPF/DMARC per sending domain), FCM/APNs (P2), Zalo ZNS (P2), SMS brandname (P3). Delivery status returned via events; per-tenant rate limits; bounce handling.
+- **Core notification centre:** event codes, templates (vi/en, ICU), recipient resolution with scope, preferences, quiet hours, in-app inbox (SSE for ≤ 5 s delivery), fallback rules, no sensitive data in message bodies (deep links by default; GAP-057). **Single exception (R2-17): payslips** may be sent as a password-protected PDF attachment (§9.4); the message body itself still holds no amounts.
+- **SaaS channel adapters:** **Phase 1: e-mail** (VN-hosted SMTP relay with DKIM/SPF/DMARC per sending domain; attachments only for the payslip exception) and the **in-app inbox**. Phase 2: FCM/APNs, Zalo OA/ZNS, SMS brandname (R2-01). Delivery status returned via events; per-tenant rate limits; bounce handling.
 - Flow: module → `NotificationRequested` (outbox) → Core renders per recipient/locale → channel job → adapter → status. Payslip publication for 10,000 employees ≤ 30 min (NFR-CORE-005).
 
 ### 9.4 Document service and generation (ADR-0015)
@@ -754,11 +789,11 @@ Data model, pack tables and versioning: see data architecture (DESIGN.md). Archi
 - **Core document service:** metadata, record-level access, versions, retention class, legal hold, e-sign orchestration state; files in object storage (SaaS) under the tenant prefix with envelope encryption; malware scan (ClamAV) before availability; signed URLs ≤ 15 min.
 - **Generation engines:** (1) system documents at volume (payslips, statutory PDFs, registers): Thymeleaf HTML → OpenHTMLtoPDF, PDF/A-2b, embedded Vietnamese fonts (Noto Sans/Serif, Be Vietnam Pro), ~20 docs/s per worker; (2) tenant-editable letters, decisions (quyết định), contracts: DOCX templates with merge fields (poi-tl) → Gotenberg → PDF/A; (3) Excel via POI SXSSF (streaming); (4) XML for eTax/VSS via JAXB with XSD validation against the configured template version.
 - Merge-field registry: modules register merge fields per document type (Core C-13).
-- Password-protected PDF payslip attachment only as tenant opt-in (GAP-057).
+- **Payslip e-mail as password-protected PDF (R2-17, sponsor decision; ADR-0015 decision 6).** The archived payslip stays the unencrypted PDF/A (PDF/A forbids encryption). For e-mail, the payslip job builds a separate copy encrypted with **AES-256 (PDF 2.0, revision 6)**, view/print only. **Password rule:** set by the employee in ESS with step-up (`acr ≥ 2`), minimum 8 characters, not built from employee number, date of birth, CCCD or phone; **never sent in any e-mail**, never shown again, never readable or settable by HR or operators (they can only clear it); no default or derived password. Without a password the e-mail carries only the notification and the ESS link. **Key handling:** the password is a P3 value encrypted with the person's subject DEK (OpenBao-wrapped, crypto-shreddable), write-only in the API, decrypted in memory only for one PDF encryption; the per-file owner password is random and discarded; the encrypted copy lives at most 24 h as a transient object for the e-mail adapter. **Audit:** password set/cleared, each e-mail with attachment (recipient, attachment hash), bounces and resends (DESIGN.md §7.5).
 
 ### 9.5 Job scheduler and queue (SaaS) (ADR-0011)
 
-- **Queue:** `saas.job` table (platform cluster) or per-cluster job tables **[decision with Data architect]** with `tenant_id`, `queue`, `type`, `priority`, `payload`, `state`, `attempts`, `not_before`, `progress`. Workers poll with `FOR UPDATE SKIP LOCKED` using a **fair-share selection**: pick the tenant with pending work and the lowest running-slot ratio, cap per tenant at 20% of the pool's slots (floor 2), priority lanes (interactive > payroll > batch).
+- **Queue:** `saas.job` table **per cluster** (decided with the Data architect, DESIGN.md §3.1, so enqueue is in the business transaction) with `ordering_key` for ordered lanes (event delivery) and `tenant_id`, `queue`, `type`, `priority`, `payload`, `state`, `attempts`, `not_before`, `progress`. Workers poll with `FOR UPDATE SKIP LOCKED` using a **fair-share selection**: pick the tenant with pending work and the lowest running-slot ratio, cap per tenant at 20% of the pool's slots (floor 2), priority lanes (interactive > events > payroll > batch). Queue `events` carries the Phase-1 event deliveries (§7.2).
 - **Triggers:** db-scheduler for cron and calendar triggers (00:00 ICT effective-dating jobs, NFR-CORE-015; period transitions; reminders; retention).
 - **Tenant state:** jobs of `SUSPENDED_LOCKED` tenants are paused; allow-list for payslip/export/DSR jobs.
 - **API:** `JobService.submit(type, payload, options)` transactional with the caller's business change; progress via SSE; cancellation; idempotency key.
@@ -767,6 +802,7 @@ Data model, pack tables and versioning: see data architecture (DESIGN.md). Archi
 ### 9.6 Import framework (Core) and opening-balance import (ADR-0037)
 
 - **Import engine (Core, GAP-005):** template download (XLSX with validation lists, vi/en) → upload (scan) → parse to staging (`core.import_row`; parsed rows encrypted with a per-job key because they can hold CCCD or bank numbers) → module-registered validators (sync, chunked) → preview with per-row errors → commit via module `ImportHandler` in chunks inside module transactions → undo log (rollback ≤ 24 h if no dependants). Default **all-or-nothing**; partial commit only if the import type declares it. Targets: 50k rows validated ≤ 5 min. Core never reads the owner module's tables; the owner module reads staged rows through Core's API.
+- **Time-device export file (R2-01, Phase 1).** T&A registers a punch import type whose template is the CSV/Excel export of the customer's time-device software, with a **column layout per device vendor/software version** (enrol id, punch date-time, terminal id, in/out flag if present; layouts are versioned configuration like the bank templates). Validation: unknown enrol id (enrolment mapping in `att.device`), punch outside the open period, duplicates inside the file; commit writes `att.raw_punch` (`source = IMPORT`, idempotent by `dedup_key`, so overlapping re-uploads are safe) and triggers timesheet recomputation for the affected employees and days. Partial commit is allowed for this type (rejected rows are listed). This is an import, not an integration: no agent, no device credential, no `hrm-ingest`. Summary attendance (days/hours) keeps the separate Excel attendance import producing an Attendance Result (baseline capability, §5.4).
 - **No Oracle migration (D-09).** YourHRM is a new system: no extraction toolkit, no migration database, no legacy key maps and no parallel run.
 - **Opening-balance mode (go-live, ADR-0037):** a generic, source-agnostic pipeline: **Excel templates → validation → staging tables → reconciliation report → customer sign-off → commit**. Templates: employee master (person, employment, current assignment, salary record, contract, dependants, bank account), **YTD income / PIT / SI** per month of the current tax year, **SI contribution history**, **leave balances**, **loans/advances**. Each template has a control sheet; the owner module computes staged and committed totals (`ReconciliationProvider` SPI) and Core stores the report (`core.import_reconciliation`). Commit is blocked until every check matches (0 VND / 0.0 days / exact counts) or is waived with a reason, and the customer has signed off. The mode bypasses workflow, sets `initial_load=true` on events and stamps rows `source=OPENING_LOAD`.
 - **"Opening balance as of the go-live date"** (replaces the v0.1 migrated-history "known date"): every job carries `as_of_date` = go-live date G. Master data is the version valid at G; YTD and SI history are monthly rows before G and are never recalculated; "as known on" queries before the load return the opening view. Rehearsal runs in a **sandbox tenant** with the same files before production.
@@ -788,24 +824,24 @@ Core audit service (shared/audit client): append-only, hash-chained per tenant (
 | **Statutory outputs** | D02-LT, 05/KK, 05/QTT, payroll register, labour-usage report, labour book | Owning module, from **approved, versioned** data (snapshots/results) | Authoritative, reproducible, template versions configurable (NFR-PAY-010) |
 | **Analytics** | Headcount/turnover, labour cost, OT trends, cross-module dashboards | Reporting store + Superset (P2); standard canned reports in-app (MVP) | Cross-module joins without touching OLTP; peak isolation |
 
-### 10.2 Pipeline
+### 10.2 Pipeline (ADR-0012 Amendment 1 — Proposed)
 
 ```mermaid
 flowchart LR
-  OLTP[(OLTP pool clusters<br/>standby replica)] -- logical decoding<br/>pgoutput --> DBZ[Debezium connectors<br/>per cluster]
-  DBZ --> K[[Kafka cdc.* topics]]
-  K --> T[Reporting loader<br/>hrm-worker role=reporting<br/>upserts, SCD2, drops P3 columns]
-  T --> RS[(Reporting store<br/>PostgreSQL 17<br/>star schema, RLS)]
+  OLTP[(OLTP pool clusters<br/>standby replica)] -- P1 native logical replication<br/>publication per module schema,<br/>column lists without P3 --> RAW[(Reporting DB<br/>rpt_raw landing, no RLS)]
+  RAW --> T[SQL transformation jobs<br/>hrm-worker pool reporting<br/>upserts, SCD2]
+  T --> RS[(Reporting store rpt<br/>PostgreSQL 17<br/>star schema, RLS)]
+  OLTP -. P2 option: Debezium .-> K[[Kafka cdc.* topics]] -.-> T
   RS --> API[Report service<br/>canned reports, exports]
-  RS --> SS[Superset P2<br/>embedded, guest token + RLS]
+  RS -. P2 .-> SS[Superset<br/>embedded, guest token + RLS]
 ```
 
-- **CDC** from a standby (PostgreSQL 16+ supports logical decoding on standbys) so the payroll-window primary is unaffected; dedicated-tier DBs get their own connector.
+- **Phase-1 feed (R2-01):** native PostgreSQL logical replication — no Kafka, no Kafka Connect. Each OLTP cluster publishes the tables the star schema needs, with **column lists** (PG 15+) that leave out every P3 column; the reporting DB subscribes into the landing schema `rpt_raw` (readable only by the transformation role), and scheduled SQL models build `rpt`. Slots are taken on a standby where the provider supports PG 16+ standby decoding (otherwise on the primary with `max_slot_wal_keep_size`) **[SP-6]**; dedicated-tier DBs get their own subscription. Logical replication does not carry DDL, so every migration of a published table has an `rpt_raw` step (CI check). **Phase-2 option:** Debezium → Kafka `cdc.*` if streaming transforms or a columnar engine need it; the star schema does not change.
 - **Freshness** ≤ 15 min (target ≤ 2 min in normal load).
 - **Model:** reporting data model (facts/dimensions, SCD2, sensitive-field handling) is the Data architect's — see data architecture (DESIGN.md). Architecture requires: `tenant_id` on every row, RLS on every table, and a **per-user scope table** `report_scope(user_account_id, employment_id)` refreshed from Core authorisation snapshots on change.
 - **Sensitive data:** P3 identifiers and bank accounts (CCCD, tax code, SI number, account numbers) are **not loaded** into the store. Salary amounts are plaintext there as in OLTP (X-01) and are reachable only through the reporting service with the payroll-report permission, the per-user scope table and access audit; Superset (P2) sees amounts only in subject areas approved for aggregates (payroll cost cube).
 - **Tenant isolation in BI:** Superset is never exposed directly. The app issues an **embedded guest token** per user with RLS clauses `tenant_id = X AND employment_id IN (scope)`; Superset connects with a DB role that has RLS enforced and `app.tenant_id` set per query via a connection mutator. Dashboards are tenant-scoped copies of vendor templates. Isolation tests cover BI.
-- **Deletion path:** DSR/retention deletions propagate via CDC deletes; reporting tables have no independent retention beyond OLTP (QAS-9).
+- **Deletion path:** DSR/retention deletions propagate as replicated deletes (Phase 1) or CDC deletes (Phase-2 option); reporting tables have no independent retention beyond OLTP (QAS-9).
 - **Option:** ClickHouse for analytics if volume or latency exceeds PostgreSQL capability **[spike]** (SP-6).
 
 ### 10.3 Statutory form rendering
@@ -836,7 +872,7 @@ A **statutory template framework** (SaaS, ADR-0012/0015): each form (`D02-LT`, `
 
 ### 11.4 ESS web and mobile (OD-9)
 
-- **Phase 1 (MVP):** responsive ESS/MSS **web** (≥ 360 px, usable in mobile browsers): payslips (step-up for PDF), leave and OT requests, approvals, profile change requests, PIT documents. **No PWA** (no service worker, no install, no offline cache of personal data) and **no check-in from the browser or phone**. Pilot attendance comes from **time devices** (connector agent → `hrm-ingest`) and **Excel attendance import** (T&A import type producing the standard Attendance Result).
+- **Phase 1 (MVP):** responsive ESS/MSS **web** (≥ 360 px, usable in mobile browsers): payslips (step-up for PDF), leave and OT requests, approvals, profile change requests, PIT documents. **No PWA** (no service worker, no install, no offline cache of personal data) and **no check-in from the browser or phone**. Pilot attendance comes from **time-device export files** imported by T&A (CSV/Excel from the device software, §9.6; no live connector in Phase 1, R2-01) and the **Excel attendance import** (T&A import type producing the standard Attendance Result). Sites without devices use the Excel import or correction requests (R2-06).
 - **Phase 2 — all mobile features:** React Native (Expo) app for GPS/Wi-Fi/selfie check-in (selfie liveness on device; photos retained 90 days by default, NFR-ATT-008), push notifications, biometric unlock, mock-location detection (NFR-ATT-009). The app reuses the generated TS API client, i18n bundles and design tokens. Cold start ≤ 3 s, ≤ 60 MB (NFR-SAAS-022). Whether a PWA is also offered is a Phase-2 decision. The DPIA for GPS/selfie data is a Phase-2 prerequisite.
 - **Career site (P2):** separate SSR app (React Router 7 framework mode) for SEO and < 2 s on 4G (NFR-REC-002), served per tenant subdomain.
 
@@ -844,7 +880,7 @@ A **statutory template framework** (SaaS, ADR-0012/0015): each form (`D02-LT`, `
 
 ## 12. API gateway, public API and webhooks (ADR-0014)
 
-- **Edge:** Envoy Gateway (Gateway API) terminates TLS 1.2+/1.3, applies WAF (OWASP CRS), IP rate limits, routes `app.*`/`{tenant}.yourhrm.vn` → BFF, `api.yourhrm.vn` → `hrm-api`, `ingest.yourhrm.vn` → `hrm-ingest` (mTLS).
+- **Edge:** Envoy Gateway (Gateway API) terminates TLS 1.2+/1.3, applies WAF (OWASP CRS), IP rate limits, routes `app.*`/`{tenant}.yourhrm.vn` → BFF (Phase 1); `api.yourhrm.vn` → `hrm-api` public API and `ingest.yourhrm.vn` → `hrm-ingest` (mTLS) are **Phase 2** (R2-01).
 - **Internal API:** REST/JSON, OpenAPI 3.1 per module, RFC 9457 problem details, cursor pagination, `If-Match`/ETag for optimistic concurrency, `Idempotency-Key` on POST commands, `asOf` and `knownAt` query parameters for effective-dated resources.
 - **Public API (P2):** subset of the internal API under `/public/v1`, OAuth2 client credentials (Keycloak clients created by SaaS per tenant API client, scopes mapped to permissions + data scope by Core), per-client quotas, p95 ≤ 300 ms for single GET, backward compatible within a major, ≥ 6 months deprecation (NFR-SAAS-018). Developer portal: generated docs (Redocly/Scalar) **[spike]** on APISIX/Kong only if monetised API products are needed.
 - **Webhooks (P2):** tenant subscribes to a curated subset of catalogue events (PII-minimised payloads, ids + change type); delivery by the integration worker with HMAC-SHA256 signatures (`X-YourHRM-Signature`, timestamp, replay window 5 min), exponential retries for 24 h, delivery log and manual replay, auto-disable after sustained failure, secret rotation.
@@ -857,16 +893,16 @@ A **statutory template framework** (SaaS, ADR-0012/0015): each form (`D02-LT`, `
 
 | Area | Control |
 |---|---|
-| Transport | TLS 1.3 preferred (1.2 minimum) at edge; inside the cluster no service mesh: Cilium transparent encryption (WireGuard) node-to-node, plus TLS to PostgreSQL, Kafka and Valkey |
+| Transport | TLS 1.3 preferred (1.2 minimum) at edge; inside the cluster no service mesh: Cilium transparent encryption (WireGuard) node-to-node, plus TLS to PostgreSQL, Valkey and the e-mail relay (and Kafka from Phase 2) |
 | At rest | Provider volume encryption (AES-256) for DB, Kafka, object storage, backups |
 | Field-level | Envelope encryption (AES-256-GCM) for **identifiers** (CCCD/passport, personal and dependants' tax codes, SI number), **bank account numbers** and **special-category data** (religion, ethnicity, health/disability; GPS and selfie references in P2): per-subject data keys (DEKs) wrapped by per-tenant KEKs in OpenBao transit (software root of trust for the MVP, HSM-backed root before the Enterprise tier, OD-10); blind indexes (HMAC) for equality search on CCCD/tax code/SI number. Key hierarchy, rotation and crypto-shredding design: see data architecture (DESIGN.md), ADR-0026 |
-| Salary amounts (X-01) | **Not column-encrypted** (it would break SQL totals, GL, reports and payroll speed). Protected by RLS, module DB roles (only `hr`/`pay` roles can read them), masking views (`app.mask_level`, fail closed), API field masking by field profile, step-up for bulk views/exports, ACL-restricted Payroll event topics, and sensitive-read audit (§6.3). NFR-PAY-004 "where feasible" is answered by this decision |
-| Secrets | OpenBao; Kubernetes workloads authenticate via Kubernetes auth; dynamic PostgreSQL credentials; rotation ≤ 90 days; nothing in repo (gitleaks in CI) |
+| Salary amounts (X-01) | **Not column-encrypted** (it would break SQL totals, GL, reports and payroll speed). Protected by RLS, module DB roles (only `hr`/`pay` roles can read them), masking views (`app.mask_level`, fail closed), API field masking by field profile, step-up for bulk views/exports, Payroll-only event delivery (pointer-only delivery jobs in Phase 1, ACL-restricted topics in Phase 2), and sensitive-read audit (§6.3). Residual risk AR-13 accepted with mitigations (R2-15, §17.1). NFR-PAY-004 "where feasible" is answered by this decision |
+| Secrets | OpenBao; Kubernetes workloads authenticate via Kubernetes auth; dynamic PostgreSQL credentials; rotation ≤ 90 days; nothing in repo (gitleaks in CI). **No human access to application credentials (R2-15):** no OpenBao policy lets a person read module DB credentials |
 | AppSec | OWASP ASVS L2 checklist per epic; SAST/SCA/container/IaC scans block critical findings; DAST on staging; annual + major-release pen test (NFR-SAAS-009) |
 | Supply chain | Signed images (Cosign), SBOM per build, admission policy (Kyverno) allowing only signed images from the VN registry |
 | Tenant isolation tests | Automated suite: every API endpoint called with cross-tenant ids; RLS tests per table (with Data architect); jobs/events/caches/storage keys; BI. Release-blocking |
 | Logging | PII masking in log appenders (allow-list structured fields); no request bodies logged for sensitive endpoints |
-| Admin access | Operators via SSO + hardware MFA; production DB access only through break-glass with approval and session recording |
+| Admin access | Operators via operator realm with hardware MFA; production DB access only through break-glass (`yhrm_breakglass`, two-person approval, ≤ 4 h) with session recording; **DB access audit (R2-15):** pgaudit on human sessions and break-glass, connection logging for all roles, alert on any module-role login from outside the app pods |
 
 ### 13.2 Privacy services (SaaS)
 
@@ -887,26 +923,26 @@ A **statutory template framework** (SaaS, ADR-0012/0015): each form (`D02-LT`, `
 flowchart TB
   subgraph DC1[VN data centre 1 - primary]
     subgraph K1[Managed Kubernetes - prod]
-      NPa[node pool: app<br/>hrm-api, hrm-bff, hrm-ingest, Keycloak]
-      NPw[node pool: workers<br/>payroll / general / integration / reporting]
-      NPd[node pool: data<br/>CloudNativePG, Kafka Strimzi, Valkey, OpenBao]
+      NPa[node pool: app<br/>hrm-api, hrm-bff, Keycloak<br/>hrm-ingest P2]
+      NPw[node pool: workers<br/>payroll / general / events / reporting<br/>integration P2]
+      NPd[node pool: data<br/>CloudNativePG, Valkey, OpenBao<br/>Kafka Strimzi P2]
       NPo[node pool: platform<br/>Argo CD, OTel, Grafana stack, ClamAV, Gotenberg]
     end
     OBJ1[(Object storage DC1)]
   end
   subgraph DC2[VN data centre 2 - DR]
     subgraph K2[Kubernetes - warm standby]
-      R2[CNPG replica clusters<br/>Kafka MirrorMaker 2 target<br/>apps scaled to 0 / minimal]
+      R2[CNPG replica clusters<br/>Kafka MirrorMaker 2 target - P2<br/>apps scaled to 0 / minimal]
     end
     OBJ2[(Object storage DC2<br/>WAL archive, backups, file replica)]
   end
   NPd -- streaming replication + WAL archive --> R2
   NPd -- WAL / base backups --> OBJ2
   OBJ1 -- bucket replication --> OBJ2
-  NPd -- MirrorMaker 2 --> R2
+  NPd -. MirrorMaker 2 - P2 .-> R2
 ```
 
-- Within DC1, PostgreSQL clusters run 1 primary + 1 synchronous standby (different zone/rack) + 1 async replica for reads/CDC; Kafka 3 brokers (KRaft) across zones, RF 3, `min.insync.replicas=2`.
+- Within DC1, PostgreSQL clusters run 1 primary + 1 synchronous standby (different zone/rack) + 1 async replica for reads/CDC; Kafka (Phase 2) 3 brokers (KRaft) across zones, RF 3, `min.insync.replicas=2`.
 - Separate Kubernetes clusters for **prod** and **non-prod**; namespaces per environment in non-prod.
 
 ### 14.2 Environments
@@ -914,7 +950,7 @@ flowchart TB
 | Env | Purpose | Data | Deploy |
 |---|---|---|---|
 | `dev` | Developer integration, ephemeral preview per merge request | Synthetic | On merge request |
-| `ci` | Testcontainers (PostgreSQL, Kafka, Keycloak) per build | Synthetic | Per build |
+| `ci` | Testcontainers (PostgreSQL, Keycloak; Kafka from Phase 2) per build | Synthetic | Per build |
 | `sit` | Cross-module integration, contract tests, isolation suite | Synthetic + anonymised fixtures | On main |
 | `perf` | Load and payroll performance, peak rehearsal | Reference data set (10k, 50k, 200k employees synthetic) | On demand / pre-peak |
 | `uat` / `staging` | Customer UAT, release candidate, DAST | Masked copies only (no production PII) | Release candidate |
@@ -929,7 +965,7 @@ flowchart TB
 
 ### 14.4 Zero-downtime releases and migrations
 
-- Rolling updates with readiness gates; `api`, `worker`, `ingest` versions N and N+1 must coexist (workers drain jobs gracefully; job payloads versioned).
+- Rolling updates with readiness gates; `api`, `worker` (and `ingest` from Phase 2) versions N and N+1 must coexist (workers drain jobs gracefully; job payloads versioned).
 - **Expand/contract** schema migrations (Flyway): expand in release N (additive, nullable, backfill as a job), switch reads/writes in N+1, contract in N+2. Long backfills run as tenant-fair jobs. Migrations are applied per cluster by a migration Job before the rollout; pool and dedicated clusters are migrated in waves. Details of DDL conventions: see data architecture (DESIGN.md).
 - Event schemas follow the same expand/contract rule.
 - **Rollback ≤ 15 min:** redeploy previous image via Argo CD; schema is backward compatible by construction; feature flags as the first rollback lever.
@@ -938,22 +974,22 @@ flowchart TB
 ### 14.5 Observability
 
 - OpenTelemetry Java agent/SDK + Micrometer; OTel Collector (DaemonSet + gateway) → Mimir/Loki/Tempo in VN; Grafana dashboards per module and per tenant (top-N), Faro for frontend RUM.
-- **SLOs:** API availability 99.5% (99.9% Enterprise), login 99.9%, p95 latency 500 ms, payroll run duration, punch ack p95 1 s, event relay lag p95 < 5 s, DLT size = 0, CDC freshness < 15 min. Multi-window burn-rate alerts.
+- **SLOs:** API availability 99.5% (99.9% Enterprise), login 99.9%, p95 latency 500 ms, payroll run duration, event relay lag p95 < 5 s, event delivery lag p95 < 10 s, `DEAD` deliveries = 0 (DLT size = 0 in Phase 2), reporting replication freshness < 15 min, import throughput (punch file ≤ 10 min, QAS-5a); punch ack p95 1 s from Phase 2. Multi-window burn-rate alerts.
 - Business monitors: period-close reconciliation mismatches, final settlement deadline breaches, failed statutory file validations, LPS pack effective without publication.
 - Retention: logs ≥ 12 months, security logs ≥ 24 months, in VN (NFR-SAAS-010); PII masked.
 
 ### 14.6 Capacity and peaks
 
-- HPA (CPU) for `api`/`bff`/`ingest`; KEDA on queue depth and Kafka lag for workers; cluster autoscaler.
+- HPA (CPU) for `api`/`bff` (and `ingest` in Phase 2); KEDA on queue depth per pool (and Kafka lag in Phase 2) for workers; cluster autoscaler.
 - **Calendar pre-scaling** (NFR-SAAS-021): days 24–6 and Jan–Mar node pools scaled to 3× baseline; load test before each season in `perf`.
-- Initial sizing for launch (500 tenants, 200k employees) — to be validated in SP-1/SP-2: 2 pool PostgreSQL clusters (16 vCPU / 128 GB primary each, + standby + replica), platform cluster (8/32), reporting store (16/64), Kafka 3 × (8/32), app nodes 6 × (8/32) baseline scaling to 18 at peak.
+- Initial sizing for launch (500 tenants, 200k employees) — to be validated in SP-1/SP-2: 2 pool PostgreSQL clusters (16 vCPU / 128 GB primary each, + standby + replica), platform cluster (8/32), reporting store (16/64), Kafka 3 × (8/32) from Phase 2 only, app nodes 6 × (8/32) baseline scaling to 18 at peak.
 
 ### 14.7 Backup and DR (RPO 15 min / RTO 4 h)
 
 | Layer | Mechanism | RPO | RTO contribution |
 |---|---|---|---|
 | PostgreSQL | CNPG streaming replica cluster in DC2 (seconds lag) + WAL archive to DC2 object storage (`archive_timeout` 5 min) + daily base backup, 35-day retention; per-tenant PITR to sandbox via restore + logical extract (see data architecture (DESIGN.md)) | ≤ 5 min (≤ 15 min guaranteed) | Promote replica ≤ 15 min |
-| Kafka | MirrorMaker 2 to DC2; outbox tables retain published events 7 days, so the relay can **re-publish** any gap after failover; consumers are idempotent | ≈ 0 (replayable) | ≤ 30 min |
+| Events | **Phase 1:** outbox rows and delivery jobs are PostgreSQL rows and fail over with the cluster (same RPO); consumers are idempotent (inbox). **Phase 2 (Kafka):** MirrorMaker 2 to DC2; outbox tables retain published events 7 days, so the relay can **re-publish** any gap after failover | P1 = PostgreSQL; P2 ≈ 0 (replayable) | P1 none extra; P2 ≤ 30 min |
 | Object storage | Cross-site bucket replication | ≤ 15 min | — |
 | Keycloak | Its DB replicated like the others | ≤ 5 min | ≤ 15 min |
 | OpenBao | Raft snapshots to DC2 hourly + DR replication **[spike]** | ≤ 60 min (keys rarely change; new DEKs are also wrapped and stored with data) | ≤ 30 min |
@@ -965,7 +1001,7 @@ Total runbook ≤ 2 h for planned drills, well inside RTO 4 h; Enterprise (≤ 2
 ### 14.8 Cost considerations
 
 - Biggest cost drivers: PostgreSQL nodes (memory), DR duplication, observability storage, peak over-provisioning. Mitigations: workers on cheaper burstable/spot-like capacity where the provider offers it; DC2 apps scaled to near zero (warm standby); log sampling and tiered retention; reporting store on standard storage.
-- Open-source stack avoids per-seat licence costs (Keycloak, Kafka, Superset, Grafana, OpenBao). The main paid items are the VN cloud, certified providers (e-invoice, T-VAN/I-VAN, e-sign, SMS/ZNS), pen tests, and the HSM only before the Enterprise tier (OD-10).
+- Open-source stack avoids per-seat licence costs (Keycloak, Superset, Grafana, OpenBao; Kafka from Phase 2). Phase 1 runs no Kafka cluster and no integration pool, which removes 3 broker nodes and their DR mirror from the launch bill. The main paid items are the VN cloud, the VN e-mail relay, certified providers (Phase 2: e-invoice, T-VAN/I-VAN, e-sign, SMS/ZNS), pen tests, and the HSM only before the Enterprise tier (OD-10).
 - A provider quote for the §14.6 sizing at two VN providers is part of SP-7. The target infrastructure cost per employee per month and the Enterprise price floor are **deferred by the sponsor** (OD-6: "calculate later"); SP-7 quotes are kept so the figure can be computed when requested.
 
 ---
@@ -976,10 +1012,11 @@ Total runbook ≤ 2 h for planned drills, well inside RTO 4 h; Enterprise (≤ 2
 backend/
   build.gradle.kts / settings.gradle.kts      # Gradle multi-project; one subproject per folder below
   src/app/                                     # (new) Spring Boot application: bootstrap, role profiles api|worker, wiring only
-  src/ingest/                                  # (new) hrm-ingest application (thin)
+  src/ingest/                                  # Phase 2: hrm-ingest application (thin); not created in Phase 1
   src/modules/
     saas-platform/                             # (new) tenancy, entitlements/flags, identity bridge, legal params,
-                                               #       scheduler, storage, channels, integration hub, privacy,
+                                               #       scheduler + event-delivery transport, storage, e-mail channel,
+                                               #       file-export framework (P1) / integration hub (P2), privacy,
                                                #       reporting framework, go-live onboarding, ESS shell API
     core/                                      # org, LE, positions, authz service, workflow engine, notification centre,
                                                # documents, import engine (incl. opening-balance mode), audit store,
@@ -1011,7 +1048,7 @@ Inside each module (package root `vn.yourhrm.<module>`):
   internal/
     domain/       # aggregates, value objects, domain services (no Spring)
     application/  # use cases, transactions, permission checks, outbox publishing
-    infra/        # JPA/jOOQ repositories, Flyway migrations (db/migration/<schema>), Kafka consumers, adapters
+    infra/        # JPA/jOOQ repositories, Flyway migrations (db/migration/<schema>), event consumers (transport-neutral), adapters
     web/          # REST controllers, OpenAPI
     jobs/         # job handlers
   src/test/       # module tests (Spring Modulith @ApplicationModuleTest)
@@ -1037,7 +1074,7 @@ Repo-level: `infra/` (OpenTofu, Helm charts, Argo CD apps, environment values), 
 | # | Finding | Addressed by | Section / ADR | Remaining for Data architect / open |
 |---|---|---|---|---|
 | A-1 | Sixth schema `saas` (approved X-07); RLS exemptions; audit placement | `saas-platform` module owns `saas`; platform cluster + routing directory; Core audit store, platform audit in `saas`; read-only reference exception X-02 | §3.3, §5.3, §9.7; ADR-0001, ADR-0003, ADR-0021 | Done in DESIGN.md (RLS exemptions, tenant-scoped platform rows, audit partitioning) |
-| A-2 | One event backbone, envelope, versioned contracts | Outbox per module + in-app relay + Kafka + Apicurio; envelope; contract tests; sync-vs-event rule; catalogue v1 + 3 additions (v1.1, X-06) | §7.1–7.2; ADR-0004 | Outbox/inbox tables (DESIGN.md); Integration analyst adds the 3 events to gap §6 |
+| A-2 | One event backbone, envelope, versioned contracts | Outbox per module + in-app relay; Phase 1 ordered delivery jobs on PostgreSQL, Phase 2 Kafka + Apicurio; envelope; CI contract tests; sync-vs-event rule; catalogue v1 + 3 additions (v1.1, X-06) + `people.PrimaryEmploymentChanged` proposed | §7.1–7.2; ADR-0004 rev. 2 | Outbox/inbox and `saas.job` lanes (DESIGN.md); Integration analyst adds the events to gap §6 |
 | A-3 | Effective dating / bi-temporality / snapshots | `asOf`/`knownAt` API conventions; payroll snapshot with watermark; stamped versions; kernel versioning for 10-y recompute | §8.2, §8.6, §12; ADR-0009 | Temporal pattern and snapshot storage (DESIGN.md) |
 | A-4 | Period-close distributed protocol | Unified states, **close hold** on submit, idempotent lock/unlock, stale detection, nightly reconciliation | §7.4.2; ADR-0019 | Accepted (X-03); T&A and Payroll BAs update their BRDs |
 | A-5 | Identity vs authorisation | Keycloak (SaaS) authN; Core authZ snapshot ≤ 20 ms; claims; step-up via ACR; FORMER_EMPLOYEE lifecycle; support grant masking | §6; ADR-0005, ADR-0006 | Scope-friendly keys / closure tables (DESIGN.md) |
@@ -1045,7 +1082,7 @@ Repo-level: `infra/` (OpenTofu, Helm charts, Argo CD apps, environment values), 
 | A-7 | Entitlements vs runtime dependencies | Baseline-always-on capabilities; entitlements gate features not reference services; attendance import → standard result | §5.4; ADR-0003 | PM to publish the dependency matrix in the plan catalogue |
 | A-8 | One home per shared engine | Import incl. opening-balance mode (Core; go-live onboarding orchestration SaaS), notification centre (Core) + channels (SaaS), documents (Core) over storage (SaaS), scheduler (SaaS), audit (Core); per-tenant quotas | §3.3, §9; ADR-0011, ADR-0015, ADR-0016 | Job table placement (platform vs per cluster) |
 | A-9 | Privacy cross-cutting | Consent API + cache, PD inventory annotations, DSR saga with module handlers, retention scheduler, envelope encryption via OpenBao for identifiers/bank/special-category data (salary amounts protected by access controls, X-01), deletion path incl. reporting/search | §13; ADR-0017, ADR-0026 | Key hierarchy, crypto-shredding, retention tables (DESIGN.md) |
-| A-10 | Reporting store and ingestion vs OLTP peaks | CDC from standby → Kafka → PG reporting store; Superset with RLS; punch pipeline via `ingest` + Kafka; one capacity figure (500/s platform, 50/s tenant; accepted X-05, SP-3 confirms); peak pre-scaling | §2.1 D-6, §10, §14.6; ADR-0012 | Reporting model (DESIGN.md) |
+| A-10 | Reporting store and ingestion vs OLTP peaks | Phase 1: native logical replication (column lists) → PG reporting store; punch files via the import engine. Phase 2: optional Debezium → Kafka; punch pipeline via `ingest` + Kafka with one capacity figure (500/s platform, 50/s tenant; X-05, SP-3 confirms); Superset with RLS; peak pre-scaling | §2.1 D-6, §10, §14.6; ADR-0012 Amendment 1 | Reporting model (DESIGN.md) |
 
 Other gaps resolved here: GAP-002/003/016 (§6), GAP-005/007/008/010/034 (§9, §10), GAP-027/028/070 (§7.4), GAP-036 (§6.4), GAP-058 (§2.1 D-6), GAP-060 (§5.4), GAP-069 (§14.5: login 99.9% is an internal SLO).
 
@@ -1060,7 +1097,7 @@ Other gaps resolved here: GAP-002/003/016 (§6), GAP-005/007/008/010/034 (§9, �
 | AR-1 | RLS + `SET LOCAL` + PgBouncer transaction mode has a hidden performance or correctness issue at 200k employees | M / H | SP-2 RLS performance spike; app guard as second layer; query plans reviewed per module |
 | AR-2 | Payroll formula language too limited for real customer formulas, or too slow | M / H | SP-1 performance + SP-4 coverage using the pilot's pay-rule documents (no Oracle source, D-09); escape hatch = vendor-coded functions added per release (never tenant code) |
 | AR-3 | Modular monolith boundaries erode under deadline pressure | H / M | Modulith verification + ArchUnit + no cross-schema grants in CI; architecture review per epic |
-| AR-4 | Kafka operations burden for a small team | M / M | Strimzi operator, managed Kafka if the VN provider offers it; Kafka off the critical sync path (business flows survive a Kafka outage by queuing in outbox) |
+| AR-4 | ~~Kafka operations burden for a small team~~ — **deferred to Phase 2** (no Kafka in Phase 1, ADR-0004 rev. 2). Residual: Phase-2 introduction | L / M | Strimzi or provider-managed Kafka; transport-neutral consumers; cut-over per event type |
 | AR-5 | VN cloud provider lacks a managed service we assumed (HSM, S3 replication, managed K8s maturity) | M / H | SP-7 provider evaluation; operators (CNPG, Strimzi) keep us portable |
 | AR-6 | Spring Boot 4 / Java 25 library lag (e.g. Keycloak adapters, Debezium, jOOQ) | L / M | SP-0 skeleton and SP-1; fallback Boot 3.5 + Java 21 decided once at the end of SP-1 (OD-3) |
 | AR-7 | ~~Close-hold refinement not accepted by BAs~~ — **closed** (X-03 accepted). Residual: BRDs/gap §7 not updated before SRS | L / M | PM tracks the BRD update; ADR-0019 is the reference |
@@ -1068,12 +1105,14 @@ Other gaps resolved here: GAP-002/003/016 (§6), GAP-005/007/008/010/034 (§9, �
 | AR-9 | 10-year reproducibility relies on loading old engine kernels | M / M | Kernel as versioned artifact with frozen dependencies; yearly "reproduce old run" drill |
 | AR-10 | Data residency breach via SaaS tooling (e-mail, monitoring, error tracking, CI) | M / H | Self-hosted stack in VN; vendor inventory reviewed by DPO; egress allow-list at network level |
 | AR-11 | Opening balances wrong or late (mid-year go-live needs YTD PIT/SI, SI history, leave, loans from Excel; D-09) | M / H | Templates and validators in sprint 1–2; sandbox rehearsal; reconciliation gate with customer sign-off before commit (ADR-0037) |
-| AR-12 | Sites without time devices have no Phase-1 check-in channel (OD-9) | M / M | Excel attendance import producing the standard Attendance Result; device rollout planned with the pilot |
-| AR-13 | Salary amounts readable by holders of `hr`/`pay` DB credentials (X-01 accepted risk) | L / H | Dynamic credentials (OpenBao), break-glass with pgaudit, masking views, sensitive-read audit; recorded in the DPIA |
+| AR-12 | Phase-1 attendance depends on files: sites without devices have no check-in channel (OD-9, R2-06), and device sites depend on the customer exporting files from the device software (R2-01) | M / M | Excel attendance import producing the standard Attendance Result; device-export template per pilot device software tested in SP-9; export cadence (at least per pay period, ideally daily) agreed in the pilot runbook; exception dashboard shows days without punches |
+| AR-13 | Salary amounts readable by holders of `hr`/`pay` DB credentials (X-01 accepted risk) | L / H | **Accepted with mitigations (R2-15, 2026-10-16); DPO records it in the DPIA.** (1) Secrets vault: OpenBao dynamic PostgreSQL credentials, short TTL, rotation ≤ 90 days; (2) **no human access to application credentials** — module roles are issued only to workloads through Kubernetes auth; people use break-glass only (two-person approval, ≤ 4 h, session recording); (3) **DB access audit** — pgaudit on human and break-glass sessions, connection logging for all roles, alert on a module-role login from outside the app pods; plus masking views and sensitive-read audit |
+| AR-14 | DB-backed event bus (Phase 1) saturates: `saas.job` bloat or delivery lag at peak (payroll publication, large imports) | M / M | Pointer-only jobs, batch claims, partial indexes, daily purge of finished jobs, `events` pool scaled by KEDA; SLO relay lag p95 < 5 s, delivery lag p95 < 10 s; measured in SP-2; Kafka trigger defined (ADR-0004 rev. 2) |
+| AR-15 | Without SSO (R2-04) and with password-protected payslips (R2-17), password resets become the main support load in the first month | M / L | Self-service reset by e-mail; ESS flow to set the payslip password; "no payslip password" list for HR before the first publication; support FAQ |
 
 ### 17.2 Decisions taken (decision log, 2026-10-16)
 
-All open decisions of v0.1 are closed. Data-architecture decisions (D-01 … D-12) are recorded in DESIGN.md §15.
+All open decisions of v0.1 are closed. Data-architecture decisions (D-01 … D-16) are recorded in DESIGN.md §15.
 
 | # | Decision | Effect on this architecture | ADR |
 |---|---|---|---|
@@ -1081,7 +1120,7 @@ All open decisions of v0.1 are closed. Data-architecture decisions (D-01 … D-1
 | X-02 | Read-only exception: module roles may `SELECT` Core/SaaS **global** reference tables; explicit list + ArchUnit/DB tests | §3.3 rule 4 | ADR-0001, ADR-0021, ADR-0035 |
 | X-03 | Period-close payroll **hold** accepted | §7.4.2; BAs update BRDs | ADR-0019 |
 | X-04 | MVP cut to core features per module; all mobile features to Phase 2 | §1, B7 | — |
-| X-05 | Ingestion capacity 500 punches/s platform, 50/s per tenant | §2.1 D-6; SP-3 confirms | ADR-0001 (ingest role) |
+| X-05 | Ingestion capacity 500 punches/s platform, 50/s per tenant — **postponed to Phase 2 by R2-01** | §2.1 D-6; SP-3 (Phase 2) confirms | ADR-0001 (ingest role, Phase 2) |
 | X-06 | Three new events in catalogue v1.1 | §7.2 | ADR-0019 |
 | X-07 | `saas` schema approved | B2 | ADR-0003, ADR-0020 |
 | OD-1 | Provider chosen after the 2-week VN cloud evaluation (SP-7) | §4 Hosting, §17.3 | ADR-0017 (stays Proposed until SP-7) |
@@ -1092,24 +1131,42 @@ All open decisions of v0.1 are closed. Data-architecture decisions (D-01 … D-1
 | OD-6 | Cost target per employee per month deferred ("calculate later") | §14.8 | — |
 | OD-7 | (= X-03) close hold | §7.4.2 | ADR-0019 |
 | OD-8 | Former-employee login by e-mail OTP; personal e-mail captured at offboarding | §6.4 | ADR-0005 |
-| OD-9 | **No PWA or mobile check-in in Phase 1**; all mobile in Phase 2; Phase-1 attendance = time devices + Excel import | §3.2, §4, §7.5, §11.4 | ADR-0013 |
+| OD-9 | **No PWA or mobile check-in in Phase 1**; all mobile in Phase 2; Phase-1 attendance = time-device export files + Excel import (refined by R2-01) | §3.2, §4, §7.5, §11.4 | ADR-0013 |
 | OD-10 | Software root of trust for the MVP; HSM before the Enterprise tier | §4, §13.1 | ADR-0017, ADR-0026 |
 | D-09 | No Oracle migration; generic opening-balance import | §1, §3.1, §7.2, §9.6, §14.2 | ADR-0037 supersedes ADR-0033 |
 | D-10 | Billable = active person at month end per legal entity | Billing usage job (SaaS); see DESIGN.md §11 | — |
+
+**Round 2 (decision log §7–§7.2, 2026-10-16):**
+
+| # | Decision | Effect on this architecture | ADR |
+|---|---|---|---|
+| R2-01 / R2-19 | No live external integrations in Phase 1; Option B cuts | Phase markers in §3.1/§3.2; file-export framework only (§7.5); device-export file import (§9.6); no `hrm-ingest`, no `integration` pool, no Kafka in Phase 1 (§7.2, §10.2, §14); X-05 / SP-3 / QAS-5 / D-6 → Phase 2; public API and webhooks Phase 2 (§12) | ADR-0016 rev., ADR-0014 rev., ADR-0004 rev. 2 (Proposed), ADR-0001 Amendment 1 (Proposed), ADR-0002 Amendment 1 (Proposed), ADR-0012 Amendment 1 (Proposed), ADR-0017 rev. |
+| R2-04 | SSO to Phase 2; pilot = username/password + MFA | §4, §6.1, §6.2, §6.4 | ADR-0005 (accepted, amended) |
+| R2-06 | Desktop web check-in → P2 (Excel import or corrections instead) | §11.4, AR-12 | — |
+| R2-08 | Cross-entity annual OT cap stays P2 | §8.4 | — |
+| R2-11 | X-02 exception list (incl. override rows and plumbing grants) accepted | §3.3 rule 4 | ADR-0021 (accepted) |
+| R2-12 | (a) `SUSPENDED` not billable; (b) unanswered → D-10 stands (billed per legal entity) | Billing usage job; DESIGN.md §11 | — |
+| R2-15 | AR-13 accepted with mitigations (secrets vault, no human access to app credentials, DB access audit) | §13.1, §17.1 AR-13 | ADR-0017 rev. |
+| R2-16 | Basic concurrent employment across LEs | §8.2, §8.4; `hr.primary_employment` (DESIGN.md §7.3); event `people.PrimaryEmploymentChanged` proposed | — (DA D-13) |
+| R2-17 | Payslip e-mail as password-protected PDF; Core deep-link rule relaxed for payslips | §9.3, §9.4 | ADR-0015 rev. (technical design Proposed), ADR-0026 |
+| R2-18 | Baseline always-on capabilities (Core, People basics, legal parameters, pay scales/bands, Excel attendance import) | §5.4 entitlement design | ADR-0003 (accepted, decision 5 updated) |
+
+**Open points raised by v0.3 (for the PM):** (1) E-invoicing of YourHRM's own subscription invoices was a "certified provider API" in v0.2; under R2-01 it is treated as Phase 2 and vendor finance issues the pilot invoices outside the platform from the usage report — confirm, or list it as the one allowed Phase-1 API integration. (2) The holiday-calendar/schedule API and the gross↔net simulator remain runtime reference services available to all tenants (§5.4) although R2-18 does not list them — confirm. (3) E-withholding (PIT) certificates in Phase 1 are PDFs; electronic issuance via a certified provider is Phase 2 — the Payroll BA should check whether the pilot's tax office requires e-certificates for the 2027 tax year `[verify-legal]`.
 
 ### 17.3 Next steps — spikes and proofs of concept
 
 | # | Spike | Question | Exit criterion | Duration |
 |---|---|---|---|---|
-| SP-0 | Walking skeleton | Java 25 + Boot 4 + Modulith + Keycloak + BFF + CNPG + Kafka work end to end on a VN provider; X-02 grant guard and ArchUnit rule in CI | Hello-tenant flow with RLS, outbox → Kafka → consumer, deployed by Argo CD | 2 weeks |
+| SP-0 | Walking skeleton | Java 25 + Boot 4 + Modulith + Keycloak (password + TOTP / e-mail OTP) + BFF + CNPG work end to end on a VN provider; X-02 grant guard and ArchUnit rule in CI; **no Kafka** (R2-01) | Hello-tenant flow with RLS, outbox → relay → `bus.Deliver` job → consumer with inbox, deployed by Argo CD | 2 weeks |
 | SP-1 | Payroll engine performance | YFL + partitioned calc meets 10k ≤ 5 min (design) / 15 min (NFR) with 60 elements incl. SI caps, PIT, net-to-gross for 20% NET employees | Measured on 10k and 50k synthetic; one-employee recalc ≤ 5 s; **closes OD-3** (Java 25/Boot 4 kept or fallback) | 3 weeks |
-| SP-2 | RLS performance (with Data architect) | Overhead of RLS + `SET LOCAL` + PgBouncer at 200k employees / 500 tenants; scope predicates ≤ 20 ms | p95 overhead < 10% on reference queries | 2 weeks |
-| SP-3 | Punch ingestion | 500 punches/s platform sustained, 50/s per tenant, 1,000/s burst, ack p95 ≤ 1 s, device-agent offline buffer replay (no mobile source in Phase 1) | k6 test green; zero loss in chaos test; **confirms X-05** | 1 week |
+| SP-2 | RLS performance and DB-backed bus (with Data architect) | Overhead of RLS + `SET LOCAL` + PgBouncer at 200k employees / 500 tenants; scope predicates ≤ 20 ms; **event bus on `saas.job`**: relay + ordered delivery throughput and bloat at 10× pilot volume (payroll publication of 10k employees, a 50k-row import) | p95 overhead < 10% on reference queries; relay lag p95 < 5 s and delivery lag p95 < 10 s at the test load; measured limit recorded as the Kafka trigger (ADR-0004 rev. 2) | 2 weeks + 3 days |
+| SP-3 | Punch ingestion — **postponed to Phase 2** (R2-01) | 500 punches/s platform sustained, 50/s per tenant, 1,000/s burst, ack p95 ≤ 1 s, device-agent offline buffer replay | k6 test green; zero loss in chaos test; **confirms X-05** | 1 week (Phase 2) |
 | SP-4 | Pilot formula coverage | Express the pilot's pay policies (from its pay-rule documents and sample payslips, not Oracle) in YFL | ≥ 95% expressible without new functions; list of needed functions | 2 weeks (with Payroll BA) |
-| SP-5 | Document generation throughput | 10k payslip PDF/A with Vietnamese fonts ≤ 10 min; DOCX→PDF fidelity of pilot templates | Measured | 1 week |
-| SP-6 | Reporting store | CDC freshness, BI RLS with guest token, PG vs ClickHouse for 5-year payroll facts | Decision note | 2 weeks (P2-prep) |
+| SP-5 | Document generation throughput | 10k payslip PDF/A with Vietnamese fonts ≤ 10 min **plus the AES-256 password-protected e-mail copy** (R2-17; PDFBox, opens in common VN mail clients and phone PDF viewers); DOCX→PDF fidelity of pilot templates | Measured; 10k encrypted payslip e-mails ≤ 30 min (NFR-CORE-005) | 1 week |
+| SP-6 | Reporting store | **Phase 1:** native logical replication with column lists from a standby on the chosen provider (freshness, DDL handling, slot monitoring). **P2-prep:** BI RLS with guest token, PG vs ClickHouse for 5-year payroll facts | Decision note (closes ADR-0012 Amendment 1) | 1 week (P1) + 2 weeks (P2-prep) |
 | SP-7 | VN cloud evaluation | Managed K8s, S3 replication, KMS (HSM option for the Enterprise tier), PG extensions and logical replication (D-07), two DCs, network, price | Scored matrix + quotes for 2 providers; **sponsor decides OD-1** | 2 weeks |
-| SP-8 | Keycloak multi-tenant | Organizations + per-org IdP brokering + step-up ACR + OTP for former employees, 500 orgs | Working flows; admin API automation | 1 week |
+| SP-8 | Keycloak multi-tenant | Organizations + step-up ACR + **MFA by TOTP and e-mail OTP** (built-in authenticator or vetted extension) + OTP for former employees, 500 orgs; per-org IdP brokering only as a Phase-2 check (R2-04) | Working flows; admin API automation | 1 week |
+| SP-9 | Device-export file formats (new, R2-01) | Collect real export files from the pilot's time-device software (e.g. ZKTeco / Hikvision tools), define the column layouts, enrol-id mapping and dedup rule | Layout configs for every pilot site; a month of real files imported with 0 duplicates and all rejects explained | 1 week (with T&A BA) |
 
 ---
 
@@ -1119,22 +1176,22 @@ Solution-architecture ADRs (0001–0019). Data-architecture ADRs (0020–0039) a
 
 | ADR | Title | Status |
 |---|---|---|
-| [0001](adr/0001-modular-monolith.md) | Modular monolith with Spring Modulith and three runtime roles | Accepted (2026-10-16, brief baseline 3; X-02 exception) |
-| [0002](adr/0002-technology-baseline.md) | Technology baseline (Java 25, Spring Boot 4, PostgreSQL 17) | Accepted (2026-10-16, OD-3) |
-| [0003](adr/0003-application-multi-tenancy.md) | Application-tier multi-tenancy: resolution, context, routing, quotas | Accepted (2026-10-16, brief baseline 4; X-07) |
-| [0004](adr/0004-event-backbone-outbox-kafka.md) | Event backbone: transactional outbox, in-app relay, Kafka, schema registry | Proposed |
-| [0005](adr/0005-identity-keycloak-authn-authz-split.md) | Keycloak identity; SaaS authenticates, Core authorises | Accepted (2026-10-16, brief baseline 1; OD-8) |
+| [0001](adr/0001-modular-monolith.md) | Modular monolith with Spring Modulith and separately scaled runtime roles | Accepted (2026-10-16, brief baseline 3; X-02 exception); **Amendment 1 Proposed** (R2-01: `ingest` role → Phase 2) |
+| [0002](adr/0002-technology-baseline.md) | Technology baseline (Java 25, Spring Boot 4, PostgreSQL 17) | Accepted (2026-10-16, OD-3); **Amendment 1 Proposed** (R2-01: Kafka/Apicurio → Phase 2) |
+| [0003](adr/0003-application-multi-tenancy.md) | Application-tier multi-tenancy: resolution, context, routing, quotas, baseline capabilities | Accepted (2026-10-16, brief baseline 4; X-07; decision 5 updated per R2-18, accepted) |
+| [0004](adr/0004-event-backbone-outbox-kafka.md) | Event backbone: outbox and in-app relay; DB-backed bus in Phase 1, Kafka in Phase 2 | Proposed (rev. 2, R2-01) |
+| [0005](adr/0005-identity-keycloak-authn-authz-split.md) | Keycloak identity; SaaS authenticates, Core authorises | Accepted (2026-10-16, brief baseline 1; OD-8; R2-04 SSO → Phase 2) |
 | [0006](adr/0006-authorisation-enforcement.md) | Authorisation enforcement: cached snapshot, scope predicates, field masking | Proposed |
 | [0007](adr/0007-workflow-engine-in-house.md) | In-house workflow and approval engine in Core | Accepted (2026-10-16, OD-4) |
 | [0008](adr/0008-payroll-formula-language.md) | Payroll formula language (YFL) on ANTLR and BigDecimal | Proposed |
 | [0009](adr/0009-payroll-run-orchestration.md) | Payroll run orchestration: snapshot and partitioned parallel calculation | Proposed |
 | [0010](adr/0010-legal-parameter-service.md) | Legal Parameter Service API and caching | Proposed |
-| [0011](adr/0011-job-scheduler.md) | Tenant-fair job scheduler on PostgreSQL | Proposed |
-| [0012](adr/0012-reporting-architecture.md) | Reporting: CDC to PostgreSQL reporting store, Superset, statutory framework | Accepted (2026-10-16, OD-5) |
+| [0011](adr/0011-job-scheduler.md) | Tenant-fair job scheduler on PostgreSQL (also the Phase-1 event transport) | Proposed (rev. R2-01) |
+| [0012](adr/0012-reporting-architecture.md) | Reporting: replication-fed PostgreSQL reporting store, Superset, statutory framework | Accepted (2026-10-16, OD-5); **Amendment 1 Proposed** (R2-01: native logical replication in Phase 1) |
 | [0013](adr/0013-frontend-stack.md) | Frontend: React, TypeScript, Ant Design; no micro-frontends; responsive ESS web in Phase 1, React Native in Phase 2 | Accepted (2026-10-16, OD-2; OD-9) |
-| [0014](adr/0014-bff-gateway-public-api.md) | BFF, edge gateway, public API and webhooks | Proposed |
-| [0015](adr/0015-document-generation.md) | Document generation engines | Proposed |
-| [0016](adr/0016-integration-hub.md) | Integration hub and connector pattern | Proposed |
-| [0017](adr/0017-hosting-kubernetes-dr.md) | Hosting in Vietnam on Kubernetes, secrets and DR | Proposed (provider after SP-7, OD-1; OD-10 key-root part decided) |
+| [0014](adr/0014-bff-gateway-public-api.md) | BFF, edge gateway; public API and webhooks in Phase 2 | Proposed (rev. R2-01) |
+| [0015](adr/0015-document-generation.md) | Document generation engines; password-protected payslip PDF by e-mail | Proposed (rev.; R2-17 decision accepted, technical design Proposed) |
+| [0016](adr/0016-integration-hub.md) | Integration hub — Phase 1 file-export framework only, hub runtime Phase 2 | Proposed (rev. R2-01) |
+| [0017](adr/0017-hosting-kubernetes-dr.md) | Hosting in Vietnam on Kubernetes, secrets and DR | Proposed (provider after SP-7, OD-1; OD-10 key-root part decided; R2-15 credential rule accepted; Kafka/MirrorMaker → P2) |
 | [0018](adr/0018-observability.md) | Observability with OpenTelemetry and self-hosted Grafana stack | Proposed |
 | [0019](adr/0019-saga-protocols.md) | Saga protocols: period close with close hold, leaver, hire, reorg | Accepted (2026-10-16, X-03; X-06) |

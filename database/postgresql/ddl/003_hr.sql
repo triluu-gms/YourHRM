@@ -18,6 +18,11 @@
 -- v0.2 (2026-10-16): source value MIGRATION -> OPENING_LOAD (D-09, ADR-0037), salary
 -- masking view, X-01 comments. NOT re-tested after these changes (no PostgreSQL
 -- available locally); reviewed by read-through only.
+-- v0.3 (2026-10-16, R2-16 concurrent employment across legal entities):
+-- hr.employment.is_primary + employment_primary_ex replaced by the effective-dated
+-- hr.primary_employment (per purpose PIT_FAMILY_DEDUCTION / SOCIAL_INSURANCE, at most
+-- one per person per period); UNIQUE (tenant_id, person_id, id) on employment; at most
+-- one live employment per person per legal entity. NOT tested (no PostgreSQL).
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -100,7 +105,9 @@ CREATE TABLE hr.employment (
   end_date                date,                             -- termination date, INCLUSIVE business date
   last_working_date       date,
   employment_period       daterange GENERATED ALWAYS AS (daterange(hire_date, end_date, '[]')) STORED,
-  is_primary              boolean NOT NULL DEFAULT true,    -- primary employment for PIT/SI purposes
+  -- v0.3: the v0.2 column is_primary is replaced by the effective-dated table
+  -- hr.primary_employment (section 2a), because the primary employment of a person
+  -- can change while both employments continue (R2-16, GAP-031).
   status                  text NOT NULL DEFAULT 'PRE_HIRE',
   worker_category_code    text NOT NULL,                    -- code list: EMPLOYEE | EXPAT | APPRENTICE | COLLABORATOR ...
   employee_category_code  text,                             -- tenant code list
@@ -123,13 +130,66 @@ CREATE TABLE hr.employment (
   CONSTRAINT employment_dates_ck CHECK (end_date IS NULL OR end_date >= hire_date),
   CONSTRAINT employment_lwd_ck CHECK (last_working_date IS NULL OR last_working_date >= hire_date),
   CONSTRAINT employment_source_ck CHECK (source IN ('APP','OPENING_LOAD','REC_HANDOFF','IMPORT')),
-  -- at most one PRIMARY employment per person at any time (within the tenant)
-  CONSTRAINT employment_primary_ex EXCLUDE USING gist
-    (tenant_id WITH =, person_id WITH =, employment_period WITH &&)
-    WHERE (is_primary AND status <> 'CANCELLED')
+  -- target of the composite FK from hr.primary_employment: the designated employment
+  -- must belong to the same person
+  CONSTRAINT employment_person_id_uq UNIQUE (tenant_id, person_id, id),
+  -- one person has at most one live employment per legal entity at a time
+  -- (concurrent work in the same LE is a CONCURRENT assignment, not a second employment)
+  CONSTRAINT employment_person_le_ex EXCLUDE USING gist
+    (tenant_id WITH =, person_id WITH =, legal_entity_id WITH =, employment_period WITH &&)
+    WHERE (status <> 'CANCELLED')
 );
-CREATE INDEX employment_person_ix ON hr.employment (tenant_id, person_id);
 CREATE INDEX employment_le_status_ix ON hr.employment (tenant_id, legal_entity_id, status);
+
+-- =============================================================================
+-- 2a. PRIMARY EMPLOYMENT  (R2-16, GAP-031, BR-PPL-004; valid time, DESIGN §5.1)
+-- One person may hold several employments with different legal entities of the
+-- tenant. For each purpose, exactly one of them is "primary" on any day:
+--   PIT_FAMILY_DEDUCTION : the employer that applies the family (self + dependant)
+--                          deduction; dependants are claimed via this employment
+--   SOCIAL_INSURANCE     : the employer through which the person participates in SI
+--                          (SI Law 2024 multiple-contract rule [verify-legal])
+-- Both purposes normally point to the same employment; they are separate rows because
+-- the legal rules differ and the PIT designation follows the employee's registration.
+-- "At most one primary employment per person per period" = primary_employment_ex.
+-- Coverage (a designation exists whenever the person has 2+ live employments) and
+-- "designation lies inside the employment period" are checked by the People service
+-- and by the nightly consistency job, not by a constraint (they span rows/tables).
+-- =============================================================================
+CREATE TABLE hr.primary_employment (
+  tenant_id        uuid NOT NULL,
+  id               uuid NOT NULL DEFAULT sys.uuid_v7(),
+  person_id        uuid NOT NULL,
+  employment_id    uuid NOT NULL,
+  purpose          text NOT NULL,
+  valid_from       date NOT NULL,
+  valid_to         date,                                      -- EXCLUSIVE; NULL = open
+  valid_during     daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
+  status           text NOT NULL DEFAULT 'ACTIVE',
+  reason_code      text,                                      -- FIRST_CONTRACT | EMPLOYEE_REGISTRATION | PRIMARY_ENDED ...
+  decision_id      uuid,                                      -- optional hr.decision
+  source           text NOT NULL DEFAULT 'APP',
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  created_by       uuid,
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  updated_by       uuid,
+  version          int NOT NULL DEFAULT 0,
+  CONSTRAINT primary_employment_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT primary_employment_employment_fk FOREIGN KEY (tenant_id, person_id, employment_id)
+    REFERENCES hr.employment (tenant_id, person_id, id),
+  CONSTRAINT primary_employment_purpose_ck CHECK (purpose IN ('PIT_FAMILY_DEDUCTION','SOCIAL_INSURANCE')),
+  CONSTRAINT primary_employment_status_ck CHECK (status IN ('ACTIVE','CANCELLED')),
+  CONSTRAINT primary_employment_source_ck CHECK (source IN ('APP','OPENING_LOAD','IMPORT')),
+  CONSTRAINT primary_employment_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
+  -- at most one primary employment per person, per purpose, per period
+  CONSTRAINT primary_employment_ex EXCLUDE USING gist
+    (tenant_id WITH =, person_id WITH =, purpose WITH =, valid_during WITH &&)
+    WHERE (status = 'ACTIVE')
+);
+CREATE INDEX primary_employment_employment_ix ON hr.primary_employment (tenant_id, employment_id);
+COMMENT ON TABLE hr.primary_employment IS
+  'R2-16: primary employment per person and purpose (PIT family deduction, SI), effective-dated. '
+  'A person with a single employment needs no row (that employment is primary by default).';
 
 -- =============================================================================
 -- 3. DECISION  (quyết định: hire, transfer, salary change, termination ...)
@@ -397,7 +457,9 @@ CREATE TABLE hr.pit_dependant (
   tenant_id             uuid NOT NULL,
   id                    uuid NOT NULL DEFAULT sys.uuid_v7(),
   family_member_id      uuid NOT NULL,
-  employment_id         uuid NOT NULL,                      -- claiming employment (taxpayer side)
+  employment_id         uuid NOT NULL,                      -- claiming employment (taxpayer side); must be the person's
+                                                            -- PIT_FAMILY_DEDUCTION primary employment for those months
+                                                            -- when the person has several (hr.primary_employment; service rule)
   from_month            sys.month_date NOT NULL,
   to_month              sys.month_date,                     -- INCLUSIVE last month; NULL = open
   month_range           daterange GENERATED ALWAYS AS
@@ -515,7 +577,7 @@ SELECT s.tenant_id, s.id, s.employment_id, s.pay_basis, s.salary_kind,
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['hr.person','hr.employment','hr.decision','hr.assignment','hr.salary_record',
+  FOREACH t IN ARRAY ARRAY['hr.person','hr.employment','hr.primary_employment','hr.decision','hr.assignment','hr.salary_record',
                            'hr.salary_record_allowance','hr.contract','hr.contract_appendix',
                            'hr.family_member','hr.pit_dependant','hr.bank_account']
   LOOP
@@ -524,7 +586,7 @@ BEGIN
   END LOOP;
 
   -- mutable tables
-  FOREACH t IN ARRAY ARRAY['hr.person','hr.employment','hr.decision','hr.contract','hr.contract_appendix',
+  FOREACH t IN ARRAY ARRAY['hr.person','hr.employment','hr.primary_employment','hr.decision','hr.contract','hr.contract_appendix',
                            'hr.family_member','hr.pit_dependant','hr.bank_account']
   LOOP
     CALL sys.attach_touch_trigger(t::regclass);
@@ -536,7 +598,7 @@ BEGIN
 END $$;
 
 GRANT SELECT, INSERT, UPDATE ON
-  hr.person, hr.employment, hr.decision, hr.assignment, hr.salary_record, hr.contract,
+  hr.person, hr.employment, hr.primary_employment, hr.decision, hr.assignment, hr.salary_record, hr.contract,
   hr.contract_appendix, hr.family_member, hr.pit_dependant, hr.bank_account
 TO yhrm_app_hr;
 GRANT SELECT, INSERT ON hr.salary_record_allowance TO yhrm_app_hr;

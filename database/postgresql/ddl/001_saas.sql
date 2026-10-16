@@ -12,8 +12,15 @@
 -- what differs is where a table is AUTHORITATIVE:
 --   PLATFORM   : written only in the platform cluster (tenant, plans, billing, packs, keyring, privacy registries)
 --   REPLICATED : read-only logical-replication copy in pool/dedicated clusters
---                (tenant, tenant_placement, entitlement, legal_param_*, retention_policy)
+--                (tenant, tenant_placement, entitlement, baseline_capability, legal_param_*, retention_policy)
 --   LOCAL      : cluster-local, never replicated (job queue, outbox/inbox)
+--
+-- v0.3 (2026-10-16, decision-log R2-01/R2-18): saas.job gets ordering_key and the
+-- 'events' queue (Phase-1 DB-backed event bus, SA ADR-0004 rev. 2: the relay fans
+-- each outbox event out as one delivery job per consumer; Kafka is Phase 2);
+-- saas.enqueue_event_delivery(); claim_jobs() respects ordering keys;
+-- entitlement source BASELINE + saas.baseline_capability (always-on capabilities).
+-- NOT tested: no PostgreSQL available in this round; reviewed by read-through only.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -99,8 +106,8 @@ CREATE POLICY router_read ON saas.tenant_placement FOR SELECT TO yhrm_app_saas U
 CREATE TABLE saas.job (
   tenant_id        uuid        NOT NULL,
   id               uuid        NOT NULL DEFAULT sys.uuid_v7(),
-  queue            text        NOT NULL,                      -- payroll | general | integration | reporting
-  job_type         text        NOT NULL,                      -- e.g. pay.CalculateChunk
+  queue            text        NOT NULL,                      -- payroll | general | integration | reporting | events
+  job_type         text        NOT NULL,                      -- e.g. pay.CalculateChunk, bus.Deliver
   priority         smallint    NOT NULL DEFAULT 5,            -- lane: 1 interactive .. 9 batch
   payload          jsonb       NOT NULL,
   payload_version  int         NOT NULL DEFAULT 1,
@@ -108,6 +115,8 @@ CREATE TABLE saas.job (
   attempts         int         NOT NULL DEFAULT 0,
   not_before       timestamptz NOT NULL DEFAULT now(),
   idempotency_key  text,
+  ordering_key     text,                                      -- FIFO lane: at most one non-terminal job per key runs
+                                                              -- (bus deliveries: consumer || ':' || aggregate_id)
   heartbeat_at     timestamptz,
   worker_id        text,
   progress         jsonb,
@@ -120,6 +129,10 @@ CREATE TABLE saas.job (
 CREATE INDEX job_ready_ix ON saas.job (queue, priority, not_before) WHERE state = 'READY';
 CREATE INDEX job_running_ix ON saas.job (queue, tenant_id) WHERE state = 'RUNNING';   -- fair-share counts
 CREATE UNIQUE INDEX job_idempotency_uq ON saas.job (tenant_id, job_type, idempotency_key) WHERE idempotency_key IS NOT NULL;
+-- Predecessor lookup for ordered lanes. Non-terminal states block the lane;
+-- SUCCEEDED / DEAD / CANCELLED release it (a DEAD delivery = the "DLT" of Phase 1).
+CREATE INDEX job_ordering_ix ON saas.job (tenant_id, ordering_key, id)
+  WHERE ordering_key IS NOT NULL AND state IN ('READY','RUNNING','FAILED','PAUSED');
 ALTER TABLE saas.job SET (fillfactor = 80);
 -- Tenants enqueue/see their own jobs (RLS). Workers claim ACROSS tenants only through
 -- this SECURITY DEFINER function (owner bypasses RLS), which applies fair share
@@ -137,7 +150,11 @@ AS $$
            coalesce(r.n, 0) AS running_n,
            row_number() OVER (PARTITION BY j.tenant_id ORDER BY j.priority, j.id) AS rn
       FROM saas.job j LEFT JOIN running r ON r.tenant_id = j.tenant_id
-     WHERE j.queue = p_queue AND j.state = 'READY' AND j.not_before <= now()),
+     WHERE j.queue = p_queue AND j.state = 'READY' AND j.not_before <= now()
+       AND (j.ordering_key IS NULL OR NOT EXISTS (     -- ordered lane: an older non-terminal job goes first
+             SELECT 1 FROM saas.job o
+              WHERE o.tenant_id = j.tenant_id AND o.ordering_key = j.ordering_key
+                AND o.id < j.id AND o.state IN ('READY','RUNNING','FAILED','PAUSED')))),
   eligible AS (                                 -- respect the per-tenant cap within this batch too
     SELECT tenant_id, id FROM ranked
      WHERE running_n + rn <= p_tenant_cap
@@ -159,6 +176,38 @@ REVOKE EXECUTE ON FUNCTION saas.claim_jobs(text, text, int, int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION saas.claim_jobs(text, text, int, int) TO yhrm_app_saas;
 GRANT SELECT, INSERT ON saas.job TO yhrm_app;
 GRANT UPDATE (state, attempts, not_before, heartbeat_at, progress, last_error, finished_at) ON saas.job TO yhrm_app_saas;
+
+-- Phase-1 event bus (SA ADR-0004 rev. 2, DESIGN §9.1): the outbox relay (yhrm_relay)
+-- turns one outbox row into one delivery job per subscribed consumer, in the same
+-- transaction in which it sets outbox_event.published_at. The job payload is a
+-- POINTER (source schema, event id, created_at) and never the business payload, so
+-- salary amounts in e.g. people.SalaryChanged do not land in saas.job, which every
+-- module role of the tenant can read (X-01 controls stay intact). The delivery
+-- worker re-reads the event through the relay connection and calls the consumer
+-- handler in the consumer module's own transaction (inbox dedupe, ADR-0028).
+-- Phase 2 swaps this function for a Kafka publish; consumer code does not change.
+CREATE OR REPLACE FUNCTION saas.enqueue_event_delivery(
+    p_tenant_id uuid, p_source_cluster text, p_source_schema text, p_event_id uuid,
+    p_event_created_at timestamptz, p_event_type text, p_aggregate_id uuid, p_consumers text[])
+RETURNS int
+LANGUAGE sql SECURITY DEFINER SET search_path = saas, pg_temp
+AS $$
+  WITH ins AS (
+    INSERT INTO saas.job (tenant_id, queue, job_type, priority, payload, idempotency_key, ordering_key)
+    SELECT p_tenant_id, 'events', 'bus.Deliver', 3,
+           jsonb_build_object('source_cluster', p_source_cluster, 'source_schema', p_source_schema,
+                              'event_id', p_event_id, 'event_created_at', p_event_created_at,
+                              'event_type', p_event_type, 'consumer', c),
+           c || ':' || p_event_id::text,
+           c || ':' || p_aggregate_id::text
+      FROM unnest(p_consumers) AS c
+    ON CONFLICT (tenant_id, job_type, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+    RETURNING 1)
+  SELECT count(*)::int FROM ins;
+$$;
+REVOKE EXECUTE ON FUNCTION saas.enqueue_event_delivery(uuid, text, text, uuid, timestamptz, text, uuid, text[]) FROM PUBLIC;
+GRANT USAGE ON SCHEMA saas TO yhrm_relay;
+GRANT EXECUTE ON FUNCTION saas.enqueue_event_delivery(uuid, text, text, uuid, timestamptz, text, uuid, text[]) TO yhrm_relay;
 
 -- -----------------------------------------------------------------------------
 -- Keyring  (DESIGN §9.3, ADR-0026).  Key MATERIAL never lives here in clear:
@@ -289,12 +338,33 @@ CREATE TABLE saas.entitlement (
   created_at       timestamptz NOT NULL DEFAULT now(),
   created_by       uuid,
   CONSTRAINT entitlement_pk PRIMARY KEY (tenant_id, id),
-  CONSTRAINT entitlement_source_ck CHECK (source IN ('PLAN','ADDON','OVERRIDE','TRIAL')),
+  CONSTRAINT entitlement_source_ck CHECK (source IN ('BASELINE','PLAN','ADDON','OVERRIDE','TRIAL')),
+  -- R2-18: a BASELINE row can only grant. Because entitlement_period_ex allows one row per
+  -- (tenant, feature, LE, period), a BASELINE row also blocks any OVERRIDE that would disable it.
+  CONSTRAINT entitlement_baseline_ck CHECK (source <> 'BASELINE' OR (is_enabled AND legal_entity_id IS NULL)),
   CONSTRAINT entitlement_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
   CONSTRAINT entitlement_period_ex EXCLUDE USING gist (
     tenant_id WITH =, feature_key WITH =,
     (coalesce(legal_entity_id, sys.global_tenant_id())) WITH =, valid_during WITH &&)
 );
+
+-- Baseline always-on capabilities (decision-log R2-18, GAP-060; SA ADR-0003 §5).  [P, REPLICATED]
+-- The entitlement resolver writes one source = 'BASELINE' entitlement row per tenant and
+-- feature_key listed here, whatever plan or modules the tenant bought. Changing this list
+-- is a product decision (PM), shipped by the release job, not by a tenant or operator.
+CREATE TABLE saas.baseline_capability (
+  feature_key   text NOT NULL,                                -- e.g. baseline.people.master
+  owner_module  text NOT NULL,                                -- module that provides it
+  description   text NOT NULL,
+  valid_from    date NOT NULL,
+  valid_to      date,
+  CONSTRAINT baseline_capability_pk PRIMARY KEY (feature_key, valid_from),
+  CONSTRAINT baseline_capability_owner_ck CHECK (owner_module IN ('saas','core','hr','att','pay')),
+  CONSTRAINT baseline_capability_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from)
+);
+COMMENT ON TABLE saas.baseline_capability IS
+  '[P] R2-18 always-on capabilities: baseline.core, baseline.people.master, baseline.legal_params, '
+  'baseline.pay.scales_bands, baseline.att.excel_import (seeded by the release job).';
 
 -- -----------------------------------------------------------------------------
 -- Billing  [T]  (invoices are VN e-invoices; read by tenant UI through the SaaS API)
@@ -654,7 +724,7 @@ GRANT SELECT, INSERT, UPDATE ON saas.tenant_key, saas.subject_key, saas.subscrip
       saas.entitlement, saas.invoice, saas.invoice_line, saas.support_grant, saas.consent_record,
       saas.data_subject_request, saas.retention_policy, saas.archive_manifest,
       saas.legal_param_override_set, saas.legal_param_override TO yhrm_app_saas;
-GRANT SELECT ON saas.plan, saas.plan_version TO yhrm_app_saas;
+GRANT SELECT ON saas.plan, saas.plan_version, saas.baseline_capability TO yhrm_app_saas;
 
 -- Legal packs: every module reads published packs through the Legal Parameter
 -- Service (owned by SaaS); direct SELECT is limited to the SaaS runtime.

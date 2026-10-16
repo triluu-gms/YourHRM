@@ -1,18 +1,18 @@
-# ADR-0032: Reporting store data model — CDC-fed star schema with tenant isolation
+# ADR-0032: Reporting store data model — replication-fed star schema with tenant isolation
 
-- **Status:** Proposed
+- **Status:** Proposed (rev. 2026-10-16, R2-01: the Phase-1 feed is native logical replication, ADR-0012 Amendment 1; the model is unchanged)
 - **Date:** 2026-10-16
 - **Deciders:** Data architect (model), Solution architect (ADR-0012 owns technology and pipeline)
 - **Related:** BR-SAAS-046/047, NFR-SAAS-003; gap-analysis §9 A-10; ADR-0006 (`report_scope`), ADR-0012, ADR-0026, ADR-0029; [DESIGN.md](../../../database/postgresql/DESIGN.md) §11
 
 ## Context
 
-Analytics must not load OLTP during payroll and check-in peaks. Freshness must be ≤ 15 min, and RLS and data scope must be inherited. ADR-0012 chose Debezium on a standby → Kafka → loader → a PostgreSQL 17 reporting store with a star schema, SCD2, and `tenant_id` + RLS. This ADR fixes the model and its isolation rules.
+Analytics must not load OLTP during payroll and check-in peaks. Freshness must be ≤ 15 min, and RLS and data scope must be inherited. ADR-0012 chose a PostgreSQL 17 reporting store with a star schema, SCD2, and `tenant_id` + RLS. Its Amendment 1 (R2-01) feeds it in Phase 1 by native logical replication with column lists (no P3 columns published) instead of Debezium → Kafka; Debezium stays a Phase-2 option. The model below works with either feed. This ADR fixes the model and its isolation rules.
 
 ## Decision
 
 1. **Layers:**
-   * `rpt_raw`: CDC landing, one table per source table, append plus a merge view;
+   * `rpt_raw`: replication landing, one table per published source table (Phase 1: logical-replication subscriber tables, no RLS, readable only by the transformation role; Phase-2 option: CDC append plus a merge view);
    * `rpt`: the star schema, built by SQL models run by the scheduler (dbt-style).
 2. **Dimensions:** SCD2 for `dim_employee` (keyed by `employment_id`), `dim_org_unit` (with path), `dim_position`, `dim_legal_entity`; SCD1 for `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; plus `dim_date` and `dim_pay_run`. Surrogate keys are `bigint`; natural ids are kept.
 3. **Facts:** `fact_headcount_daily` (periodic snapshot, `is_billable`), `fact_movement`, `fact_payroll_line` (employee × run × component, 10 years), `fact_payroll_employee_month`, `fact_attendance_daily`, `fact_ot`, `fact_leave`, `fact_si_contribution`, and `fact_recruitment_funnel` (P2). Facts are monthly-partitioned.
@@ -32,5 +32,5 @@ Analytics must not load OLTP during payroll and check-in peaks. Freshness must b
 
 - \+ One governed model for standard reports, the designer (P2) and Superset.
 - \+ Isolation is the same as OLTP, with no new mechanism.
-- − CDC schema evolution must follow expand/contract (ADR-0031); the loader must tolerate added columns.
+- − Schema evolution of published tables must follow expand/contract (ADR-0031) with an `rpt_raw` migration step, because logical replication does not carry DDL; transformations must tolerate added columns.
 - − `report_scope` can be large (users × employees in scope). It is maintained incrementally, with role-level shortcuts for tenant-wide scopes **[spike]**.

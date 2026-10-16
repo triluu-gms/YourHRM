@@ -13,7 +13,7 @@ Support and SRE need logs, metrics and traces tagged with tenant and correlation
 1. **OpenTelemetry** everywhere (Java agent + Micrometer; Faro for frontend RUM); OTel Collector as DaemonSet + gateway with PII-scrubbing processors.
 2. **Backends:** Grafana **Mimir** (metrics), **Loki** (logs), **Tempo** (traces), Grafana dashboards and Alertmanager; storage on VN object storage with tiered retention (hot 30 days, cold to 12/24 months).
 3. **Tenant tagging:** `tenant_id` and `correlation_id` on logs/spans; metrics carry tenant only on bounded top-N series to control cardinality.
-4. **SLOs** with multi-window burn-rate alerts: API availability, login (99.9% internal SLO), p95 latency, payroll run duration, punch ack, relay lag, DLT size, CDC freshness.
+4. **SLOs** with multi-window burn-rate alerts: API availability, login (99.9% internal SLO), p95 latency, payroll run duration, relay lag, event delivery lag and `DEAD` deliveries (Phase 1 DB-backed bus; DLT size from Phase 2), reporting replication freshness, import throughput; punch ack from Phase 2 (R2-01).
 5. **Business monitors** as scheduled checks emitting metrics.
 6. Security events also forwarded to a SIEM (Wazuh or Grafana-based rules) **[spike]**.
 

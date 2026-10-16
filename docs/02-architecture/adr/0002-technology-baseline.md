@@ -1,6 +1,6 @@
 # ADR-0002: Technology baseline (Java 25, Spring Boot 4, PostgreSQL 17)
 
-- **Status:** Accepted (2026-10-16, OD-3 — Java 25 + Spring Boot 4; Java 21 + Boot 3.5 fallback decided after the first spike)
+- **Status:** Accepted (2026-10-16, OD-3 — Java 25 + Spring Boot 4; Java 21 + Boot 3.5 fallback decided after the first spike). **Amendment 1 (2026-10-16, R2-01) — Proposed:** messaging (Kafka, Apicurio) moves to Phase 2; see ADR-0004 rev. 2
 - **Date:** 2026-10-16
 - **Related:** [architecture-overview](../architecture-overview.md) §4; ADR-0001, ADR-0017
 
@@ -16,7 +16,7 @@ The charter fixes Java + Spring Boot and PostgreSQL. The product must run for 10
 | Framework | Spring Boot 4.0.x, Spring Modulith 2.x, Spring Security 7 |
 | Persistence | Hibernate ORM 7 for aggregates; jOOQ for read models, bulk payroll I/O and reporting; `COPY` for bulk writes; Flyway Community per schema (licence accepted 2026-10-16, ADR-0031) |
 | Database | PostgreSQL 17 (18 when supported by the selected provider/operator) operated by CloudNativePG; PgBouncer transaction pooling |
-| Messaging | Apache Kafka 4.x (KRaft) via Strimzi; Apicurio Registry 3 |
+| Messaging | **Phase 1:** none — transactional outbox + polling relay + delivery jobs on the PostgreSQL job queue (ADR-0004 rev. 2). **Phase 2:** Apache Kafka 4.x (KRaft) via Strimzi (or provider-managed); Apicurio Registry 3 |
 | Cache | Valkey 8 + Caffeine |
 | Build | Gradle (Kotlin DSL), Jib images, Testcontainers |
 

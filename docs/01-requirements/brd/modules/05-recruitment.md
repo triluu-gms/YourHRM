@@ -6,9 +6,12 @@
 | DB schema | `rec` |
 | Requirement prefix | `BR-REC-NNN`, `NFR-REC-NNN` |
 | Phase | Phase 2 (see charter §6). Data contracts with Core / People / Payroll are fixed in Phase 0 so MVP modules do not need rework. |
-| Version | Draft v0.1, 2026-10-16 |
+| Version | Draft v0.2, 2026-10-16 |
+| Change note | v0.2 (2026-10-16): applies the approved single-owner table ([gap-analysis](../gap-analysis.md) §5, decision **R2-02**): the hire hand-off `rec.CandidateHired` goes to **People only**; People owns the agreed compensation (salary record incl. GROSS/NET and agreed net) and employee bank accounts; Payroll learns via `people.SalaryChanged` (P-REC-10, BR-REC-050, §7.3; #5, #24); REC-C19 removed; legal parameters from the SaaS Legal Parameter Service (C18; #1); positions and FTE budget owned by Core, the staffing plan owns the cost budget (A-01, P7; #8); work permits owned by People (#22); consents in the SaaS registry (#27); documents via the Core document service (C24; #15b). Edits are marked "(changed 2026-10-16, R2-02 §5 #n)". Priority columns unchanged (PM syncs). |
 | Author | BA – Recruitment |
 | Status | Draft for gap analysis |
+
+> **Phase:** the delivery phase of every requirement is set only in [mvp-scope.md](../mvp-scope.md) §9; MoSCoW here is business priority. (2026-10-16)
 
 > Legal values and legal references in this document are marked `[verify-legal]` until checked by a Vietnam labour / data-protection consultant. No legal value is hard-coded; all are effective-dated parameters (charter §4).
 
@@ -17,7 +20,7 @@
 ## 1. Purpose & scope
 
 ### 1.1 Purpose
-Give each tenant one place to plan headcount, approve hiring, publish vacancies, manage candidates from first contact to signed offer, and hand a hired candidate over to People (onboarding) and Payroll without re-keying data. Recruitment must stay within the approved headcount and salary bands, and must process candidate personal data lawfully under Vietnam's personal data protection rules.
+Give each tenant one place to plan headcount, approve hiring, publish vacancies, manage candidates from first contact to signed offer, and hand a hired candidate over to People (onboarding, agreed compensation) without re-keying data; Payroll receives the salary from People (changed 2026-10-16, R2-02 §5 #24). Recruitment must stay within the approved headcount and salary bands, and must process candidate personal data lawfully under Vietnam's personal data protection rules.
 
 ### 1.2 In scope
 1. **Staffing / headcount plans** per org unit and position, per plan period, with budgeted headcount and cost vs. actual (filled + in-pipeline).
@@ -29,7 +32,7 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 7. **Assessments**: internal tests and third-party assessment links, results stored against the application.
 8. **Offers**: offer creation within salary band, GROSS or NET offers, offer approval, offer letter generation and e-signature, acceptance / decline / negotiation, offer expiry.
 9. **Pre-boarding**: candidate portal for document collection and personal data completion between acceptance and start date.
-10. **Hire hand-off**: conversion of an accepted candidate into a People employee/assignment, and into Payroll (salary, NET/GROSS basis), consuming nothing twice.
+10. **Hire hand-off**: conversion of an accepted candidate into a People employee, assignment and salary record (incl. NET/GROSS basis and agreed net); People is the only receiver and Payroll learns the salary from `people.SalaryChanged` (changed 2026-10-16, R2-02 §5 #24).
 11. **Referrals**: employee referral submission, tracking, and referral bonus trigger to Payroll.
 12. **Recruitment cost, source-of-hire and funnel analytics**.
 13. **Candidate privacy**: consent capture, purpose limitation, data-subject requests, retention and automatic deletion/anonymisation of candidate data.
@@ -41,7 +44,10 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 | Employee record, labour contract, onboarding checklist after hire | `people` |
 | Salary structures, bands, PIT gross-up engine, payroll of referral bonus | `payroll` |
 | Background check *vendor* operation | External; YourHRM stores only request status and result summary |
-| Work permit application for foreign hires | `people` (Recruitment only flags the need) — open question Q-07 |
+| Work permit application and tracking for foreign hires | `people` (BR-PPL-020); Recruitment only flags the need in the hand-off (changed 2026-10-16, R2-02 §5 #22) |
+| Agreed compensation (salary record) and employee bank accounts after hire | `people` (changed 2026-10-16, R2-02 §5 #5, #24) |
+| Legal parameters (regional minimum wage, probation limits, SI rates for on-cost) | `saas-platform` Legal Parameter Service (changed 2026-10-16, R2-02 §5 #1) |
+| Consent registry, DSR orchestration, retention scheduler | `saas-platform` (changed 2026-10-16, R2-02 §5 #27) |
 | Agency / RPO vendor portal | Could (Phase 3) |
 | AI ranking / automated rejection | Out of scope for Phase 2; see BR-REC-026 (no fully automated decisions) |
 | Payment of agency fees / ad spend | Finance system; Recruitment records cost only |
@@ -59,7 +65,7 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 | **Interviewer / panel member** | Any employee | See schedule, submit scorecard |
 | **Employee (referrer)** | Any active employee via ESS | Refer candidates, track referral status |
 | **Candidate / Applicant** (Ứng viên) | External or internal person | Apply, schedule, receive offer, pre-board, exercise data rights |
-| **C&B / Payroll officer** | Payroll module user | Receive new-hire salary data, pay referral bonus |
+| **C&B / Payroll officer** | Payroll module user | Sees new-hire salary through People (`SalaryChanged`), pays referral bonus (changed 2026-10-16, R2-02 §5 #24) |
 | **HR admin (People)** | People module user | Receive hire, complete contract and onboarding |
 | **Tenant admin** | Configures module | Pipelines, templates, job-board credentials, retention policy |
 | **DPO / Privacy officer** | Tenant's data-protection contact | Handle data-subject requests, review retention |
@@ -129,9 +135,9 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 
 ### P-REC-10 Hire hand-off (candidate → employee)
 1. When offer is `Accepted` and pre-boarding is `Ready` (or HR forces), recruiter triggers **Hire**.
-2. Recruitment publishes a `CandidateHired` hand-off package (§7.3) to People and Payroll.
-3. People creates/reactivates person and employee, assignment, draft labour/probation contract, and onboarding checklist; returns `employee_id`.
-4. Payroll creates employee salary record (effective from start date) from offer terms; returns acknowledgement.
+2. Recruitment publishes a `rec.CandidateHired` hand-off package (§7.3) to **People only** (changed 2026-10-16, R2-02 §5 #24).
+3. People creates/reactivates person and employee, assignment, draft labour/probation contract, bank account, onboarding checklist, and the **salary record** (effective from start date, incl. GROSS/NET basis and agreed net) from offer terms; returns `employee_id` (`people.HireHandoffProcessed`).
+4. Payroll receives the salary from People (`people.SalaryChanged`); Recruitment receives no acknowledgement from Payroll (changed 2026-10-16, R2-02 §5 #24).
 5. Application status → `Hired`; requisition vacancy count decremented; plan "accepted not started" moves to "actual" when People reports the employee as started.
 - *Exceptions*: People rejects (e.g. duplicate CCCD with active employee) → hand-off `Failed` with reason, recruiter resolves; start date postponed → offer amendment, re-sent event; no-show on day 1 → People cancels hire, Recruitment receives `HireCancelled` and reopens vacancy.
 
@@ -230,11 +236,11 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 |---|---|---|---|
 | BR-REC-048 | After acceptance, the candidate portal shall present a configurable pre-boarding checklist collecting the personal data and documents People and Payroll need (see §7.3), with validation of CCCD (12 digits), tax code format, bank account, and SI number. | M | Checklist content per tenant. |
 | BR-REC-049 | HR shall verify each pre-boarding document (Verified / Rejected with reason); the application becomes *Ready to hire* when all mandatory items are verified. | M | |
-| BR-REC-050 | On *Hire*, the system shall emit one `CandidateHired` hand-off package to People and Payroll containing the data in §7.3, idempotent by `hire_id`, and track per-receiver status (Pending / Accepted / Failed with reason). | M | Core of the module. |
+| BR-REC-050 | On *Hire*, the system shall emit one `rec.CandidateHired` hand-off package to **People only** containing the data in §7.3, idempotent by `hire_id`, and track the People status (Pending / Accepted / Failed with reason) from the People hand-off result (C15). People is the system of record for the agreed compensation and creates the salary record; Payroll is not a receiver (changed 2026-10-16, R2-02 §5 #24). | M | Core of the module. |
 | BR-REC-051 | The system shall not let the same candidate be hired twice for the same requisition and shall block hire if People reports an active employment of the same person in the same legal entity (unless concurrent assignment is allowed by tenant policy). | M | |
 | BR-REC-052 | The system shall process `HireCancelled` (no-show) and `StartDateChanged` from People, update the application, and reopen or keep the vacancy accordingly. | M | |
-| BR-REC-053 | For internal candidates, Hire shall emit a `InternalTransferAccepted` instruction to People (new assignment / transfer) instead of a new-employee hire. | S | |
-| BR-REC-054 | If the hire is a foreign national, the system shall flag "Work permit required" and include it in the hand-off; hire cannot be completed before the work-permit status is recorded unless overridden by HR with reason. | S | Labour Code Art. 151–153 [verify-legal]. |
+| BR-REC-053 | For internal candidates, Hire shall emit a `rec.InternalTransferAccepted` instruction to People (new assignment / transfer, new salary) instead of a new-employee hire; People applies it through its own job-change and salary-change process (changed 2026-10-16, R2-02 §5 #24). | S | |
+| BR-REC-054 | If the hire is a foreign national, the system shall flag "Work permit required" and include it in the hand-off; hire cannot be completed before the work-permit status is recorded unless overridden by HR with reason. People owns the work permit record (BR-PPL-020) (changed 2026-10-16, R2-02 §5 #22). | S | Labour Code Art. 151–153 [verify-legal]; citation to be aligned with People (GAP-042). |
 
 ### 4.9 Referrals
 | ID | Requirement | Priority | Notes |
@@ -247,9 +253,9 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 | ID | Requirement | Priority | Notes |
 |---|---|---|---|
 | BR-REC-058 | The system shall record recruitment costs (job-board fees, agency fees, referral bonuses, assessments, events, other) per posting / opening / requisition / source, in VND. | S | |
-| BR-REC-059 | The system shall capture explicit, purpose-specific candidate consent (application processing; talent pool with duration; group sharing) with timestamp, channel, notice version and IP; no candidate data beyond the minimum identifiers shall be processed without a valid consent or recorded legal basis. | M | PDPL 2025 / Decree 13/2023 [verify-legal]. |
+| BR-REC-059 | The system shall capture explicit, purpose-specific candidate consent (application processing; talent pool with duration; group sharing) with timestamp, channel, notice version and IP, **recorded in the saas-platform consent registry** (subject = candidate id); Recruitment holds references and calls `hasConsent()`; no candidate data beyond the minimum identifiers shall be processed without a valid consent or recorded legal basis (changed 2026-10-16, R2-02 §5 #27). | M | PDPL 2025 / Decree 13/2023 [verify-legal]. |
 | BR-REC-060 | Candidates shall be able, via the portal or a tokenised link, to view, correct, export, withdraw consent and request deletion of their data; requests are logged and must be fulfilled within the tenant's configured SLA (default the legal deadline). | M | [verify-legal] for deadlines. |
-| BR-REC-061 | Tenant admin shall configure retention periods (default: unsuccessful applicants 12 months after closure; talent pool per consent, max 24 months) [verify-legal]; a daily job shall anonymise or delete candidate personal data and files once retention expires or consent is withdrawn, keeping only anonymised statistics. | M | |
+| BR-REC-061 | Tenant admin shall configure retention periods (default: unsuccessful applicants 12 months after closure; talent pool per consent, max 24 months) [verify-legal]; the saas-platform retention scheduler (single scheduler with legal floors) shall trigger Recruitment's daily anonymise/delete handler for candidate personal data and files once retention expires or consent is withdrawn, keeping only anonymised statistics (changed 2026-10-16, R2-02 §5 #27). | M | |
 | BR-REC-062 | Legal hold: HR/DPO can place a candidate under legal hold (e.g. dispute), suspending deletion with a reason and review date. | S | |
 | BR-REC-063 | Every view/export/download of candidate CVs and identity documents shall be logged to the Core audit log. | M | |
 
@@ -281,7 +287,7 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 | Entity (`rec.`) | Purpose | Key attributes |
 |---|---|---|
 | `staffing_plan` | Headcount plan for a period | tenant_id, legal_entity_id, period (from/to), version, status, approved_by/at |
-| `staffing_plan_line` | Planned HC & cost per org unit × position | plan_id, org_unit_id, position_id, grade_id, planned_hc, planned_fte, planned_hires, planned_exits, budget_cost_month, currency |
+| `staffing_plan_line` | Planned HC & cost per org unit × position (Recruitment owns the **cost** budget; the approved FTE is written to the Core position budget — R2-02 §5 #8) | plan_id, org_unit_id, position_id (or proposed position ref), grade_id, planned_hc, planned_fte, planned_hires, planned_exits, budget_cost_month, currency, core_sync_status |
 | `requisition` | Approved request to hire | code, legal_entity_id, org_unit_id, position_id, job_title, vacancies, filled_count, reason, replaced_employee_id, employment_type, contract_type, work_location_id, target_start_date, salary_min/max, salary_basis, plan_line_id, classification, status, workflow_instance_id |
 | `job_opening` | Recruitable vacancy | requisition_id, title_vi/en, jd, requirements, pipeline_template_id, salary_display, hiring_team, status, open/close dates |
 | `job_posting` | Publication on one channel | opening_id, channel, external_id, url, status, publish_at, expire_at, cost |
@@ -296,11 +302,11 @@ Give each tenant one place to plan headcount, approve hiring, publish vacancies,
 | `assessment` | Test result | application_id, provider, score, pass_mark, result, file_id |
 | `offer` | Offer with versions | application_id, version, position_id, grade_id, org_unit_id, legal_entity_id, manager_employee_id, work_location_id, start_date, contract_type, probation_days, probation_pct, salary_basis (GROSS/NET), base_salary, allowances[], benefits, gross_estimate, net_estimate, employer_cost, sim_param_version, compa_ratio, out_of_band, status, expires_at |
 | `preboarding_item` | Checklist item | application_id, item_type, value_ref/file_id, status, verified_by |
-| `hire_handoff` | Hand-off tracking | hire_id, application_id, payload_version, people_status, payroll_status, employee_id, error, created_at |
+| `hire_handoff` | Hand-off tracking (People is the only receiver — R2-02 §5 #24) | hire_id, application_id, payload_version, people_status, employee_id, error, created_at |
 | `referral` / `referral_program` | Referrals | referrer_employee_id, candidate_id, opening_id, relation, status, bonus_amount, qualified_at, payroll_instruction_id |
 | `recruitment_cost` | Costs | scope (posting/opening/requisition), category, amount, date, vendor |
-| `consent_record` | Consent per purpose | candidate_id, purpose, notice_version, given_at, channel, expires_at, withdrawn_at |
-| `data_subject_request` | DSR | candidate_id, type, received_at, due_at, status, handled_by |
+| `consent_record` → `consent_ref` | Reference to the saas-platform consent registry (changed 2026-10-16, R2-02 §5 #27) | candidate_id, purpose, registry consent id |
+| `data_subject_request` | Removed — owned by saas-platform DSR orchestration (R2-02); Recruitment handles export/anonymise callbacks (changed 2026-10-16, R2-02 §5 #27) | — |
 | `talent_pool` / `talent_pool_member` | Pools | name, owner, candidate_id, tags, added_at |
 
 All tables carry `tenant_id` (row-level isolation per SaaS platform) and standard audit columns.
@@ -332,15 +338,15 @@ Interaction style: synchronous API for look-ups/validations at the moment of use
 | C15 | Hand-off result: `HireAccepted` (employee_id, person_id, assignment_id, contract draft id), `HireRejected` (reason), `HireCancelled` (no-show), `StartDateChanged` | people | Event after C-hand-off | Close application, vacancy and plan update | BR-REC-050, 052 |
 | C16 | Salary structures and bands per grade (min/mid/max, currency, effective date, legal entity), pay component catalogue (allowances, bonus types, taxable/insurable flags) | payroll | Look-up on plan, requisition, offer | Band validation, cost estimate, offer composition | BR-REC-003, 010, 040, 041 |
 | C17 | Gross↔Net simulation API: input (basis, amount, components, dependants count, region, nationality/residency, SI participation, effective date) → GROSS, NET, employee SI/HI/UI, PIT, employer SI/HI/UI/TU, employer cost, parameter version | payroll | Offer drafting / approval | NET/GROSS offers | BR-REC-042 |
-| C18 | Legal parameters: regional minimum wage by region, probation salary min %, employer on-cost % | payroll (wage/insurance params); people or core for probation rules — **owner to confirm (Q-01)** | Offer validation, plan costing | Validation | BR-REC-003, 043 |
-| C19 | Hand-off ack: `SalaryRecordCreated` / `SalaryRecordRejected` | payroll | Event | Hand-off status | BR-REC-050 |
+| C18 | Legal parameters: regional minimum wage by region, probation duration limits and salary min %, employer SI/HI/UI rates for on-cost — `getParam(key, scope, asOfDate)` | saas-platform (Legal Parameter Service) | Offer validation, plan costing | Validation (changed 2026-10-16, R2-02 §5 #1) | BR-REC-003, 043 |
+| C19 | Removed — owned by people (R2-02). There is no `SalaryRecordCreated` / `SalaryRecordRejected` from Payroll: People creates the salary record and reports the hand-off result in C15 (changed 2026-10-16, R2-02 §5 #24) | — | — | — | BR-REC-050 |
 | C20 | Referral bonus paid confirmation (`ReferralBonusPaid`, period, amount) | payroll | Event | Referral status, recruitment cost | BR-REC-057, 058 |
 | C21 | Tenant context, subscription/feature entitlement (Recruitment module enabled, limits e.g. active openings, career-site quota) | saas-platform | Every request | Feature gating | NFR-REC-001 |
 | C22 | Career-site hosting: tenant subdomain/custom domain, TLS, branding (logo, colours) | saas-platform | Career site render | BR-REC-014 | BR-REC-014 |
-| C23 | Integration connector framework & secret vault: job boards, Google/M365 calendar, video meeting, e-signature, SMS/Zalo, CV parser; per-tenant credentials and OAuth | saas-platform | Posting, scheduling, offer signing | BR-REC-016, 033, 045, 022 |
-| C24 | File storage (object store, virus scan, encryption, signed URLs) | saas-platform | CV/document upload | BR-REC-022, 048 |
-| C25 | External identity for candidates (passwordless/magic-link portal accounts, separate from employee identity) | saas-platform | Candidate portal | BR-REC-060, 048 |
-| C26 | Privacy framework: consent notice versioning, DSR tracking, retention-job scheduler, data-processor/cross-border registry, breach process | saas-platform | Consent, DSR, retention | BR-REC-059–062, C-11, C-12 |
+| C23 | Integration connector framework & secret vault: job boards, Google/M365 calendar, video meeting, e-signature, SMS/Zalo, CV parser; per-tenant credentials and OAuth | saas-platform | Posting, scheduling, offer signing | Job boards, calendar, e-sign connectors (e-sign orchestration is Core, R2-02 §5 #15b) | BR-REC-016, 033, 045, 022 |
+| C24 | Document service (upload, virus scan, signed URLs, retention class) over saas-platform object storage | core (P-21) | CV/document upload | CV and pre-boarding documents (changed 2026-10-16, R2-02 §5 #15b) | BR-REC-022, 048 |
+| C25 | External identity for candidates (passwordless/magic-link portal accounts, separate from employee identity) | saas-platform | Candidate portal | Candidate portal login | BR-REC-060, 048 |
+| C26 | Privacy framework (single consent registry, DSR orchestration, retention scheduler — R2-02 §5 #27): consent notice versioning, DSR tracking, retention-job scheduler, data-processor/cross-border registry, breach process | saas-platform | Consent, DSR, retention | Consent references, DSR and retention callbacks | BR-REC-059–062, C-11, C-12 |
 | C27 | Interview time constraints: holidays and (optionally) interviewer leave / shifts | time-attendance | Slot proposal | Avoid scheduling on public holidays / approved leave | BR-REC-033 (S) |
 | C28 | Start-date validation: working calendar / public holidays by legal entity | time-attendance | Offer creation | Warn when start date is a holiday/non-working day | BR-REC-040 (C) |
 
@@ -348,13 +354,13 @@ Interaction style: synchronous API for look-ups/validations at the moment of use
 
 | # | What | To module | When / trigger | Req |
 |---|---|---|---|---|
-| P1 | **`CandidateHired` hand-off package** (contents §7.3) | people (primary), payroll | On Hire action | BR-REC-050 |
-| P2 | `InternalTransferAccepted` (employee_id, new position/org unit/grade/location, effective date, new salary, approval ref) | people, payroll | On Hire of internal candidate | BR-REC-053 |
-| P3 | `HireAmended` (start date / position / salary changed after hand-off, before start) and `HireWithdrawn` (candidate reneged) | people, payroll | Offer amendment or renege after hand-off | BR-REC-046, 052 |
-| P4 | Pre-boarding documents (file references + type + verification status) transferred to employee document store | people | With P1 | BR-REC-048, 049 |
-| P5 | Consent/notice records for data collected during recruitment and pre-boarding, re-purposed under employment | people (and saas-platform privacy register) | With P1 | BR-REC-059 |
+| P1 | **`rec.CandidateHired` hand-off package** (contents §7.3) | people (only receiver) | On Hire action | BR-REC-050 (changed 2026-10-16, R2-02 §5 #24) |
+| P2 | `rec.InternalTransferAccepted` (employee_id, new position/org unit/grade/location, effective date, new salary, approval ref) | people | On Hire of internal candidate | BR-REC-053 (changed 2026-10-16, R2-02 §5 #24) |
+| P3 | `rec.HireAmended` (start date / position / salary changed after hand-off, before start) and `rec.HireWithdrawn` (candidate reneged) | people | Offer amendment or renege after hand-off | BR-REC-046, 052 (changed 2026-10-16, R2-02 §5 #24) |
+| P4 | Pre-boarding documents (Core document references + type + verification status) transferred to the employee document store | people | With P1 | BR-REC-048, 049 |
+| P5 | Consent/notice references for data collected during recruitment and pre-boarding, re-purposed under employment in the saas-platform consent registry | saas-platform (consent registry), people | With P1 | BR-REC-059 (changed 2026-10-16, R2-02 §5 #27) |
 | P6 | Open vacancies and accepted-not-started per org unit × position (for org chart "vacant" display, workforce dashboards) | core, people | On change / API | BR-REC-005, 047 |
-| P7 | Approved staffing plan (budget HC/FTE/cost per org unit × position, version) | core (position budgeting), payroll (personnel cost budget), people (headcount reports) | On plan approval | BR-REC-004 |
+| P7 | Approved staffing plan: approved FTE budgets and **proposed positions written to Core through the Core position API** (Core C-25; the Core position FTE budget stays the authoritative seat budget); the **cost** budget stays in Recruitment for plan-vs-actual reporting | core (position API), saas-platform (reporting) | On plan approval (Phase 2) | BR-REC-004 (changed 2026-10-16, R2-02 §5 #8) |
 | P8 | Requisition events `RequisitionApproved/Cancelled/Filled` (position_id, vacancies) — to mark Core positions as "in recruitment" | core | On status change | BR-REC-009, 019 |
 | P9 | Referral bonus instruction (referrer employee_id, amount VND, pay component code, target period, referral id) | payroll | Qualifying condition met | BR-REC-057 |
 | P10 | Recruitment cost actuals per org unit / cost centre / period | payroll (cost reporting) or finance export | Monthly | BR-REC-058 |
@@ -369,16 +375,16 @@ Interaction style: synchronous API for look-ups/validations at the moment of use
 
 | Group | Fields | Primary receiver | Source in `rec` |
 |---|---|---|---|
-| Keys | hire_id (idempotency), tenant_id, application_id, candidate_id, offer_id + version, requisition_id, existing person_id/employee_id if matched (rehire) | people, payroll | hire_handoff |
+| Keys | hire_id (idempotency), tenant_id, application_id, candidate_id, offer_id + version, requisition_id, existing person_id/employee_id if matched (rehire) | people | hire_handoff |
 | Person | full name (VN diacritics), other names, DOB, gender, nationality, ethnicity & religion (only if tenant collects, sensitive), marital status, place of birth, CCCD/passport no., issue date/place, expiry, permanent and current address, personal email, mobile, photo | people | candidate, preboarding |
 | Statutory | personal tax code (MST), SI book number (số sổ BHXH), registered hospital for HI (nơi KCB ban đầu), dependants for PIT (name, DOB, relation, ID, tax code, from-month), foreign-worker flag + work-permit status/no./expiry | people (owner); payroll (consumes from people) | preboarding |
-| Bank | bank, branch, account number, account holder name | payroll (via people master — **owner to confirm Q-02**) | preboarding |
+| Bank | bank, branch, account number, account holder name | people (owner of employee bank accounts; Payroll reads them from People) (changed 2026-10-16, R2-02 §5 #5) | preboarding |
 | Assignment | legal entity, org unit, position, job, grade, job level, work location (+ region), direct manager employee_id, employment type (full/part-time), FTE, start date, contract type and term, probation days, probation end date | people | offer |
-| Compensation | salary basis (GROSS/NET), base salary, probation salary % and amount, allowances (component code, amount, frequency), bonus/13th-month terms, effective date, currency, out-of-band flag + approval ref, simulation parameter version, agreed NET (if NET) | payroll (salary record); people (contract appendix) | offer |
-| Documents | file refs: signed offer letter, CV, degrees, health certificate, ID scans, photos, (judicial record) with verification status | people | candidate_file, preboarding |
-| Recruitment context | source channel, referral_id + referrer, recruiter, hire date (decision), time-to-hire, consent records | people (history), payroll (referral) | application, referral, consent |
+| Compensation | salary basis (GROSS/NET), base salary, probation salary % and amount, allowances (component code, amount, frequency), bonus/13th-month terms, effective date, currency, out-of-band flag + approval ref, simulation parameter version, agreed NET (if NET) | people (salary record and contract; Payroll consumes `people.SalaryChanged`) (changed 2026-10-16, R2-02 §5 #24) | offer |
+| Documents | Core document refs: signed offer letter, CV, degrees, health certificate, ID scans, photos, (judicial record) with verification status | people | candidate_file, preboarding |
+| Recruitment context | source channel, referral_id + referrer, recruiter, hire date (decision), time-to-hire, consent references (saas-platform registry) | people (history) | application, referral, consent |
 
-Rules: People is the system of record for person, statutory and contract data after acceptance; Payroll is the system of record for the salary record. Recruitment keeps a read-only snapshot for analytics until retention ends.
+Rules (changed 2026-10-16, R2-02 §5 #5, #24): People is the system of record for person, statutory, bank, contract **and agreed compensation (salary record)** data after acceptance; Payroll owns only derived pay results and learns the salary from `people.SalaryChanged`. The referral bonus reaches Payroll separately (P9, Phase 2). Recruitment keeps a read-only snapshot for analytics until retention ends.
 
 ---
 
@@ -412,7 +418,7 @@ All reports filterable by legal entity, org unit, period; exportable (XLSX/PDF) 
 | NFR-REC-002 | Career site pages: p95 load < 2 s on 4G, mobile-first, WCAG 2.1 AA, SEO (schema.org `JobPosting`, sitemap), works without candidate login for browsing/applying. | M |
 | NFR-REC-003 | Career site and apply form protected from bots (rate limiting, CAPTCHA) and file uploads virus-scanned; max file 10 MB; PDF/DOC/DOCX/JPG/PNG. | M |
 | NFR-REC-004 | Candidate identity documents, health and judicial records encrypted at rest with field/file-level encryption; access only with explicit permission and logged. | M |
-| NFR-REC-005 | Hand-off delivery via transactional outbox, at-least-once with idempotency key; end-to-end hand-off to People and Payroll completes < 1 min in normal operation; failures visible on a retry dashboard. | M |
+| NFR-REC-005 | Hand-off delivery via transactional outbox, at-least-once with idempotency key; end-to-end hand-off to People completes < 1 min in normal operation; failures visible on a retry dashboard (changed 2026-10-16, R2-02 §5 #24). | M |
 | NFR-REC-006 | CV parsing: ≥ 90% field accuracy on name/email/phone for VN and EN CVs on a reference set; parse time < 10 s p95; if parser is outside Vietnam, tenant must opt in (cross-border transfer). | S |
 | NFR-REC-007 | Job-board and calendar integrations fail gracefully: queued retries with backoff, recruiter notified after final failure; no data loss of applications. | S |
 | NFR-REC-008 | Search over 500k candidates per tenant returns in < 2 s p95. | S |
@@ -425,7 +431,7 @@ All reports filterable by legal entity, org unit, period; exportable (XLSX/PDF) 
 ## 10. Assumptions, open questions, risks
 
 ### 10.1 Assumptions
-- A-01 Core owns positions and supports "budgeted / vacant / filled" status; Recruitment does not create positions (new positions requested via requisition are created in Core by HR before opening).
+- A-01 Core owns positions and the authoritative position FTE (seat) budget and supports "budgeted / vacant / filled" status. In MVP positions must exist before requisitions (created in Core by HR). From Phase 2 the approved staffing plan writes FTE budgets and *proposed* positions to Core through a Core API; Recruitment owns only the cost budget (changed 2026-10-16, R2-02 §5 #8).
 - A-02 Payroll exposes salary bands per grade and a stateless gross↔net simulation API usable before an employee exists.
 - A-03 People owns person master and accepts a hire with a not-yet-started employee status ("Pre-hire" / "Chờ nhận việc").
 - A-04 Recruitment is Phase 2, but §7 contracts (C11, C14, C16, C17, P1) are agreed in Phase 0 so MVP modules expose them.
@@ -434,13 +440,13 @@ All reports filterable by legal entity, org unit, period; exportable (XLSX/PDF) 
 ### 10.2 Open questions
 | ID | Question | Owner |
 |---|---|---|
-| Q-01 | Which module owns probation rules and regional minimum wage parameters (Payroll vs People vs Core legal-parameter store)? | PM / BA-Payroll / BA-People |
-| Q-02 | Bank account: captured in People person master or Payroll payee master? Hand-off target depends on this. | BA-People / BA-Payroll |
+| Q-01 | ~~Which module owns probation rules and regional minimum wage parameters?~~ **Closed 2026-10-16 (R2-02 §5 #1):** the saas-platform Legal Parameter Service (C18). | PM / BA-Payroll / BA-People |
+| Q-02 | ~~Bank account: People or Payroll?~~ **Closed 2026-10-16 (R2-02 §5 #5):** People owns employee bank accounts; the hand-off Bank group goes to People. | BA-People / BA-Payroll |
 | Q-03 | Which VN job boards offer partner APIs (TopCV, VietnamWorks, ITviec) and on what commercial terms? Facebook Jobs discontinued — limit to page posts/links? | BA-REC / Integration analyst |
-| Q-04 | Are new positions created in Core on requisition approval (position control) or must they pre-exist? | BA-Core |
+| Q-04 | ~~Are new positions created in Core on requisition approval or must they pre-exist?~~ **Closed 2026-10-16 (R2-02 §5 #8):** they must pre-exist in MVP; the Phase 2 staffing plan proposes positions to Core via API. | BA-Core |
 | Q-05 | Is the talent pool shared across legal entities of a tenant group (needs group-sharing consent)? | Product owner |
 | Q-06 | Exact deadlines for DSR responses and permitted retention under PDPL 2025 and its implementing decree. | Legal consultant |
-| Q-07 | Work-permit tracking: People module or separate compliance sub-module? | BA-People |
+| Q-07 | ~~Work-permit tracking: People or a separate sub-module?~~ **Closed 2026-10-16 (R2-02 §5 #22):** People owns work permits; Recruitment flags them at hand-off. | BA-People |
 | Q-08 | Does the employee calendar (ESS) show interviews, or only email/calendar invites? | BA-People / UX |
 
 ### 10.3 Risks
@@ -448,7 +454,7 @@ All reports filterable by legal entity, org unit, period; exportable (XLSX/PDF) 
 |---|---|---|---|
 | RK-01 | PDPL 2025 implementing rules change consent/retention requirements | Rework, compliance exposure | Parameterised retention, consent notice versioning, legal review before Phase 2 build |
 | RK-02 | Job-board APIs unavailable or unstable | Reduced multi-posting value | Manual posting + email-inbox import fallback |
-| RK-03 | Hand-off contract mismatch with People/Payroll (missing fields) | Re-keying, data errors | Freeze §7.3 payload v1 in gap analysis; contract tests |
+| RK-03 | Hand-off contract mismatch with People (missing fields) | Re-keying, data errors | Freeze §7.3 payload v1 in gap analysis; contract tests |
 | RK-04 | NET offer estimates differ from first payslip | Candidate dispute | Store simulation parameter version; Payroll uses agreed NET as target for gross-up |
 | RK-05 | Cross-border processing (LinkedIn, foreign CV parser, calendar SaaS) | Need transfer impact assessment | Integration registry, tenant opt-in per connector |
 | RK-06 | Duplicate detection false merges | Data corruption | Merge only by human confirmation, reversible within 30 days, audit |

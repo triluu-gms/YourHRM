@@ -1,14 +1,16 @@
-# YourHRM — Data Architecture (v0.2)
+# YourHRM — Data Architecture (v0.3)
 
 | Item | Value |
 |---|---|
-| Version | **0.2 — 2026-10-16** (sponsor decisions of the [decision log](../../docs/00-project-management/decision-log.md) applied; v0.1 was the draft for review of the same day) |
+| Version | **0.3 — 2026-10-16** (round-2 decisions R2-01, R2-11, R2-12, R2-15, R2-16, R2-17, R2-18 of the [decision log](../../docs/00-project-management/decision-log.md) §7–§7.2 applied; v0.2 applied round 1; v0.1 was the draft for review) |
 | Status | Baseline for SRS and sprint 1. Decisions recorded as ADR-0020 … ADR-0037; status per ADR in §16 |
 | Author | Data Architect |
 | Inputs | [Architecture brief](../../docs/02-architecture/architecture-brief.md), [decision log](../../docs/00-project-management/decision-log.md), [BRD](../../docs/01-requirements/brd/BRD.md), [gap analysis](../../docs/01-requirements/brd/gap-analysis.md) §5/§6/§7/§9, module BRDs §6–§7 |
 | Target | PostgreSQL 17 on CloudNativePG (SA ADR-0002/0017); DDL kept compatible with 16+. Java 25 / Spring Boot 4 (OD-3; fallback Boot 3.5 / Java 21 decided after SP-1), Hibernate + jOOQ, modular monolith |
-| Aligned with | SA ADR-0002 (stack), 0003 (tenancy runtime, `saas.tenant_placement`), 0004 (outbox/Kafka, polling relay), 0006 (scope predicates, `report_scope`), 0009 (snapshot-first runs), 0010 (Legal Parameter Service), 0011 (job queue), 0012 (reporting), 0017 (CNPG, OpenBao, DR), 0019 (close hold, accepted X-03) |
-| DDL | [`ddl/`](ddl/) — `000_extensions_roles.sql`, `001_saas.sql`, `002_core.sql`, `003_hr.sql`. **v0.1** was smoke-tested on PostgreSQL 16.4 (PGlite; pgcrypto/unaccent stubbed): all files loaded, cross-tenant reads and writes were blocked, no context = no rows, exclusion constraints, bi-temporal guard and audit tamper detection behaved as designed. **The v0.2 changes are NOT re-tested** (no PostgreSQL/Python available in this round; careful read-through only): `core.import_job`/`import_row`/`import_reconciliation` and `sys.cross_schema_grant_violations()` in `002`, `hr.v_salary_record_masked` and `source = 'OPENING_LOAD'` in `003`, audit actor `IMPORT`, comments in `000`/`001`. Note: the tenancy helpers live in `000` (schema `sys`), not `002`, because `001_saas` needs them. |
+| Aligned with | SA ADR-0002 (stack), 0003 (tenancy runtime, `saas.tenant_placement`, baseline capabilities), 0004 rev. 2 (outbox + polling relay; Phase-1 DB-backed bus, Kafka Phase 2), 0006 (scope predicates, `report_scope`), 0009 (snapshot-first runs), 0010 (Legal Parameter Service), 0011 (job queue), 0012 (reporting), 0017 (CNPG, OpenBao, DR), 0019 (close hold, accepted X-03) |
+| DDL | [`ddl/`](ddl/) — `000_extensions_roles.sql`, `001_saas.sql`, `002_core.sql`, `003_hr.sql`. **v0.1** was smoke-tested on PostgreSQL 16.4 (PGlite; pgcrypto/unaccent stubbed): all files loaded, cross-tenant reads and writes were blocked, no context = no rows, exclusion constraints, bi-temporal guard and audit tamper detection behaved as designed. **The v0.2 changes are NOT re-tested** (no PostgreSQL/Python available in this round; careful read-through only): `core.import_job`/`import_row`/`import_reconciliation` and `sys.cross_schema_grant_violations()` in `002`, `hr.v_salary_record_masked` and `source = 'OPENING_LOAD'` in `003`, audit actor `IMPORT`, comments in `000`/`001`. **The v0.3 changes are NOT tested either** (PostgreSQL and Python are not installed; read-through only): `saas.job.ordering_key`, `saas.claim_jobs()` ordered lanes, `saas.enqueue_event_delivery()`, entitlement source `BASELINE` and `saas.baseline_capability` in `001`; `hr.primary_employment` replacing `hr.employment.is_primary`, `employment_person_le_ex` in `003`; role comments in `000`. Note: the tenancy helpers live in `000` (schema `sys`), not `002`, because `001_saas` needs them. |
+
+**What changed in v0.3 (round 2, decision log §7–§7.2).** R2-01: Phase 1 has **no live external integrations** — no device connector or punch ingestion (`att.raw_punch` gets punches only from imported device-export files, §7.4), no Kafka in Phase 1 (the outbox relay feeds a DB-backed bus on `saas.job`, §9.1; SA ADR-0004 rev. 2), and the reporting store is fed by native logical replication (§11). R2-11: the X-02 exception list including the tenant override rows of `core.code_value`/`core.exchange_rate` and the two plumbing grants is **accepted** (§2.3). R2-12: `SUSPENDED` employments are **not billable** (§11). R2-15: plaintext salary amounts readable with `hr`/`pay` DB credentials — accepted with mitigations (§15.2). R2-16: concurrent employment across legal entities — `hr.primary_employment` with "at most one primary employment per person per purpose per period" (§7.3). R2-17: payslip PDF password (`pay.payslip_delivery_preference`, P3, §7.5, §9.3). R2-18: baseline always-on capabilities as `BASELINE` entitlements (§7.1).
 
 **What changed in v0.2.** X-01: salary amounts stay plaintext (P2) with compensating controls; identifiers, bank accounts and special-category data stay encrypted (§9.3, ADR-0026). X-02: the read-only reference-data exception is listed explicitly and guarded by a DB test and an ArchUnit rule (§2.3, ADR-0021). D-09: **no Oracle migration**; §13 is now the generic **opening-balance import** (ADR-0037, supersedes ADR-0033) and the `stg_*`/`mig` schemas are removed. D-10: billable-employee definition (§11). X-05: punch rates (§10.1). OD-9: no mobile punches in Phase 1 (§7.4). D-01, D-03, Flyway Community: accepted (§15).
 
@@ -76,7 +78,7 @@ The reporting store is a **separate database** (§11).
 | `yhrm_app_pay` | R (ref)¹ + job² | R (ref)¹ | INSERT | – | – | RW | – |
 | `yhrm_app_rec` | R (ref)¹ + job² | R (ref)¹ | INSERT | – | – | – | RW |
 
-¹ **X-02 read-only exception (accepted 2026-10-16)** — the only reads across schemas, all `SELECT`, granted to the group role `yhrm_app`:
+¹ **X-02 read-only exception (accepted 2026-10-16; the complete list below, including the tenant override rows of `core.code_value`/`core.exchange_rate` and the two plumbing grants of footnote ², was accepted as covered by X-02 in R2-11)** — the only reads across schemas, all `SELECT`, granted to the group role `yhrm_app`:
 
 | Object | Content | Why it is safe |
 |---|---|---|
@@ -84,7 +86,7 @@ The reporting store is a **separate database** (§11).
 | `core.code_value`, `core.v_code_value_effective`, `core.exchange_rate` | Global rows + the tenant's own reference overrides | RLS returns own + sentinel rows only; reference data, read-only |
 | `saas.tenant` | The tenant's own row (locale, time zone, state) | Policy `tenant_self_read` |
 
-² Platform plumbing, not data reads: `SELECT, INSERT` on `saas.job` (transactional enqueue, ADR-0011) and `INSERT` on `audit.audit_event` (ADR-0027).
+² Platform plumbing, not data reads (accepted R2-11): `SELECT, INSERT` on `saas.job` (transactional enqueue, ADR-0011) and `INSERT` on `audit.audit_event` (ADR-0027). Phase-1 event-bus delivery jobs in `saas.job` carry only a pointer to the outbox row, never the business payload (§9.1), so this grant does not expose amounts across modules.
 
 Not covered: legal parameter tables (other modules use the Legal Parameter Service API; only `yhrm_app_saas` reads them), any other module's tenant data, any amount table. **Guards (release-blocking):** (a) DB test `SELECT count(*) FROM sys.cross_schema_grant_violations()` = 0 (function in `002_core.sql`, reads `pg_class.relacl` and compares with this allow-list); (b) ArchUnit/jOOQ rule allowing schema-Y references from module X only for these objects. A new entry needs an ADR-0021 amendment.
 
@@ -140,8 +142,8 @@ SELECT set_config('app.tenant_id', :tenantId, true),   -- true = transaction-loc
 | `yhrm_app` | no | **no** | Group role that all RLS policies target. |
 | `yhrm_app_{saas,core,hr,att,pay,rec}` | yes | no | One login role per module, member of `yhrm_app`. Grants per §2.3. |
 | `yhrm_platform` | yes | no | Operator back-office. Has DML on platform tables in `saas`, and **no** grants on tenant business schemas. Operator support access goes through the application under a support grant (BR-SAAS-033) and is masked there. |
-| `yhrm_relay` | yes | no | Outbox polling relay (SA ADR-0004). Can `SELECT` and update `published_at` on outbox tables (policy `TO yhrm_relay USING (true)`). |
-| `yhrm_cdc` | yes | no | `REPLICATION`. Debezium logical decoding on a standby, **reporting CDC only** (SA ADR-0012). |
+| `yhrm_relay` | yes | no | Outbox polling relay (SA ADR-0004 rev. 2). Can `SELECT` and update `published_at` on outbox tables (policy `TO yhrm_relay USING (true)`). Phase 1: `EXECUTE` on `saas.enqueue_event_delivery()` (SECURITY DEFINER) to fan events out as delivery jobs; Phase 2: publishes to Kafka instead. Not a module role, so outside the X-02 list. |
+| `yhrm_cdc` | yes | no | `REPLICATION`. **Reporting-store feed only** (SA ADR-0012 amendment): Phase 1 native logical replication with column-listed publications (P3 columns never published); Debezium on a standby is a Phase-2 option. |
 | `yhrm_audit_sealer` | yes | no | Seals the audit hash chain (UPDATE of seal columns only). |
 | `yhrm_reporting_ro` | yes | no | Read-only role for the few OLTP-real-time statutory reports (BR-SAAS-047 exception), RLS applies. |
 | `yhrm_ops_ro` | yes | no | `pg_monitor`, `pg_read_all_stats`. No table data. |
@@ -194,7 +196,7 @@ Override resolution for the global + tenant class uses `DISTINCT ON (list_code, 
 | PK / FK column | `id` / `<entity>_id` | `employment_id` |
 | Soft cross-schema reference | `<entity>_id` with comment `-> core.position (soft)` | `position_id` |
 | Global code reference | `<thing>_code` | `country_code`, `bank_code` |
-| Booleans | `is_` / `has_` | `is_primary` |
+| Booleans | `is_` / `has_` | `is_retro` |
 | Instants / dates | `_at` (`timestamptz`) / `_date`, `valid_from`, `valid_to` (`date`) | `approved_at` |
 | Money / quantity / rate | `_amount` + `currency_code`, `_qty`, `_rate` | `base_salary_amount` |
 | Encrypted / blind index / display hint | `_enc` (`bytea`), `_bidx` (`bytea`), `_last4` (`text`) | `national_id_enc` |
@@ -442,7 +444,7 @@ erDiagram
     text feature_key
     bool is_enabled
     numeric limit_value
-    text source "PLAN ADDON OVERRIDE"
+    text source "BASELINE PLAN ADDON OVERRIDE TRIAL"
     date valid_from
   }
   INVOICE {
@@ -463,9 +465,11 @@ erDiagram
   }
 ```
 
-Also in `saas`: `price_book`, `feature_flag`, `usage_record` (monthly partitions), `payment`, `operator_session`, `identity_provider_config (T)`, `mfa_factor (T)`, `api_client (T)`, `webhook_subscription (T)`, `retention_policy (T)`, `security_incident`, plus the legal parameter tables (§6). (The v0.1 `import_batch`/`reconciliation_run` for the Oracle migration programme are dropped; go-live imports and their reconciliation live in `core.import_*`, §13.)
+Also in `saas`: `price_book`, `feature_flag`, `usage_record` (monthly partitions), `payment`, `operator_session`, `identity_provider_config (T)` (SSO, **Phase 2**, R2-04), `mfa_factor (T)` (TOTP and e-mail OTP in Phase 1), `api_client (T)` (public API, **Phase 2**), `webhook_subscription (T)` (**Phase 2**, R2-01), `retention_policy (T)`, `security_incident`, plus the legal parameter tables (§6). (The v0.1 `import_batch`/`reconciliation_run` for the Oracle migration programme are dropped; go-live imports and their reconciliation live in `core.import_*`, §13.)
 
 `saas.billing_party (T)` holds only the invoicing identity of a tenant's legal entities, keyed by `legal_entity_id` (soft reference). The legal entity master stays in Core (gap §5 #23).
+
+**Baseline always-on capabilities (R2-18, GAP-060; SA ADR-0003 decision 5).** `saas.baseline_capability` (platform table, replicated) lists the feature keys every tenant has whatever it bought: `baseline.core` (Core), `baseline.people.master` (People basics: person, employment, assignment, salary record), `baseline.legal_params` (legal parameter packs via the LPS API), `baseline.pay.scales_bands` (pay scales/bands, gap §5 #7) and `baseline.att.excel_import` (Excel attendance import producing a standard Attendance Result). The entitlement resolver writes one `saas.entitlement` row with `source = 'BASELINE'` per tenant and key. `entitlement_baseline_ck` allows a BASELINE row only as an enabled, tenant-wide grant, and `entitlement_period_ex` (one row per tenant × feature × LE × period) then prevents any `OVERRIDE`/`PLAN` row from disabling it in the same period. Module subscriptions add `PLAN`/`ADDON` rows for the full module features.
 
 ### 7.2 `core`
 
@@ -542,6 +546,8 @@ Also in `core`: `company_group`, `employee_category`, `reorg_package`/`reorg_cha
 ```mermaid
 erDiagram
   PERSON ||--o{ EMPLOYMENT : "engaged as"
+  PERSON ||--o{ PRIMARY_EMPLOYMENT : "designates (per purpose)"
+  EMPLOYMENT ||--o{ PRIMARY_EMPLOYMENT : "is primary for"
   PERSON ||--o{ PERSON_IDENTITY_DOC : holds
   PERSON ||--o{ PERSON_ADDRESS : lives
   PERSON ||--o{ FAMILY_MEMBER : has
@@ -576,9 +582,17 @@ erDiagram
     date hire_date
     date seniority_date
     date end_date
-    bool is_primary
     text status "PRE_HIRE ACTIVE SUSPENDED TERMINATED CANCELLED"
     text worker_category
+  }
+  PRIMARY_EMPLOYMENT {
+    uuid id PK
+    uuid person_id FK
+    uuid employment_id FK
+    text purpose "PIT_FAMILY_DEDUCTION SOCIAL_INSURANCE"
+    date valid_from
+    date valid_to
+    text status "ACTIVE CANCELLED"
   }
   ASSIGNMENT {
     uuid id PK
@@ -638,6 +652,20 @@ erDiagram
 
 Bank accounts belong to the **person**, not the employment, so one account can serve concurrent employments. Payroll chooses one through `employment_id` on `pay.ext_hr_bank_split`.
 
+**Concurrent employment across legal entities (R2-16, GAP-031, BR-PPL-002/004; Phase 1, basic).** One `hr.person` per real individual per tenant; one `hr.employment` per legal entity engagement. The data model supports it as follows:
+
+| Rule | Where enforced |
+|---|---|
+| A person has at most one live employment per legal entity at a time (more work in the same LE = a `CONCURRENT` assignment) | `employment_person_le_ex` (exclusion constraint, `003_hr.sql`) |
+| **At most one primary employment per person, per purpose, per period** — purposes `PIT_FAMILY_DEDUCTION` (the employer that applies the self and dependant deductions) and `SOCIAL_INSURANCE` (the employer through which SI is paid, SI Law 2024 multiple-contract rule `[verify-legal]`) | `hr.primary_employment` + `primary_employment_ex`; the composite FK `(tenant_id, person_id, employment_id)` guarantees the designated employment belongs to the person |
+| The primary can change while both employments continue (e.g. the primary one ends, or the employee re-registers for PIT) | `hr.primary_employment` is valid-time (Pattern A, §5.1): close the old row, open a new one; history is kept |
+| A person with one live employment needs no row; with two or more, both purposes must be designated for every day | People service on hire/termination + nightly consistency job (a cross-row rule, not a constraint) |
+| Dependants are claimed via the PIT primary employment only | `pit_dependant_claim_ex` (one claim per dependant per month) + People service rule on `pit_dependant.employment_id` |
+| Each legal entity withholds PIT on its own payments; only the PIT primary applies family deductions; only the SI primary declares SI | Payroll (reads the designation from People events/API into `pay.employee_pay_profile`) |
+| Cross-entity annual OT cap | **Phase 2** (R2-08); Phase-1 OT cap is per employment |
+
+The v0.2 boolean `hr.employment.is_primary` (one flag for the whole employment period, with an exclusion over `employment_period`) is withdrawn because it could not express a change of primary while both employments continue. Event: designation changes are published by People; the event name (proposed `people.PrimaryEmploymentChanged`) needs adding to the gap §6 catalogue by the Integration analyst.
+
 ### 7.4 `att`
 
 ```mermaid
@@ -659,7 +687,7 @@ erDiagram
     date work_date_hint "partition key"
     timestamptz punch_at
     timestamp local_ts
-    text source "DEVICE IMPORT (P1); MOBILE WEB (P2)"
+    text source "IMPORT (P1); DEVICE MOBILE WEB (P2)"
     uuid device_id
     text enrol_id
     uuid employment_id
@@ -720,13 +748,13 @@ erDiagram
 
 Key rules:
 
-* `raw_punch` is append-only, range-partitioned by `work_date_hint` (monthly), and de-duplicated by `UNIQUE (tenant_id, dedup_key, work_date_hint)` where `dedup_key = hash(device_id|enrol_id|punch_at)` (NFR-ATT-001). Ingestion is an `INSERT … ON CONFLICT DO NOTHING` batch from the queue consumer.
+* `raw_punch` is append-only, range-partitioned by `work_date_hint` (monthly), and de-duplicated by `UNIQUE (tenant_id, dedup_key, work_date_hint)` where `dedup_key = hash(device_id|enrol_id|punch_at)` (NFR-ATT-001). Ingestion is an `INSERT … ON CONFLICT DO NOTHING` batch: in Phase 1 from the import commit of a device-export file (one chunk per import job chunk, `import_job_id` kept on the row), in Phase 2 also from the punch-stream consumer.
 * `daily_timesheet` is mutable until its period is LOCKED. It is partitioned monthly by `work_date` with `fillfactor = 80` for HOT updates. It is recomputed rather than edited, and `calc_version` increments on every recalculation.
 * **Attendance results are immutable.** Re-close creates `result_version + 1`, and the previous version becomes `WITHDRAWN`.
 * **Close hold** (SA ADR-0019): `att.attendance_result_hold (tenant_id, id, period_id, result_version, payroll_run_id, held_at, released_at, status ACTIVE/RELEASED/CONSUMED)` with a partial unique index `(tenant_id, period_id) WHERE status = 'ACTIVE'`. Payroll acquires it on submit through the in-process T&A API. Re-open checks for an ACTIVE hold in the same transaction (`SELECT … FOR UPDATE` on the period row) and is refused while one exists. On approval the hold becomes `CONSUMED`, and the period moves to LOCKED with `UPDATE att.attendance_period SET status='LOCKED', locked_version=:v WHERE id=:p AND current_version=:v AND status='CLOSED'`. Thanks to the hold this cannot affect zero rows, but the predicate stays as a guard.
 * Retro deltas after LOCKED are lines with `is_retro = true` and `original_period_id`, inside the next OPEN period's result (or an off-cycle result for leavers).
 * `ot_cap_ledger` (per employment × month/year) is updated in the same transaction as OT approval, with `SELECT … FOR UPDATE` on the ledger row, which serialises cap checks per employee.
-* **Phase-1 punch sources (OD-9):** time devices through the connector agent (`DEVICE`) and file/Excel import (`IMPORT`) only. `MOBILE`/`WEB` sources, `geo_enc`, selfie references and `geofence` are Phase 2; the CHECK on `source` will list only `DEVICE`, `IMPORT` in the Phase-1 DDL and be widened (expand migration) in Phase 2.
+* **Phase-1 punch sources (OD-9, R2-01): file import only.** There is no live device connector or ingestion endpoint in Phase 1. Punches arrive as `IMPORT` rows from the **device-export-file template** (CSV/Excel exported by the customer's time-device software, mapped by a per-vendor column layout: enrol id, date-time, device/terminal id, in/out flag if any) through the Core import engine; `dedup_key` uses the terminal id from the file, so re-importing an overlapping file is harmless. Summary attendance (days/hours per employee) uses the separate Excel attendance import, which produces an Attendance Result directly (baseline capability, R2-18). `DEVICE` (live connector, Phase 2), `MOBILE`/`WEB` sources, `geo_enc`, selfie references and `geofence` are Phase 2; the CHECK on `source` lists only `IMPORT` in the Phase-1 DDL and is widened (expand migration) in Phase 2. `att.device` stays in Phase 1 as the registry of terminals and enrolment mappings used by the file import.
 * `leave_balance_ledger` rows with `txn_type = 'OPENING'` are the go-live balances loaded by `OB_LEAVE_BALANCE` (ADR-0037), one per employment × leave type × year, dated at the go-live date.
 * Also: `device`, `geofence` (P2), `enrolment_mapping`, `business_trip`, `remote_work_request`, `attendance_code`, `leave_policy`, `ext_core_location`, `ext_hr_assignment` (projections), `ext_pay_pay_group_assignment`.
 
@@ -806,7 +834,9 @@ erDiagram
   }
 ```
 
-Also in `pay`: `pay_scale`/`pay_scale_step`/`grade_band` (owned here, gap §5 #7), `employee_pay_profile` (projection of People + payroll-only settings), `ext_hr_salary`, `ext_hr_bank_split`, `ext_hr_dependant_count`, `ext_att_result` (pointer to consumed result versions), `variable_input`/`input_batch`, `retro_item`, `loan`/`loan_schedule`, `deduction_order`, `final_settlement`, `casual_payee`/`casual_payment`, `pit_commitment`, `pit_finalisation_auth`, `pit_certificate`, `payslip_delivery`, `bank_file_template`, `gl_mapping`, `cost_allocation`, `ytd_balance` (per employment × tax year × month × balance code; rows with `source = 'OPENING'` are the pre-go-live months of the current tax year loaded by `OB_YTD_PAYROLL`, ADR-0037, and are never recalculated).
+Also in `pay`: `pay_scale`/`pay_scale_step`/`grade_band` (owned here, gap §5 #7), `employee_pay_profile` (projection of People + payroll-only settings), `ext_hr_salary`, `ext_hr_bank_split`, `ext_hr_dependant_count`, `ext_att_result` (pointer to consumed result versions), `variable_input`/`input_batch`, `retro_item`, `loan`/`loan_schedule`, `deduction_order`, `final_settlement`, `casual_payee`/`casual_payment`, `pit_commitment`, `pit_finalisation_auth`, `pit_certificate`, `payslip_delivery`, `payslip_delivery_preference` (below), `bank_file_template`, `gl_mapping`, `cost_allocation`, `ytd_balance` (per employment × tax year × month × balance code; rows with `source = 'OPENING'` are the pre-go-live months of the current tax year loaded by `OB_YTD_PAYROLL`, ADR-0037, and are never recalculated).
+
+**Payslip e-mail as password-protected PDF (R2-17, GAP-057; SA ADR-0015).** `pay.payslip_delivery_preference (tenant_id, id, person_id, channel ESS_ONLY|EMAIL_PDF, email_target WORK|PERSONAL, pdf_password_enc bytea, password_set_at, password_set_by, subject_key_version, status)` — one row per person (one password for all of the person's employments). `pdf_password_enc` is **P3**: encrypted with the person's subject DEK (§9.3), write-only through the API (never returned, never logged, never in events or job payloads), decrypted only in memory by the payslip e-mail job. It is set **by the employee in ESS** with step-up (`acr ≥ 2`); HR and operators can only clear it (forces "set a new password"), never read or set it. Without a password the e-mail carries no attachment, only the notification and the ESS link. `pay.payslip_delivery` records each delivery (payslip id, encrypted-attachment SHA-256, recipient, sent/bounced status, `password_set_at` used); the encrypted PDF itself is transient (built per e-mail, handed to the e-mail channel as a short-lived object under the tenant prefix and deleted after sending, at most 24 h), while the archived payslip stays the unencrypted PDF/A in the document service (PDF/A does not allow encryption). Crypto-shredding the subject DEK also destroys the password. Audit: password set/cleared, every e-mail with attachment, every failure (`audit.audit_event`, no value).
 
 ### 7.6 `rec` (Phase 2)
 
@@ -895,7 +925,7 @@ Every module schema has the same pair of tables (DDL template in `002_core.sql`,
 | `<schema>.outbox_event` | `id` (= envelope `event_id`, UUIDv7), `tenant_id`, `legal_entity_id`, `aggregate_type`, `aggregate_id`, `event_type`, `schema_version`, `occurred_at`, `effective_date`, `correlation_id`, `causation_id`, `is_retro`, `person_id`, `employment_id`, `payload jsonb`, `headers jsonb`, `created_at`, `published_at` | Envelope as in gap §6. Inserted in the **same transaction** as the business change (NFR-PPL-002). Range-partitioned **daily** by `created_at`. Partitions older than 7 days are dropped, so no `DELETE` and no vacuum churn. |
 | `<schema>.inbox_message` | PK `(consumer, event_id)`, `tenant_id`, `event_type`, `received_at`, `processed_at`, `status`, `attempts`, `last_error` | Idempotent consumption: the handler inserts the inbox row and applies its effect in one transaction, and a duplicate hits the PK. Monthly partitions, 90-day retention. |
 
-* Relay (SA ADR-0004): an in-app **polling relay** in `hrm-worker` runs `SELECT … WHERE published_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 500` (partial index `outbox_event_unpublished_ix`) over a direct (non-PgBouncer) connection, publishes to Kafka with key `tenant_id:aggregate_id`, and sets `published_at`. Published rows stay for 7 days for re-publication after DR, which matches the daily partitions dropped after 7 days. Debezium is **not** on the business path. The envelope's `initial_load` flag (opening-balance import, ADR-0037; formerly `migration`) travels in `headers`.
+* Relay (SA ADR-0004 rev. 2): an in-app **polling relay** in `hrm-worker` runs `SELECT … WHERE published_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 500` (partial index `outbox_event_unpublished_ix`) over a direct (non-PgBouncer) connection and sets `published_at`. **Phase 1 (no Kafka, R2-01):** in the same transaction it calls `saas.enqueue_event_delivery()`, which inserts one `saas.job` row per subscribed consumer (queue `events`, type `bus.Deliver`, `idempotency_key = consumer:event_id`, `ordering_key = consumer:aggregate_id`). `saas.claim_jobs()` runs at most one non-terminal job per ordering key, oldest first, so each consumer sees an aggregate's events in order; retries, backoff, `DEAD` (the Phase-1 dead-letter state), operator replay and tenant fair share come from the job framework. The job payload is only a pointer (source cluster, schema, `event_id`, `created_at`); the delivery worker reads the event through the relay connection and runs the consumer handler in the consumer module's transaction with its own role and inbox. Platform events of the platform cluster (e.g. `saas.LegalParameterPackPublished`) are enqueued by the relay on each pool cluster with the sentinel tenant. **Phase 2:** the relay publishes to Kafka with key `tenant_id:aggregate_id` instead; tables and consumer code are unchanged. A `DEAD` delivery must be replayed within the 7-day outbox window, otherwise the consumer re-syncs from the owner API. Published rows stay for 7 days for re-publication after DR, which matches the daily partitions dropped after 7 days. Debezium is **not** on the business path. The envelope's `initial_load` flag (opening-balance import, ADR-0037; formerly `migration`) travels in `headers`.
 * The relay role `yhrm_relay` reads all tenants through a dedicated `USING (true)` policy. The application roles see only their tenant.
 * PII in payloads is minimised (ids plus changed field *names*). Sensitive values (bank account, ID numbers) are never in payloads; consumers call the owner's API (gap §6 `PersonalDataChanged` "minimised").
 
@@ -912,8 +942,8 @@ Every module schema has the same pair of tables (DDL template in `002_core.sql`,
 
 | Class | Examples | Protection |
 |---|---|---|
-| **P3 — identifiers, bank accounts, special-category data** | CCCD/passport no., personal tax code, SI number, bank account no., religion, ethnicity, health/medical data, disability, GPS coordinates and selfie references (Phase 2 only, OD-9), family members' ID and tax codes, candidate ID documents, staged import rows (`core.import_row.payload_enc`) | **Application-level envelope encryption** (AES-256-GCM) in `_enc bytea`. Blind index `_bidx` (HMAC-SHA256 with the tenant blind-index key, truncated to 16 bytes) where equality lookup is needed. `_last4` display hint where the UI masks. Access is logged as a sensitive read. |
-| **P2 — confidential personal / pay** | Salary amounts (salary record, result lines, payslips), date of birth, addresses, phone, personal email, dependants' names, discipline | Plaintext in DB: protected by RLS + module grants + storage encryption (AES-256 volume/TDE-equivalent) + **masking views** + field permissions in Core + audit. **Salary amounts are P2 and are not column-encrypted (decided X-01, 2026-10-16; closes D-02/D-11).** Compensating controls, all mandatory: RLS; only `yhrm_app_hr`/`yhrm_app_pay` hold grants on amount tables (none is on the X-02 list); masking views that hide amounts unless `app.mask_level` ∈ (`NONE`, `PII`), fail closed when unset (`hr.v_salary_record_masked`, payroll equivalents); API field masking; step-up for bulk views/exports; sensitive-read audit; ACL-restricted Payroll topics for `people.SalaryChanged`; amounts in the reporting store only through the reporting service (§11). |
+| **P3 — identifiers, bank accounts, special-category data** | CCCD/passport no., personal tax code, SI number, bank account no., religion, ethnicity, health/medical data, disability, GPS coordinates and selfie references (Phase 2 only, OD-9), family members' ID and tax codes, candidate ID documents, staged import rows (`core.import_row.payload_enc`), the employee-set payslip PDF password (`pay.payslip_delivery_preference.pdf_password_enc`, R2-17) | **Application-level envelope encryption** (AES-256-GCM) in `_enc bytea`. Blind index `_bidx` (HMAC-SHA256 with the tenant blind-index key, truncated to 16 bytes) where equality lookup is needed. `_last4` display hint where the UI masks. Access is logged as a sensitive read. |
+| **P2 — confidential personal / pay** | Salary amounts (salary record, result lines, payslips), date of birth, addresses, phone, personal email, dependants' names, discipline | Plaintext in DB: protected by RLS + module grants + storage encryption (AES-256 volume/TDE-equivalent) + **masking views** + field permissions in Core + audit. **Salary amounts are P2 and are not column-encrypted (decided X-01, 2026-10-16; closes D-02/D-11).** Compensating controls, all mandatory: RLS; only `yhrm_app_hr`/`yhrm_app_pay` hold grants on amount tables (none is on the X-02 list); masking views that hide amounts unless `app.mask_level` ∈ (`NONE`, `PII`), fail closed when unset (`hr.v_salary_record_masked`, payroll equivalents); API field masking; step-up for bulk views/exports; sensitive-read audit; `people.SalaryChanged` delivered only to the Payroll consumer (Phase-1 bus jobs carry no payload; ACL-restricted topic in Phase 2); OpenBao dynamic credentials with no human access to the app credentials and pgaudit on DB sessions (R2-15); amounts in the reporting store only through the reporting service (§11). |
 | **P1 — internal** | Names, employee no., org, position, work email | RLS + grants. |
 | **P0 — public/reference** | Global master data | none |
 
@@ -961,7 +991,7 @@ OpenBao transit (in VN; software root for the MVP, HSM-backed before the Enterpr
 | `*.outbox_event` | ~2× business writes | ~60M | — | ≤ 7 days kept | daily range | 7 days |
 | `saas.usage_record` | per tenant × metric × day | 0.5M | 6M | small | monthly | 25 months |
 
-Peak write rates to design for (X-05, accepted 2026-10-16, to be confirmed by SP-3): punches at **500/s platform-wide sustained and 50/s per tenant**, with 1,000/s bursts in batched inserts (this covers NFR-SAAS-004's 20,000/min ≈ 333/s). Phase-1 punches come from time devices and file import only (OD-9). Payroll writes 10k employees × 60 lines = 600k rows in ≤ 15 min per run, using `COPY`-style batch inserts from the workers (JDBC `reWriteBatchedInserts=true`).
+Peak write rates: the X-05 punch figures (**500/s platform-wide sustained and 50/s per tenant**, 1,000/s bursts; covers NFR-SAAS-004's 20,000/min ≈ 333/s) are a **Phase-2** target, together with the live device connector and SP-3 (postponed by R2-01). The table design (append-only, monthly partitions, batched `ON CONFLICT DO NOTHING`) is kept so Phase 2 needs no remodelling. Phase-1 punches come only from imported device-export files: one file of a 2,000-employee site for a month is about 250k rows, committed in chunks by the import job, well within batched-insert capacity. Payroll writes 10k employees × 60 lines = 600k rows in ≤ 15 min per run, using `COPY`-style batch inserts from the workers (JDBC `reWriteBatchedInserts=true`).
 
 Platform-wide, 1M employees means about 1.1 TB/year of new hot data. Following SA ADR-0003, **pool clusters hold about 100k employees each**, so the sizing case is about 10 pool clusters (launch: 2). Per pool cluster that is about 110 GB/year of hot data and peaks of about 100 punches/s (a single 100k-employee cluster can still receive the whole 500/s platform peak during a regional shift change; the batched consumer absorbs it). One CNPG primary (16 vCPU / 128 GB, NVMe) plus a sync standby is comfortable at that size. Scale-out is by **adding pool clusters (tenant cohorts)**, routed like the dedicated tier, never by splitting tables across clusters. **[spike: SP-2 RLS performance and load test on the reference dataset before pilot go-live]**
 
@@ -977,7 +1007,7 @@ Platform-wide, 1M employees means about 1.1 TB/year of new hot data. Following S
 
 ## 11. Reporting data model (ADR-0032)
 
-Technology (SA ADR-0012): a **separate PostgreSQL 17 reporting store** in VN, fed by Debezium logical decoding **on a standby** → Kafka `cdc.*` → reporting loader, with freshness ≤ 15 min (normally ≤ 2 min; BR-SAAS-047). Superset (P2) connects with RLS. Dimensional tables live in `rpt`, raw replicated tables in `rpt_raw`, and transformations are written as SQL models (dbt-style) run by the scheduler. If the volume after 12 months exceeds what plain PostgreSQL serves within 3 s (NFR-SAAS-003), the same star schema is deployed on a columnar engine **[spike: Citus columnar or ClickHouse VN-hosted, against fact_payroll_line 1B rows]**.
+Technology (SA ADR-0012, amended for Phase 1 by R2-01): a **separate PostgreSQL 17 reporting store** in VN. **Phase 1:** fed by **native logical replication** — one publication per module schema on each OLTP cluster, with **column lists** (PG 15+) that leave out every P3 `_enc`/`_bidx` column and with only the tables the star schema needs; the reporting DB subscribes (role `yhrm_cdc`, slot on a standby where the provider supports PG 16+ standby decoding **[spike SP-6]**) into `rpt_raw`. No Kafka, no Kafka Connect. DDL changes on published tables follow the same expand/contract rule plus an `rpt_raw` migration step (logical replication does not carry DDL). `rpt_raw` is a landing area without RLS (the apply worker writes as the subscription owner), readable only by the transformation role; users and the reporting service read only `rpt`, which has `tenant_id` + RLS. **Phase 2 option:** Debezium on a standby → Kafka `cdc.*` → loader, if streaming transforms or a columnar engine need it. Freshness ≤ 15 min (normally ≤ 2 min; BR-SAAS-047). Superset (P2) connects with RLS. Dimensional tables live in `rpt`, raw replicated tables in `rpt_raw`, and transformations are written as SQL models (dbt-style) run by the scheduler. If the volume after 12 months exceeds what plain PostgreSQL serves within 3 s (NFR-SAAS-003), the same star schema is deployed on a columnar engine **[spike: Citus columnar or ClickHouse VN-hosted, against fact_payroll_line 1B rows]**.
 
 ```mermaid
 erDiagram
@@ -1040,7 +1070,7 @@ erDiagram
 * Dimensions: SCD2 for `dim_employee`, `dim_org_unit` (with `path`), `dim_position`, `dim_legal_entity`; SCD1 for `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; plus `dim_date` and `dim_pay_run`.
 * **Tenant isolation:** `tenant_id` is on every fact and dimension and is the leading column of every index and of the partitioning (facts are partitioned by month). The same RLS template and `app.tenant_id` context apply, and the reporting service sets the context exactly like OLTP. The **data scope** comes from the `report_scope(tenant_id, user_account_id, employment_id)` table maintained from Core authorisation snapshots (SA ADR-0006/0012). Every fact query joins it on `employment_id` (index `(tenant_id, user_account_id, employment_id)`), and `dim_employee` carries `employment_id` for that join. Dedicated-tier tenants get their own reporting DB.
 * **PII:** no P3 data in the reporting store (no CCCD, tax code or bank account). Names are kept (P1). Amounts are P2 and visible only through the reporting service with pay-permission checks. Crypto-shredding: the DSR anonymiser updates `dim_employee` name attributes, and a tenant purge deletes by `tenant_id`.
-* **Billing (D-10, decided 2026-10-16):** the billable unit is an **active person at month end, per legal entity**. `is_billable` on the last day of the month is true for an employment with status `ACTIVE` or `SUSPENDED` (not `PRE_HIRE`, `TERMINATED` with `end_date` before the last day, or `CANCELLED`) **[to confirm with the sponsor: whether `SUSPENDED` counts]**. The monthly usage job counts `DISTINCT (legal_entity_id, person_id)` with `is_billable` on that date, so concurrent assignments in one legal entity count once, and a person employed by two legal entities of the tenant counts twice (decision-log §6 interpretation). The result is written to `saas.usage_record` (metric `BILLABLE_PERSON`, per tenant × legal entity × month) and is frozen once the invoice is issued; later back-dated hires/terminations adjust the next invoice, never the issued one.
+* **Billing (D-10, decided 2026-10-16):** the billable unit is an **active person at month end, per legal entity**. `is_billable` on the last day of the month is true only for an employment with status `ACTIVE` on that day. **`SUSPENDED` is not billable (R2-12a, decided 2026-10-16)**; neither are `PRE_HIRE`, `CANCELLED` or `TERMINATED` with `end_date` before the last day. A person with one `ACTIVE` and one `SUSPENDED` employment in the same legal entity is billable once for that entity. The monthly usage job counts `DISTINCT (legal_entity_id, person_id)` with `is_billable` on that date, so concurrent assignments in one legal entity count once, and a person employed by two legal entities of the tenant counts twice (D-10 stands; R2-12b not answered, decision-log §7.2). The result is written to `saas.usage_record` (metric `BILLABLE_PERSON`, per tenant × legal entity × month) and is frozen once the invoice is issued; later back-dated hires/terminations adjust the next invoice, never the issued one.
 
 ---
 
@@ -1151,9 +1181,13 @@ Results are written to `core.import_reconciliation`; the customer signs off in t
 | D-07 | Managed PostgreSQL in VN vs self-managed (extensions, logical replication, pg_partman, KMS) | Decided together with the provider after the 2-week SP-7 evaluation | Open — follows OD-1 |
 | D-08 | Flyway licence edition | **Flyway Community** (ADR-0031) | **Decided** (decision-log "Flyway") |
 | D-09 | v0.1: migrated Oracle history and its "known" date | **No Oracle migration.** Replaced by the generic opening-balance import; history before go-live is the opening view as of the go-live date (§13, ADR-0037) | **Decided** (D-09); ADR-0033 superseded |
-| D-10 | Billable employee definition | Active person at month end **per legal entity**; a person in two legal entities counts twice (§11) | **Decided** (D-10); `SUSPENDED` treatment to confirm |
+| D-10 | Billable employee definition | Active person at month end **per legal entity**; a person in two legal entities counts twice; `SUSPENDED` is not billable (§11) | **Decided** (D-10; R2-12a) |
 | D-11 | SA/DA conflict on salary-amount encryption | Resolved: the SA overview v0.2 no longer lists salary amounts as encrypted | **Closed** (X-01) |
-| D-12 | Module roles reading Core global reference tables | Accepted read-only exception, explicit list and DB/ArchUnit guards (§2.3, ADR-0021) | **Decided** (X-02) |
+| D-12 | Module roles reading Core global reference tables | Accepted read-only exception, explicit list and DB/ArchUnit guards (§2.3, ADR-0021) | **Decided** (X-02); full list incl. override rows and plumbing grants accepted (R2-11) |
+| D-13 | Concurrent employment across legal entities: primary flag model | Effective-dated `hr.primary_employment` per purpose (PIT family deduction, SI), at most one per person per purpose per period; replaces `hr.employment.is_primary` (§7.3) | **Decided** (R2-16, basic support in Phase 1); SI multiple-contract rule `[verify-legal]` |
+| D-14 | Event transport in Phase 1 | No Kafka in Phase 1: outbox + polling relay + delivery jobs on `saas.job` with ordered lanes (§9.1); Kafka added in Phase 2 behind the same outbox (SA ADR-0004 rev. 2) | Proposed (SA decision, R2-01) |
+| D-15 | Reporting-store feed in Phase 1 | Native logical replication with column lists instead of Debezium → Kafka (§11; ADR-0012 amendment, ADR-0032) | Proposed (R2-01); SP-6 confirms standby decoding on the chosen provider |
+| D-16 | Payslip PDF password storage | Employee-set password, P3, encrypted with the subject DEK, write-only (§7.5) | **Decided** (R2-17) |
 
 Related decisions taken elsewhere: X-03 close hold (§7.4, `att.attendance_result_hold`), X-05 punch capacity (§10.1), X-07 `saas` schema, OD-9 no mobile punches in Phase 1 (§7.4), OD-10 software key root for the MVP (§9.3).
 
@@ -1168,7 +1202,8 @@ Related decisions taken elsewhere: X-03 close hold (§7.4, `att.attendance_resul
 | KMS outage | No decryption, so bank files, declarations and ESS profile pages fail | Tenant KEK cache with a TTL (e.g. 1 h) in memory only, KMS HA in VN, degraded mode that masks |
 | Volume beyond one primary (> 1M employees or heavy tenants) | Performance | Pool sharding by tenant cohort plus the dedicated tier; routing is already in place |
 | Opening-balance data quality (customer Excel files) | Wrong PIT finalisation, SI eligibility or leave; go-live delay | Blocking validation rules, cross-template checks, reconciliation gate with sign-off, sandbox rehearsal (§13) |
-| Salary amounts in plaintext (X-01) | Exposure through DB credentials or break-glass | Module roles only for `hr`/`pay`, dynamic credentials, pgaudit on break-glass, masking views fail closed, sensitive-read audit; DPIA entry |
+| Salary amounts in plaintext (X-01; SA AR-13) | Exposure through DB credentials or break-glass | **Accepted with mitigations (R2-15, 2026-10-16), recorded in the DPIA by the DPO:** (1) secrets vault — OpenBao dynamic PostgreSQL credentials, short TTL, rotation ≤ 90 days, nothing in repo or images; (2) **no human access to application credentials** — module login roles are issued only to workloads via Kubernetes auth, no operator or developer can obtain them, humans use `yhrm_breakglass` only (two-person approval, ≤ 4 h); (3) **DB access audit** — pgaudit on every human session and break-glass, connection logging for all roles, alerts on any login of a module role from outside the app pods; plus module roles only for `hr`/`pay`, masking views fail closed, sensitive-read audit |
+| DB-backed bus throughput (D-14) | Relay lag or `saas.job` bloat if event volume grows faster than planned | Batch claims, partial indexes, `fillfactor 80`, finished jobs purged daily; SLO relay lag p95 < 5 s; Kafka (Phase 2) when lag or volume thresholds are hit (SA ADR-0004 rev. 2) |
 | X-02 allow-list creep | Module boundaries erode through "just one more" grant | `sys.cross_schema_grant_violations()` in CI, ArchUnit rule, ADR amendment required |
 
 ---
@@ -1178,18 +1213,18 @@ Related decisions taken elsewhere: X-03 close hold (§7.4, `att.attendance_resul
 | ADR | Title | Status |
 |---|---|---|
 | [0020](../../docs/02-architecture/adr/0020-shared-schema-rls-tenancy.md) | Shared-schema multi-tenancy with RLS and transaction-local tenant context | Accepted (2026-10-16, brief baseline 4; X-07) |
-| [0021](../../docs/02-architecture/adr/0021-database-roles-and-privileges.md) | Database roles and privilege model | Accepted (2026-10-16, X-02) |
+| [0021](../../docs/02-architecture/adr/0021-database-roles-and-privileges.md) | Database roles and privilege model | Accepted (2026-10-16, X-02; exception list accepted R2-11; relay grant on `saas.enqueue_event_delivery()` added, Proposed) |
 | [0022](../../docs/02-architecture/adr/0022-schema-per-module-no-cross-schema-fk.md) | Schema per module; no cross-schema foreign keys; projections | Accepted (2026-10-16, D-01) |
 | [0023](../../docs/02-architecture/adr/0023-primary-key-strategy-uuidv7.md) | Primary key strategy: UUIDv7 and composite tenant keys | Proposed |
 | [0024](../../docs/02-architecture/adr/0024-effective-dating-and-bitemporality.md) | Effective dating and partial bi-temporality | Proposed |
 | [0025](../../docs/02-architecture/adr/0025-legal-parameter-pack-model.md) | Legal parameter pack data model and version stamping | Proposed |
 | [0026](../../docs/02-architecture/adr/0026-pii-encryption-crypto-shredding.md) | PII classification, envelope encryption, crypto-shredding | Accepted (2026-10-16, X-01) |
 | [0027](../../docs/02-architecture/adr/0027-tamper-evident-audit-log.md) | Tamper-evident audit log with asynchronous hash-chain sealing | Proposed |
-| [0028](../../docs/02-architecture/adr/0028-outbox-inbox-tables.md) | Transactional outbox and inbox tables per module | Proposed |
+| [0028](../../docs/02-architecture/adr/0028-outbox-inbox-tables.md) | Transactional outbox and inbox tables per module (Phase-1 delivery jobs) | Proposed (rev. 2026-10-16, R2-01) |
 | [0029](../../docs/02-architecture/adr/0029-payroll-result-storage.md) | Payroll snapshots, immutable results and 10-year retention | Proposed |
 | [0030](../../docs/02-architecture/adr/0030-partitioning-and-archiving.md) | Partitioning, data lifecycle and archiving | Accepted (2026-10-16, D-03) |
 | [0031](../../docs/02-architecture/adr/0031-schema-migration-flyway.md) | Schema migration tooling: Flyway, forward-only expand/contract | Accepted (2026-10-16, Flyway Community) |
-| [0032](../../docs/02-architecture/adr/0032-reporting-store-data-model.md) | Reporting store: CDC-fed star schema with tenant isolation | Proposed |
+| [0032](../../docs/02-architecture/adr/0032-reporting-store-data-model.md) | Reporting store: replication-fed star schema with tenant isolation | Proposed (rev. 2026-10-16, R2-01: native logical replication in Phase 1) |
 | [0033](../../docs/02-architecture/adr/0033-oracle-migration-staging-reconciliation.md) | Oracle legacy migration: staging, key maps, reconciliation | Superseded by ADR-0037 (D-09) |
 | [0034](../../docs/02-architecture/adr/0034-money-time-conventions.md) | Money, rounding, dates and time-zone conventions | Proposed |
 | [0035](../../docs/02-architecture/adr/0035-global-vs-tenant-reference-data.md) | Global vs tenant-overridable reference data | Accepted (2026-10-16, X-02) |

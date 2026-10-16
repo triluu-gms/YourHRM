@@ -1,13 +1,13 @@
 # ADR-0028: Transactional outbox and inbox tables per module
 
-- **Status:** Proposed
+- **Status:** Proposed (rev. 2026-10-16, R2-01: Phase-1 delivery through `saas.job`, decision 7)
 - **Date:** 2026-10-16
 - **Deciders:** Data architect, Solution architect (ADR-0004 owns the relay and Kafka)
 - **Related:** Architecture brief B5; gap-analysis §6 (envelope); NFR-PPL-002, NFR-CORE-004, NFR-REC-005; ADR-0004, ADR-0019; [DESIGN.md](../../../database/postgresql/DESIGN.md) §9.1; DDL `sys.create_outbox_inbox()`
 
 ## Context
 
-Every committed business change must produce its event (no dual writes), delivered at least once and consumed idempotently. ADR-0004 chose an in-app polling relay to Kafka that keeps published rows for 7 days. Outbox tables are among the hottest in the system: about two rows per business write, inserted, updated once, then discarded.
+Every committed business change must produce its event (no dual writes), delivered at least once and consumed idempotently. ADR-0004 chose an in-app polling relay that keeps published rows for 7 days. Revision 2 of ADR-0004 (R2-01) delivers events in Phase 1 through delivery jobs on the PostgreSQL job queue and adds Kafka in Phase 2. Outbox tables are among the hottest in the system: about two rows per business write, inserted, updated once, then discarded.
 
 ## Decision
 
@@ -16,7 +16,8 @@ Every committed business change must produce its event (no dual writes), deliver
 3. **Daily range partitions** on `created_at`; partitions older than 7 days are **dropped**. There is no `DELETE` and no vacuum churn. A partial index on unpublished rows serves the relay's `FOR UPDATE SKIP LOCKED` scan.
 4. **Inbox:** `(consumer, event_id)` dedupe with status, attempts and last error. Monthly partitions kept 90 days. Because a partitioned PK must contain the partition key, the consumer template takes `pg_advisory_xact_lock(hash(consumer, event_id))` and checks for existence before applying.
 5. RLS applies to app roles. The relay has a dedicated read policy and `UPDATE (published_at)` only.
-6. Payload minimisation: ids and changed field names; sensitive values only to a single authorised consumer on ACL-restricted topics (ADR-0004 §7). Never P3 values.
+6. Payload minimisation: ids and changed field names; sensitive values only to a single authorised consumer (ADR-0004 decision 8; ACL-restricted topic in Phase 2). Never P3 values.
+7. **Phase-1 delivery (ADR-0004 rev. 2):** the relay, in the transaction that sets `published_at`, calls `saas.enqueue_event_delivery()`, which inserts one `saas.job` row per subscribed consumer (queue `events`, `idempotency_key = consumer:event_id`, `ordering_key = consumer:aggregate_id`). The job holds only a pointer (source cluster, schema, `event_id`, `created_at`), so business payloads never leave the producer schema except into the consumer handler. `saas.claim_jobs()` serves ordered lanes (one non-terminal job per ordering key, oldest first). The inbox dedupe of decision 4 is unchanged and also absorbs duplicate deliveries after a relay crash.
 
 ## Alternatives considered
 
