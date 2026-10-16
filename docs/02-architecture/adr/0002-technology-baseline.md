@@ -1,6 +1,6 @@
 # ADR-0002: Technology baseline (Java 25, Spring Boot 4, PostgreSQL 17)
 
-- **Status:** Accepted (2026-10-16, OD-3 — Java 25 + Spring Boot 4; Java 21 + Boot 3.5 fallback decided after the first spike). **Amendment 1 (2026-10-16, R2-01) — Proposed:** messaging (Kafka, Apicurio) moves to Phase 2; see ADR-0004 rev. 2
+- **Status:** Accepted (2026-10-16, OD-3 — Java 25 + Spring Boot 4; Java 21 + Boot 3.5 fallback decided after the first spike). **Amendment 1 (2026-10-16, R2-01) — Accepted (R3-11):** messaging (Kafka, Apicurio) moves to Phase 2; see ADR-0004 rev. 2
 - **Date:** 2026-10-16
 - **Related:** [architecture-overview](../architecture-overview.md) §4; ADR-0001, ADR-0017
 

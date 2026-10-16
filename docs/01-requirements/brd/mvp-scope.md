@@ -3,10 +3,10 @@
 | Item | Value |
 |---|---|
 | Document | `docs/01-requirements/brd/mvp-scope.md` |
-| Version | 0.2 — 2026-10-16 (round 2 applied) |
+| Version | 0.3 — 2026-10-16 (round 3 applied) |
 | Author | Lead Business Analyst |
-| Status | Round 1, round 2 and the R2-02 final scope sync applied. Open points: §11.4 (compliance conflicts; R2-C1 sponsor to decide) |
-| Drives | [BRD.md](BRD.md) §5, §9, §10 · [decision-log.md](../../00-project-management/decision-log.md) X-04, OD-9, D-09, D-10, R2-01 – R2-19 (§7, §7.1, §7.2) · [project-charter.md](../../00-project-management/project-charter.md) §6 |
+| Status | Rounds 1–3 applied (incl. the R2-02 final scope sync). Open points: §11.4 (R2-C2 legal confirmation of the multi-contract insurance rule; R2-C9/R2-C10 closed or process-only) |
+| Drives | [BRD.md](BRD.md) §5, §9, §10 · [decision-log.md](../../00-project-management/decision-log.md) X-04, OD-9, D-09, D-10, R2-01 – R2-19 (§7, §7.1, §7.2), R3-01 – R3-11 (§8) · [project-charter.md](../../00-project-management/project-charter.md) §6 |
 | Snapshot | Requirement IDs and old priorities were read from the six module BRDs on 2026-10-16. The module BRDs are being edited in parallel by their owners; any ID they add later must be rated here before the backlog freezes. |
 
 | Version | Change |
@@ -14,6 +14,7 @@
 | 0.1 | Round 1 re-rating (X-04, OD-9, D-09, D-10): P1 = 281 BRs, 61 NFRs. |
 | 0.2 | Round 2 (R2-01 – R2-19): Option B applied (27 of 29 cuts), all live external integrations → P2, BR-ATT-063 and BR-SAAS-073 → P1, baseline column added (R2-18). **P1 = 254 BRs, 58 NFRs.** Changed rows in §9 are marked "(R2, 2026-10-16)". New §11 (round 2 changes) and §12 (phase-tag sync list for the module BRDs). |
 | 0.2 (final sync) | R2-02 final scope sync: 9 new BA requirements rated (7 P1, 2 P2); 5 rows marked `Removed` because ownership moved (BR-CORE-038, 039, 042, 113, BR-SAAS-027), with their P1 capabilities confirmed in SaaS rows rated P1 + baseline; `API` baseline value added (R2-C9); T&A Phase column synced to §9; phase banner added to every module BRD, which replaces the §12 tag list. **P1 = 259 BRs, 58 NFRs.** |
+| 0.3 | Round 3 (decision-log §8, R3-01 – R3-11): BR-ATT-075 (R3-06), BR-PPL-019 minimal (R3-07) and BR-SAAS-037 minimal (R3-08) back to P1; vendor e-invoicing BR-SAAS-014/015 → P2 (R3-01). E-PIT certificates in P1 = data + unsigned PDF (R3-02). Multi-contract insurance rule becomes a legal parameter per insurance type (R3-03). Employees without e-mail get printed PDF payslips (R3-05). §11.4 conflicts R2-C1, C3–C8 and C11 resolved. **P1 = 260 BRs, 58 NFRs.** Rows changed in §9 are marked "(R3, 2026-10-16)". |
 
 ## 1. Purpose
 
@@ -55,24 +56,24 @@ Decisions applied:
 
 ## 3. Results
 
-All counts below are output from the §10 script, run on 2026-10-16 after the round 2 final scope sync. "R1" is version 0.1 of this document (round 1 decisions). "R2" is this version, including the R2-02 sync: 9 new BA requirements rated, and 5 rows removed from their old module because ownership moved (phase `Removed`, excluded from all counts).
+All counts below are output from the §10 script, run on 2026-10-16 after round 3. "R1" is version 0.1 of this document (round 1 decisions). "R3" is this version: round 2 including the R2-02 sync, plus round 3 (R3-01 – R3-11). The R2-02 sync rated 9 new BA requirements and removed 5 rows from their old module because ownership moved (phase `Removed`, excluded from all counts).
 
-### 3.1 Business requirements (BR), R1 vs R2
+### 3.1 Business requirements (BR), R1 vs R3 (final)
 
 "BR total" counts active rows only. Removed rows are shown separately. Old M/S/C is the MoSCoW value before R1; "new" means added on 2026-10-16.
 
-| Module | BR total | Old M | Old S | Old C | New | Removed | R1 P1 | R1 P2 | R1 P3 | **R2 P1** | R2 P2 | R2 P3 | Δ P1 (R2 − R1) |
+| Module | BR total | Old M | Old S | Old C | New | Removed | R1 P1 | R1 P2 | R1 P3 | **R3 P1** | R3 P2 | R3 P3 | Δ P1 (R3 − R1) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Core | 75 | 59 | 10 | 5 | 1 | 4 | 52 | 21 | 5 | **45** | 25 | 5 | −7 (5 Option B; 2 removed: 038, 113) |
-| People | 95 | 65 | 23 | 5 | 2 | 0 | 50 | 38 | 5 | **46** | 44 | 5 | −4 (5 Option B; +1 new BR-PPL-023) |
-| Time & Attendance | 80 | 61 | 16 | 3 | 0 | 0 | 61 | 19 | 0 | **54** | 26 | 0 | −7 (7 Option B, 1 connector; +1 BR-ATT-063) |
+| People | 95 | 65 | 23 | 5 | 2 | 0 | 50 | 38 | 5 | **47** | 43 | 5 | −3 (5 Option B; +1 new BR-PPL-023; +1 BR-PPL-019 restored, R3-07) |
+| Time & Attendance | 80 | 61 | 16 | 3 | 0 | 0 | 61 | 19 | 0 | **55** | 25 | 0 | −6 (7 Option B, 1 connector; +1 BR-ATT-063; +1 BR-ATT-075 restored, R3-06) |
 | Payroll | 91 | 72 | 12 | 3 | 4 | 0 | 72 | 12 | 3 | **71** | 17 | 3 | −1 (5 Option B; +4 new BR-PAY-065, 085–087) |
 | Recruitment | 63 | 42 | 20 | 1 | 0 | 0 | 0 | 62 | 1 | **0** | 62 | 1 | 0 (whole module P2) |
-| SaaS Platform | 90 | 55 | 25 | 6 | 4 | 1 | 46 | 39 | 4 | **43** | 43 | 4 | −3 (5 Option B, 1 connector; +1 BR-SAAS-073; +2 new BR-SAAS-090/091) |
-| **Total** | **494** | **354** | **106** | **23** | **11** | **5** | **281** | **191** | **18** | **259** | **217** | **18** | **−22** |
-| **Total excl. Recruitment** | **431** | **312** | **86** | **22** | **11** | **5** | **281** | **129** | **17** | **259** | **155** | **17** | **−22** |
+| SaaS Platform | 90 | 55 | 25 | 6 | 4 | 1 | 46 | 39 | 4 | **42** | 44 | 4 | −4 (5 Option B, 1 connector; +1 BR-SAAS-073; +2 new BR-SAAS-090/091; +1 BR-SAAS-037 restored, R3-08; −2 e-invoice BR-SAAS-014/015, R3-01) |
+| **Total** | **494** | **354** | **106** | **23** | **11** | **5** | **281** | **191** | **18** | **260** | **216** | **18** | **−21** |
+| **Total excl. Recruitment** | **431** | **312** | **86** | **22** | **11** | **5** | **281** | **129** | **17** | **260** | **154** | **17** | **−21** |
 
-**How round 2 moves P1 from 281 to 259 (net −22):**
+**How rounds 2 and 3 move P1 from 281 to 260 (net −21):**
 
 | Change | P1 effect |
 |---|---|
@@ -81,7 +82,10 @@ All counts below are output from the §10 script, run on 2026-10-16 after the ro
 | Promoted to P1 (BR-ATT-063, BR-SAAS-073) | +2 |
 | New R2-02 BRs rated P1 (BR-PPL-023, BR-PAY-065, 085, 086, 087, BR-SAAS-090, 091) | +7 |
 | P1 rows removed as moved to SaaS; the capability stays P1 in BR-SAAS-038/039/043/046 (BR-CORE-038, 113) | −2 |
-| **Net** | **−22** |
+| Subtotal after round 2 (P1 = 259) | −22 |
+| Round 3: restored to P1 (BR-ATT-075 R3-06, BR-PPL-019 R3-07, BR-SAAS-037 R3-08) | +3 |
+| Round 3: vendor e-invoicing to P2 (BR-SAAS-014/015, R3-01) | −2 |
+| **Net (P1 = 260)** | **−21** |
 
 Two new BRs are rated P2: BR-CORE-088 and BR-PPL-039. Details per ID: §11.
 
@@ -90,9 +94,9 @@ Round 1 note (unchanged). The R1 Must baseline was **316**. That figure includes
 - two D-09 BRs were added (BR-SAAS-088, 089)
 - ten T&A S/C items tagged "MVP" moved to P2.
 
-### 3.2 Non-functional requirements (NFR), R1 vs R2
+### 3.2 Non-functional requirements (NFR), R1 vs R3 (final; round 3 changed no NFR)
 
-| Module | NFR total | Old M | Old S | R1 P1 | R1 P2 | **R2 P1** | R2 P2 | R2 P3 |
+| Module | NFR total | Old M | Old S | R1 P1 | R1 P2 | **R3 P1** | R3 P2 | R3 P3 |
 |---|---|---|---|---|---|---|---|---|
 | Core | 15 | 12 | 3 | 13 | 2 | **13** | 2 | 0 |
 | People | 12 | 10 | 2 | 10 | 2 | **10** | 2 | 0 |
@@ -104,18 +108,18 @@ Round 1 note (unchanged). The R1 Must baseline was **316**. That figure includes
 
 R1: NFR-CORE-009 (import throughput) was promoted to P1 for the opening-balance load, and NFR-SAAS-019 (full tenant export) moved to P2 with tenant offboarding. R2: NFR-ATT-001 (punch ingestion rate), NFR-ATT-004 (connector offline buffer) and NFR-SAAS-004 (punch burst) move to P2 with the live connector (R2-01). Spike SP-3 and the X-05 figure are therefore no longer P1 gates.
 
-### 3.3 What the 259 P1 BRs are made of
+### 3.3 What the 260 P1 BRs are made of
 
-Buckets follow the reason column. The R2 deltas were assigned by hand from the R1 buckets, so these figures are indicative, not awk output.
+Buckets follow the reason column. The R2/R3 deltas were assigned by hand from the R1 buckets, so these figures are indicative, not awk output.
 
-| Bucket | Core | People | T&A | Payroll | SaaS | **R2 total** | R1 total |
+| Bucket | Core | People | T&A | Payroll | SaaS | **R3 total** | R1 total |
 |---|---|---|---|---|---|---|---|
-| Statutory (VN law, incl. PDPL) | 9 | 33 | 21 | 36 | 11 | **110** | 107 |
+| Statutory (VN law, incl. PDPL) | 9 | 34 | 22 | 36 | 9 | **110** | 107 |
 | Opening-balance import, comparison & billing (D-09/D-10, R2-03) | 5 | 0 | 2 | 2 | 7 | **16** | 16 |
-| Security, privacy & audit baseline | 9 | 1 | 0 | 2 | 8 | **20** | 24 |
+| Security, privacy & audit baseline | 9 | 1 | 0 | 2 | 9 | **21** | 24 |
 | ESS web | 2 | 3 | 3 | 2 | 2 | **12** | 13 |
 | Foundation / core processing that the statutory outputs depend on (incl. X-03 close hold, job scheduler, pay groups) | 20 | 9 | 28 | 29 | 15 | **101** | 121 |
-| **Total** | 45 | 46 | 54 | 71 | 43 | **259** | 281 |
+| **Total** | 45 | 47 | 55 | 71 | 42 | **260** | 281 |
 
 ### 3.4 Baseline capabilities (R2-18)
 
@@ -134,7 +138,7 @@ The **Baseline** column in §9 marks the capabilities that are always on, whatev
 | **Total `B`** | | **75 BR + 19 NFR** |
 | API-level always-on services | Holiday-calendar and schedule read API: T&A **ATT-P-16** (MoSCoW S → M, R2-02), over BR-ATT-001, 002 and 011 (P1). Gross↔net simulator: Payroll **IF-PAY-P-15** over BR-PAY-124 (P2), so it becomes always-on only once built in P2 | 4 BR (`API`) |
 
-## 4. Why P1 is 259 and not 180–200
+## 4. Why P1 is 260 and not 180–200
 
 **The target cannot be reached without breaking the compliance rule.** The 180–200 estimate in X-04 assumed savings from deferring appraisal, training, expenses, report designer and white-label. In the module BRDs, those items were already almost all `S`/`C`: only one of them (BR-PPL-094, probation appraisal) was a Must. The real reductions came from:
 - Recruitment (−42 Must BRs, already outside the 316)
@@ -143,25 +147,25 @@ The **Baseline** column in §9 marks the capabilities that are always on, whatev
 - the non-statutory People features in §5
 - in round 2, the Option B cuts and the removal of live integrations.
 
-The R2-02 single-owner sync then added 7 P1 BRs that close gaps in the chain or in statutory scope (tax residency, the 183-day check, pay groups, the job scheduler, and others).
+The R2-02 single-owner sync then added 7 P1 BRs that close gaps in the chain or in statutory scope (tax residency, the 183-day check, pay groups, the job scheduler, and others). Round 3 restored three small statutory or PDPL items (BR-ATT-075, BR-PPL-019, BR-SAAS-037) and moved the vendor's own e-invoicing out (BR-SAAS-014/015, R3-01).
 
 Three things set the floor:
 
-1. **110 P1 BRs are statutory.** SI, PIT (monthly, finalisation, e-certificates, residency), contracts, termination, OT and leave law, labour reports, PDPL and e-invoice cannot be cut under the sponsor's rule. Payroll alone has 36.
+1. **110 P1 BRs are statutory.** SI, PIT (monthly, finalisation, e-certificates, residency), contracts, termination, final-settlement timing, OT and leave law, labour book and reports, and PDPL cannot be cut under the sponsor's rule. Payroll alone has 36. The vendor's own e-invoicing is met outside the product (R3-01).
 2. **About 101 BRs are the processing chain those outputs need.** This covers entity → org → person → assignment → salary → pay group → schedule → timesheet → period close (incl. the X-03 hold) → payroll run → bank/GL, and the job scheduler that runs them.
 3. **D-09 adds work.** Without Oracle, the mid-year go-live depends on Excel opening balances (16 BRs, including the R2-03 comparison).
 
-**Option B — applied in round 2 (R2-19).** These 29 BRs were listed as non-statutory, each with a Phase 1 workaround. 27 are now P2. Two stay P1 because a later, more specific round 2 decision covers them.
+**Option B — applied in round 2 (R2-19).** These 29 BRs were listed as non-statutory, each with a Phase 1 workaround. 27 moved to P2 in round 2; two stayed P1 because a later, more specific round 2 decision covers them. Round 3 restored three more (BR-ATT-075, BR-PPL-019, BR-SAAS-037), so **24 remain P2**.
 
 | Module | IDs | R2 status | Phase 1 workaround |
 |---|---|---|---|
 | Core (5) | BR-CORE-051, 053, 058, 071, 083 | all P2 | Vendor-seeded, sequential-only approval routes; vendor-maintained templates and code lists; no re-resolution on reorg |
-| People (5) | BR-PPL-005, 018, 019, 022, 133 | all P2 | HR keys changes directly; documents as plain attachments; seniority choice by HR adjustment; keep one qualification field for the labour book (§11.4 R2-C5) |
-| T&A (8) | BR-ATT-026, 034, 043, 066, 070, 075, 083 → P2; **BR-ATT-037 stays P1** | 7 P2, 1 kept | One policy per legal entity; OT by pre-approval only; trips and WFH as attendance codes. BR-ATT-037 (admin timesheet edit) is the "manual entry" that R2-01 keeps in P1 |
+| People (5) | BR-PPL-005, 018, 022, 133 → P2; **BR-PPL-019 back to P1 minimal (R3-07)** | 4 P2, 1 restored | HR keys changes directly; documents as plain attachments; seniority choice by HR adjustment; keep one qualification field for the labour book (§11.4 R2-C5) |
+| T&A (8) | BR-ATT-026, 034, 043, 066, 070, 083 → P2; **BR-ATT-037 stays P1**; **BR-ATT-075 back to P1 (R3-06)** | 6 P2, 2 in P1 | One policy per legal entity; OT by pre-approval only; trips and WFH as attendance codes. BR-ATT-037 (admin timesheet edit) is the "manual entry" that R2-01 keeps in P1 |
 | Payroll (6) | BR-PAY-021, 073, 090, 112, 114 → P2; **BR-PAY-102 stays P1** | 5 P2, 1 kept | Fixed net scope; advances via the Advance run type or as variable input; cost by default cost centre. BR-PAY-102 (password-protected PDF payslip) is kept by R2-17 |
-| SaaS (5) | BR-SAAS-009, 013, 036, 037, 053 | all P2 | Toggles by configuration; manual headcount report for billing; manual two-person break-glass procedure; operator-access log exported on request |
+| SaaS (5) | BR-SAAS-009, 013, 036, 053 → P2; **BR-SAAS-037 back to P1 minimal (R3-08)** | 4 P2, 1 restored | Toggles by configuration; manual headcount report for billing; manual two-person break-glass procedure; operator-access log exported on request |
 
-**Recommendation.** Size the 259 BRs in story points before committing to 16 weeks. Option B is now used up, so **no descope reserve is left** short of statutory scope. The remaining levers are the open conflicts in §11.4 (for example R2-C1: issuing the vendor's e-invoices outside the platform, −2 BRs) or a later go-live date.
+**Recommendation.** Size the 260 BRs in story points before committing to 16 weeks. Option B is now used up, so **no descope reserve is left** short of statutory scope. R2-C1 (vendor e-invoicing) was used in round 3 (R3-01). The remaining lever is a later go-live date.
 
 ## 5. Notable cuts (old M → P2, Recruitment excluded; R1 list, round 2 additions in §11)
 
@@ -217,7 +221,7 @@ Related change for D-10: BR-SAAS-012 now defines the billable employee as an act
 
 | # | Item (R1) | Outcome (round 2, 2026-10-16) |
 |---|---|---|
-| 1 | P1 = 281 BRs against the 180–200 target; Option B? | Option B approved (R2-19) and live integrations removed (R2-01) → P1 = 254; after the R2-02 sync (+7 new, −2 moved) **P1 = 259**. Story-point sizing still required. |
+| 1 | P1 = 281 BRs against the 180–200 target; Option B? | Option B approved (R2-19) and live integrations removed (R2-01) → P1 = 254; after the R2-02 sync (+7 new, −2 moved) P1 = 259; round 3 (+3 restored, −2 e-invoice) **P1 = 260**. Story-point sizing still required. |
 | 2 | No parallel run: one-month comparison (BR-SAAS-073)? | **P1** (R2-03). |
 | 3 | SSO deferred | Confirmed P2 (R2-04). |
 | 4 | Discipline procedure deferred | Confirmed P2 (R2-05). |
@@ -350,7 +354,7 @@ Related change for D-10: BR-SAAS-012 now defines the billable employee as an act
 | BR-PPL-016 | Family members & PIT dependants | M | P1 | Statutory: PIT family deduction | B |
 | BR-PPL-017 | Dependant approval & registration form | M | P1 | Statutory: dependant registration | B |
 | BR-PPL-018 | Emergency contacts | M | P2 | Option B cut (R2-19): emergency contact kept as free-text note (R2, 2026-10-16) |  |
-| BR-PPL-019 | Education & certificates | M | P2 | Option B cut (R2-19): certificates as plain attachments; labour-book qualification must stay as one field (see §11 R2-C5) (R2, 2026-10-16) |  |
+| BR-PPL-019 | Education & certificates | M | P1 | Restored minimal by R3-07: qualification field for the labour management book; full education/certificates stay P2 (R3, 2026-10-16) |  |
 | BR-PPL-020 | Foreign-worker work permit | M | P1 | Statutory: work permit validity | B |
 | BR-PPL-021 | Special-status attributes | M | P1 | Statutory: drives OT/leave/termination protection | B |
 | BR-PPL-022 | ESS personal data change requests | M | P2 | Option B cut (R2-19): HR keys personal-data changes directly; ESS profile view stays (BR-PPL-120) (R2, 2026-10-16) |  |
@@ -515,7 +519,7 @@ Old priority shows the MoSCoW value and, in brackets, the module's own Phase tag
 | BR-ATT-072 | Periods aligned to pay calendar | M (MVP) | P1 | Payroll hand-off |  |
 | BR-ATT-073 | Period lifecycle | M (MVP) | P1 | Payroll hand-off |  |
 | BR-ATT-074 | Pre-close exception checklist | M (MVP) | P1 | Payroll hand-off quality |  |
-| BR-ATT-075 | Close per entity × pay group / early close | M (MVP) | P2 | Option B cut (R2-19): leaver's final attendance entered as payroll variable input (see §11 R2-C4) (R2, 2026-10-16) |  |
+| BR-ATT-075 | Close per entity × pay group / early close | M (MVP) | P1 | Restored by R3-06: early close for a leaver, needed for the 14-working-day final settlement (R3, 2026-10-16) |  |
 | BR-ATT-076 | Versioned Attendance Result | M (MVP) | P1 | Payroll hand-off |  |
 | BR-ATT-077 | Employee timesheet confirmation | C (MVP) | P2 | Optional |  |
 | BR-ATT-078 | Manager timesheet sign-off | S (MVP) | P2 | Optional |  |
@@ -748,8 +752,8 @@ The whole module is Phase 2 (charter §6). `C` items go to P3. The `CandidateHir
 | BR-SAAS-011 | Prorated plan changes | M | P2 | Billing automation is Phase 2 |  |
 | BR-SAAS-012 | Billable employee = active person at month end per legal entity | M | P1 | Changed D-10 |  |
 | BR-SAAS-013 | Usage metering (billable count; other metrics P2) | M | P2 | Option B cut (R2-19): manual month-end headcount report per legal entity for billing (R2, 2026-10-16) |  |
-| BR-SAAS-014 | Subscription invoices + VN e-invoice | M | P1 | Statutory (vendor's own e-invoices); provider link is a live integration, see §11 R2-C1 |  |
-| BR-SAAS-015 | Adjustment/replacement e-invoices | M | P1 | Statutory; see §11 R2-C1 |  |
+| BR-SAAS-014 | Subscription invoices + VN e-invoice | M | P2 | Moved by R3-01: vendor finance issues e-invoices from its existing e-invoice tool using the usage report (R3, 2026-10-16) |  |
+| BR-SAAS-015 | Adjustment/replacement e-invoices | M | P2 | Moved by R3-01: vendor finance issues e-invoices from its existing e-invoice tool using the usage report (R3, 2026-10-16) |  |
 | BR-SAAS-016 | Payment gateway & auto reconciliation | S | P2 | Should |  |
 | BR-SAAS-017 | Automated dunning & suspension | M | P2 | Manual collections for pilot |  |
 | BR-SAAS-018 | Offboarding full export ≤72h | M | P2 | Needed before first tenant exit, not pilot go-live |  |
@@ -771,7 +775,7 @@ The whole module is Phase 2 (charter §6). `C` items go to P3. The `CandidateHir
 | BR-SAAS-034 | Masking in support sessions | M | P1 | Security / PDPL |  |
 | BR-SAAS-035 | Impersonation (view as user) | M | P2 | Cut: support works inside grant without impersonation |  |
 | BR-SAAS-036 | Break-glass two-person | M | P2 | Option B cut (R2-19): manual two-person break-glass procedure; access still logged (BR-CORE-041) (R2, 2026-10-16) |  |
-| BR-SAAS-037 | Tenant-visible operator access log | M | P2 | Option B cut (R2-19): operator-access log exported for the tenant on request (R2, 2026-10-16) |  |
+| BR-SAAS-037 | Tenant-visible operator access log | M | P1 | Restored minimal by R3-08: tenant-visible log of operator access (PDPL processor oversight) (R3, 2026-10-16) |  |
 | BR-SAAS-038 | Password policy | M | P1 | Security baseline  (R2-02: baseline, 2026-10-16) | B |
 | BR-SAAS-039 | MFA | M | P1 | Security baseline  (R2-02: baseline, 2026-10-16) | B |
 | BR-SAAS-040 | Google/Entra OIDC SSO | M | P2 | Not needed at pilot (R2-04 confirmed) |  |
@@ -889,7 +893,7 @@ join -t $'\t' -1 2 -2 1 <(sort -t $'\t' -k2,2 /tmp/cur.tsv) <(sort -k1,1 /tmp/ra
 awk -F'|' '/^## 9\./{s=1} /^## 10\./{s=0} s && /^\| (BR|NFR)-/ && $7 ~ /B/ {split($2,x,"-"); c[x[2]" "x[1]]++} END{for(k in c) print k, c[k]}' mvp-scope.md | sort
 ```
 
-Checks run on 2026-10-16 after the R2-02 final scope sync: 583 rows in the module BRDs, 583 ratings (494 active BR + 84 NFR + 5 removed), no ID missing on either side (step 3 output empty), no duplicates. Steps 1–4 and 7 give the figures in §3 and §3.4. Step 6 gives 0 mismatches for the T&A BR Phase column.
+Checks run on 2026-10-16 after round 3 (and the R2-02 final scope sync): 583 rows in the module BRDs, 583 ratings (494 active BR + 84 NFR + 5 removed), no ID missing on either side (step 3 output empty), no duplicates. Steps 1–4 and 7 give the figures in §3 and §3.4. Step 6 gives 0 mismatches for the T&A BR Phase column.
 
 **Note on the "Old priority" column.** It shows the MoSCoW value before the R1 re-rating. Re-running step 1 on the current files gives two differences: BR-SAAS-073 is now `S`, and BR-SAAS-088/089 now exist as `M`. That is why [BRD.md](BRD.md) §9 shows SaaS as M = 57 and S = 26, while §3 here shows the pre-re-rating values (M = 56, S = 25, 2 new).
 
@@ -938,19 +942,19 @@ Source: [decision-log.md](../../00-project-management/decision-log.md) §7, §7.
 
 | # | Item | Why it matters | Proposed handling | Owner |
 |---|---|---|---|---|
-| R2-C1 | **Sponsor to decide.** E-invoicing of YourHRM's own subscription invoices (BR-SAAS-014/015) needs a certified e-invoice provider, which is a live integration. **Kept P1 for now** as statutory. The architects treated it as P2, with vendor finance invoicing manually from the usage report under R2-01 | The obligation is the vendor's own (Decree 123/2020 as amended by Decree 70/2025), not the tenant's. Either option is compliant if invoices are issued on time | Option A: keep P1 (one provider link). Option B: P2, and vendor finance issues the invoices in its existing e-invoice software from the month-end headcount report (−2 P1 BRs). The architecture docs and this file must then agree | **Sponsor**; PM + vendor finance |
-| R2-C2 | **R2-16 "single SI employer"** | For a person with several labour contracts, SI/UI follow the first contract, but HI is due on the contract with the highest salary, and OA-OD is due from **each** employer `[verify-legal]`. A strict "one SI employer" rule could under-declare HI or OA-OD in the second entity | Model SI, HI, UI and OA-OD participation separately per employment (People BR-PPL-004, Payroll BR-PAY-040/044). Legal consultant to confirm (GAP-031) | People + Payroll BA, legal consultant |
-| R2-C3 | **E-PIT withholding certificates** (BR-PAY-059, BR-SAAS-062, P1) need the employer's digital signature and, under Decree 70/2025 and Circular 32/2025, possibly sending the data to the tax authority `[verify-legal]`. E-sign (BR-CORE-103, BR-SAAS-063) is P2 and no tax-authority link is in P1 | Leavers can ask for a certificate at any time; full-year certificates are due in early 2027 | P1 produces the certificate XML/PDF. The tenant signs and transmits it through its own e-document/e-invoice provider, or a minimal signing step with the tenant's own token is added to P1. Decide before go-live | Payroll BA + legal consultant |
-| R2-C4 | **BR-ATT-075 cut** (early close for one employee) | Final settlement is due within 14 working days (Labour Code Art. 48) and may fall before the period closes | The leaver's final attendance is entered as variable input to the final-settlement run. The Payroll BA confirms that the X-03 hold logic allows a final-settlement run without a closed T&A period | Payroll + T&A BA |
-| R2-C5 | **BR-PPL-019 cut** (education & certificates) | The labour management book (BR-PPL-140, Decree 145) includes qualification / skill level | Keep one "qualification / skill level" field in BR-PPL-010 or BR-PPL-140 | People BA |
-| R2-C6 | **E-mail dependency** | Factory staff often have no work or personal e-mail. ESS activation (BR-SAAS-045), MFA OTP, OD-8 former-employee OTP and the e-mail payslip (BR-PAY-102) all rely on it now that SMS is P2. The employer must still give each employee the payslip details on every payment (Labour Code Art. 95(3)) | Printed or HR-handed PDF payslips (BR-PAY-100 PDF), HR-issued one-time activation codes; personal e-mail captured at hire | Payroll + SaaS BA |
-| R2-C7 | **Password-protected PDF payslip** (R2-17) relaxes the Core deep-link rule | PDPL: the PDF password must be strong. The example rule in BR-PAY-102 ("date of birth + last 4 ID digits") is guessable | DPO acknowledgement; tenant-set or employee-set PIN; audit of sending (GAP-057) `[verify-legal]` | DPO + Payroll BA |
-| R2-C8 | **BR-SAAS-036/037 cut** (two-person break-glass, tenant-visible operator log) | PDPL controller oversight of the processor | Access is still logged (BR-CORE-041, BR-SAAS-033/034); the log is exported for the tenant on request; manual two-person procedure documented | SaaS BA + DPO |
+| R2-C1 | **Resolved — R3-01 (2026-10-16):** BR-SAAS-014/015 → P2; vendor finance issues e-invoices from its existing e-invoice tool using the usage report. Original item: **Sponsor to decide.** E-invoicing of YourHRM's own subscription invoices (BR-SAAS-014/015) needs a certified e-invoice provider, which is a live integration. **Kept P1 for now** as statutory. The architects treated it as P2, with vendor finance invoicing manually from the usage report under R2-01 | The obligation is the vendor's own (Decree 123/2020 as amended by Decree 70/2025), not the tenant's. Either option is compliant if invoices are issued on time | Option A: keep P1 (one provider link). Option B: P2, and vendor finance issues the invoices in its existing e-invoice software from the month-end headcount report (−2 P1 BRs). The architecture docs and this file must then agree | **Sponsor**; PM + vendor finance |
+| R2-C2 | **Decided — R3-03 (2026-10-16), legal confirmation pending:** the multi-contract rule is a legal parameter per insurance type (SI, HI, UI, OA-OD) with values FIRST_CONTRACT, HIGHEST_SALARY or EACH_EMPLOYER. Defaults: SI, UI and HI = FIRST_CONTRACT (sponsor), OA-OD = EACH_EMPLOYER, all `[verify-legal]`. The PM notes that the HI law may require HIGHEST_SALARY; the consultant confirms. Original item: **R2-16 "single SI employer"** | For a person with several labour contracts, SI/UI follow the first contract, but HI is due on the contract with the highest salary, and OA-OD is due from **each** employer `[verify-legal]`. A strict "one SI employer" rule could under-declare HI or OA-OD in the second entity | Model SI, HI, UI and OA-OD participation separately per employment (People BR-PPL-004, Payroll BR-PAY-040/044). Legal consultant to confirm (GAP-031) | People + Payroll BA, legal consultant |
+| R2-C3 | **Resolved — R3-02 (2026-10-16):** e-sign stays P2. In P1, BR-PAY-059 produces the certificate data and an unsigned PDF; the customer signs and issues them through the tax authority's tool or its own provider (`[verify-legal]` for 2027). Original item: **E-PIT withholding certificates** (BR-PAY-059, BR-SAAS-062, P1) need the employer's digital signature and, under Decree 70/2025 and Circular 32/2025, possibly sending the data to the tax authority `[verify-legal]`. E-sign (BR-CORE-103, BR-SAAS-063) is P2 and no tax-authority link is in P1 | Leavers can ask for a certificate at any time; full-year certificates are due in early 2027 | P1 produces the certificate XML/PDF. The tenant signs and transmits it through its own e-document/e-invoice provider, or a minimal signing step with the tenant's own token is added to P1. Decide before go-live | Payroll BA + legal consultant |
+| R2-C4 | **Resolved — R3-06 (2026-10-16):** BR-ATT-075 is back in P1. Original item: **BR-ATT-075 cut** (early close for one employee) | Final settlement is due within 14 working days (Labour Code Art. 48) and may fall before the period closes | The leaver's final attendance is entered as variable input to the final-settlement run. The Payroll BA confirms that the X-03 hold logic allows a final-settlement run without a closed T&A period | Payroll + T&A BA |
+| R2-C5 | **Resolved — R3-07 (2026-10-16):** BR-PPL-019 is back in P1 in minimal form (qualification field for the labour book). Original item: **BR-PPL-019 cut** (education & certificates) | The labour management book (BR-PPL-140, Decree 145) includes qualification / skill level | Keep one "qualification / skill level" field in BR-PPL-010 or BR-PPL-140 | People BA |
+| R2-C6 | **Resolved — R3-05 (2026-10-16):** HR prints the PDF payslip and hands it to employees without e-mail. No activation codes are issued, and ESS is not available to these employees in P1. Original item: **E-mail dependency** | Factory staff often have no work or personal e-mail. ESS activation (BR-SAAS-045), MFA OTP, OD-8 former-employee OTP and the e-mail payslip (BR-PAY-102) all rely on it now that SMS is P2. The employer must still give each employee the payslip details on every payment (Labour Code Art. 95(3)) | Printed or HR-handed PDF payslips (BR-PAY-100 PDF), HR-issued one-time activation codes; personal e-mail captured at hire | Payroll + SaaS BA |
+| R2-C7 | **Resolved — R3-04 (2026-10-16):** the employee sets the PDF password in ESS, with no default or derived password. Until it is set, the e-mail is a notice with no attachment. DPO sign-off is still needed. Original item: **Password-protected PDF payslip** (R2-17) relaxes the Core deep-link rule | PDPL: the PDF password must be strong. The example rule in BR-PAY-102 ("date of birth + last 4 ID digits") is guessable | DPO acknowledgement; tenant-set or employee-set PIN; audit of sending (GAP-057) `[verify-legal]` | DPO + Payroll BA |
+| R2-C8 | **Resolved — R3-08 (2026-10-16):** BR-SAAS-037 is back in P1 in minimal form (tenant-visible log of operator access). The two-person break-glass (BR-SAAS-036) stays P2. Original item: **BR-SAAS-036/037 cut** (two-person break-glass, tenant-visible operator log) | PDPL controller oversight of the processor | Access is still logged (BR-CORE-041, BR-SAAS-033/034); the log is exported for the tenant on request; manual two-person procedure documented | SaaS BA + DPO |
 | R2-C9 | **Resolved (R2-02 sync).** Baseline scope (R2-18) did not list the holiday calendar and schedule patterns | Payroll without T&A still needs paid holidays and standard working days (BR-PAY-009, BR-PAY-031) | The holiday-calendar and schedule read API (ATT-P-16, now M) and the gross↔net simulator (IF-PAY-P-15) are marked as **API-level always-on services** (`API` in §9; §3.4). The full T&A features stay module-bound | PM (closed) |
 | R2-C10 | **BR-PAY-073 cut** (subset / single / simulation runs) | G2 (first run reviewed before approval) and the R2-03 comparison need a run that is calculated but not approved | Use the normal run lifecycle (calculated, not submitted) as the preview, and a discarded comparison run for BR-SAAS-073 | Payroll BA |
-| R2-C11 | **Custom fields P2** (BR-CORE-086, MoSCoW now M) | The opening-balance employee-master template may carry tenant-specific attributes that have nowhere to land without custom fields | Keep P2. The pilot maps tenant attributes to standard fields or to a document attachment; any attribute the pilot needs must be listed during template validation | PM + People BA |
+| R2-C11 | **Resolved — R3-09 (2026-10-16):** custom attributes are mapped to standard fields or attachments during template validation (BR-SAAS-070/071). Original item: **Custom fields P2** (BR-CORE-086, MoSCoW now M) | The opening-balance employee-master template may carry tenant-specific attributes that have nowhere to land without custom fields | Keep P2. The pilot maps tenant attributes to standard fields or to a document attachment; any attribute the pilot needs must be listed during template validation | PM + People BA |
 
-No round 2 decision removes a statutory output: SI, PIT, labour-contract, OT-cap, leave and PDPL outputs remain P1. R2-C1 to R2-C3 are the points where "no live integration" and a statutory obligation meet.
+After round 3 only R2-C2 (legal confirmation of the insurance rule) and the process points R2-C9/C10 remain. No round 2 or 3 decision removes a statutory output: SI, PIT, labour-contract, OT-cap, leave and PDPL outputs remain P1. R2-C1 to R2-C3 are the points where "no live integration" and a statutory obligation meet.
 
 ### 11.5 R2-02 final scope sync (2026-10-16)
 

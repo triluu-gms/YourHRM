@@ -1,6 +1,6 @@
 # ADR-0004: Event backbone — transactional outbox and in-app relay; DB-backed bus in Phase 1, Apache Kafka in Phase 2
 
-- **Status:** Proposed — **revision 2 (2026-10-16, decision log R2-01)**. Revision 1 (same day, also Proposed) put Kafka in Phase 1. No accepted decision is changed; the brief baseline B5 (outbox per module, canonical envelope, catalogue v1) is kept.
+- **Status:** Accepted (2026-10-16, R3-11) — **revision 2 (2026-10-16, decision log R2-01)**. Revision 1 (same day, also Proposed) put Kafka in Phase 1. No accepted decision is changed; the brief baseline B5 (outbox per module, canonical envelope, catalogue v1) is kept.
 - **Date:** 2026-10-16
 - **Related:** Architecture brief B5; gap-analysis §6, §9 A-2, GAP-017/019/020/063; NFR-PPL-002, NFR-CORE-004, NFR-REC-005; decision log R2-01 / §7.2; [architecture-overview](../architecture-overview.md) §7.2; ADR-0011 (job queue), ADR-0012 (reporting feed), ADR-0016, ADR-0028 (outbox/inbox tables); DESIGN.md §9.1
 

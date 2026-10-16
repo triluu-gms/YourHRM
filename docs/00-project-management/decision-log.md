@@ -2,7 +2,7 @@
 
 Consolidates the open decisions raised by the BRD, the gap analysis and the architecture drafts. Each one needs an owner and a date before the MVP backlog is frozen.
 
-**Status 2026-10-16:** rounds 1 (§1–§2) and 2 (§7) decided and **applied** to the charter, BRDs (BRD v0.3, gap analysis v1.2, mvp-scope v0.2), architecture overview v0.3, DESIGN.md v0.3 and ADRs. Phase 1 = 259 BRs + 58 NFRs. No open gap blocks the MVP. Round 3 (§8) is open. PM interpretations: §6 and §7.2.
+**Status 2026-10-16:** rounds 1–3 (§1–§2, §7, §8) decided and **applied** to the charter, BRDs (BRD v0.3 R3, gap analysis v1.2, mvp-scope v0.3), architecture overview v0.3, DESIGN.md v0.3 and ADRs. Phase 1 = **260 BRs + 58 NFRs**. No open gap blocks the MVP. Open items left: legal/DPO validation (§3) and R3-03 legal confirmation. PM interpretations: §6 and §7.2.
 
 ## 1. PM-level conflicts found during cross-review
 | ID | Conflict | Sources | PM recommendation | Decide by | Decision |
@@ -103,14 +103,20 @@ Consolidates the open decisions raised by the BRD, the gap analysis and the arch
 ## 8. Round 3 — decisions needed (raised 2026-10-16 after applying round 2)
 | ID | Decision needed | Source | PM recommendation | Decision |
 |---|---|---|---|---|
-| R3-01 | **E-invoices for YourHRM's own subscription billing** (BR-SAAS-014/015) need a certified e-invoice provider API, the only live integration left in P1. | mvp-scope §11.4 R2-C1; arch. open point 1 | **P2.** Vendor finance issues invoices from its existing e-invoice tool, using the usage report. The pilot is unlikely to be billed through the product. | _Open_ |
-| R3-02 | **Electronic PIT withholding certificates** (BR-PAY-059) need the employer's digital signature and possibly sending data to the tax authority (Decree 70/2025). E-sign is P2. | R2-C3; arch. point 7 | P1 = data and PDF certificate. The customer signs and issues via the tax authority's own tool or its existing provider. **Legal consultant must confirm for 2027.** | _Open_ |
-| R3-03 | **Insurance for one person with contracts in two legal entities:** SI/UI follow the first contract, HI the highest salary, OA-OD due from each employer. | R2-C2; GAP-031 | Implement per-type, per-employment participation (already designed). **Legal consultant to confirm the rules.** | _Open_ |
-| R3-04 | **Payslip PDF password:** the employee sets it in ESS, with no default or derived password. Until it is set, the e-mail is a notice with no attachment. | R2-C7; BR-PAY-102; ADR-0015 | Accept. **DPO sign-off.** | _Open_ |
-| R3-05 | **Employees without e-mail** can't receive OTPs or payslips, but payslip details must reach every employee (Labour Code Art. 95(3)). | R2-C6; BRD RK12 | Fallback: HR prints payslips and issues one-time activation codes for ESS. | _Open_ |
-| R3-06 | **Leaver final settlement within 14 working days** without early close of one employee's attendance (BR-ATT-075 cut under Option B). | R2-C4 | Restore BR-ATT-075 to P1 (small), because the workaround (manual payroll input) is error-prone for a statutory deadline. | _Open_ |
-| R3-07 | **Labour management book** still needs the qualification field (BR-PPL-019 cut under Option B). | R2-C5 | Restore a minimal qualification field to P1 (statutory). | _Open_ |
-| R3-08 | **Operator / break-glass access log** cut under Option B, but PDPL requires processor oversight. | R2-C8 | Restore minimal logging of operator access to tenant data in P1. | _Open_ |
-| R3-09 | **Custom fields P2:** tenant-specific attributes in the opening-balance employee file have nowhere to go. | R2-C11 | Map them to standard fields or attachments during template validation. | _Open_ |
-| R3-10 | **GAP-049:** OA-OD rate and PIT declaration frequency live on the Core legal entity (PM brief), not in Payroll settings. | gap-analysis v1.2 | Accept. | _Open_ |
-| R3-11 | **Phase-1 tech simplification:** no Kafka (DB-backed event bus, ADR-0004 rev. 2), no ingest role (ADR-0001 amendment), reporting fed by native logical replication (ADR-0012 amendment). Kafka is added in P2. | architecture-overview v0.3 §7.2 | Accept: it saves weeks of ops work in a 16-week plan. | _Open_ |
+| R3-01 | **E-invoices for YourHRM's own subscription billing** (BR-SAAS-014/015) need a certified e-invoice provider API, the only live integration left in P1. | mvp-scope §11.4 R2-C1; arch. open point 1 | **P2.** Vendor finance issues invoices from its existing e-invoice tool, using the usage report. The pilot is unlikely to be billed through the product. | move to P2 |
+| R3-02 | **Electronic PIT withholding certificates** (BR-PAY-059) need the employer's digital signature and possibly sending data to the tax authority (Decree 70/2025). E-sign is P2. | R2-C3; arch. point 7 | P1 = data and PDF certificate. The customer signs and issues via the tax authority's own tool or its existing provider. **Legal consultant must confirm for 2027.** | E-sign is P2 |
+| R3-03 | **Insurance for one person with contracts in two legal entities:** SI/UI follow the first contract, HI the highest salary, OA-OD due from each employer. | R2-C2; GAP-031 | Implement per-type, per-employment participation (already designed). **Legal consultant to confirm the rules.** | Rule is follow the first contract not highest salary. |
+| R3-04 | **Payslip PDF password:** the employee sets it in ESS, with no default or derived password. Until it is set, the e-mail is a notice with no attachment. | R2-C7; BR-PAY-102; ADR-0015 | Accept. **DPO sign-off.** | Accept |
+| R3-05 | **Employees without e-mail** can't receive OTPs or payslips, but payslip details must reach every employee (Labour Code Art. 95(3)). | R2-C6; BRD RK12 | Fallback: HR prints payslips and issues one-time activation codes for ESS. | Print a PDF then give it to employee. |
+| R3-06 | **Leaver final settlement within 14 working days** without early close of one employee's attendance (BR-ATT-075 cut under Option B). | R2-C4 | Restore BR-ATT-075 to P1 (small), because the workaround (manual payroll input) is error-prone for a statutory deadline. | Agree |
+| R3-07 | **Labour management book** still needs the qualification field (BR-PPL-019 cut under Option B). | R2-C5 | Restore a minimal qualification field to P1 (statutory). | Agree |
+| R3-08 | **Operator / break-glass access log** cut under Option B, but PDPL requires processor oversight. | R2-C8 | Restore minimal logging of operator access to tenant data in P1. | Agree |
+| R3-09 | **Custom fields P2:** tenant-specific attributes in the opening-balance employee file have nowhere to go. | R2-C11 | Map them to standard fields or attachments during template validation. | Agree |
+| R3-10 | **GAP-049:** OA-OD rate and PIT declaration frequency live on the Core legal entity (PM brief), not in Payroll settings. | gap-analysis v1.2 | Accept. | Agree |
+| R3-11 | **Phase-1 tech simplification:** no Kafka (DB-backed event bus, ADR-0004 rev. 2), no ingest role (ADR-0001 amendment), reporting fed by native logical replication (ADR-0012 amendment). Kafka is added in P2. | architecture-overview v0.3 §7.2 | Accept: it saves weeks of ops work in a 16-week plan. | Agree |
+
+### 8.1 Notes on applying round 3 (2026-10-16)
+- **R3-03 legal caution (PM):** the sponsor decided insurance follows the first contract. The PM believes the Health Insurance Law requires HI on the contract with the **highest salary** when a person has several labour contracts. The rule is therefore built as legal parameter `insurance.multi_contract_rule`, set per insurance type (FIRST_CONTRACT | HIGHEST_SALARY | EACH_EMPLOYER). Defaults are SI/UI/HI = FIRST_CONTRACT (sponsor) and OA-OD = EACH_EMPLOYER, all `[verify-legal]`. If the consultant confirms the highest-salary rule for HI, only the parameter changes.
+- **R3-02:** in P1, the PIT withholding certificate is data plus an unsigned PDF. The customer signs and issues through the tax authority's tool or its own provider. `[verify-legal]` for 2027.
+- **R3-05:** employees without e-mail get printed PDF payslips from HR, with no activation codes and no ESS access in P1.
+- **R3-11:** ADR-0004 rev. 2 and Amendment 1 of ADR-0001/0002/0012 set to Accepted.

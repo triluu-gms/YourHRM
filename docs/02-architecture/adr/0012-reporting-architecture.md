@@ -1,6 +1,6 @@
 # ADR-0012: Reporting — CDC to a PostgreSQL reporting store, Superset, statutory template framework
 
-- **Status:** Accepted (2026-10-16, OD-5 — Superset for Phase 2). **Amendment 1 (2026-10-16, R2-01) — Proposed:** decision 2 (feed of the reporting store) uses native PostgreSQL logical replication in Phase 1 instead of Debezium → Kafka
+- **Status:** Accepted (2026-10-16, OD-5 — Superset for Phase 2). **Amendment 1 (2026-10-16, R2-01) — Accepted (R3-11):** decision 2 (feed of the reporting store) uses native PostgreSQL logical replication in Phase 1 instead of Debezium → Kafka
 - **Date:** 2026-10-16
 - **Related:** Architecture brief B2 (separate reporting store); gap-analysis GAP-010, §9 A-10; SaaS BRD §4.E; NFR-SAAS-003; reporting data model in the data architecture (DESIGN.md); [architecture-overview](../architecture-overview.md) §10
 

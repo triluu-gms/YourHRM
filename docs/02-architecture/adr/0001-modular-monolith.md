@@ -1,6 +1,6 @@
 # ADR-0001: Modular monolith with Spring Modulith and separately scaled runtime roles
 
-- **Status:** Accepted (2026-10-16, brief baseline 3; X-02 exception for read-only global reference data). **Amendment 1 (2026-10-16, R2-01) — Proposed:** the `ingest` runtime role is deferred to Phase 2 (decision 5).
+- **Status:** Accepted (2026-10-16, brief baseline 3; X-02 exception for read-only global reference data). **Amendment 1 (2026-10-16, R2-01) — Accepted (R3-11):** the `ingest` runtime role is deferred to Phase 2 (decision 5).
 - **Date:** 2026-10-16
 - **Deciders:** Solution architect (proposer), PM, tech leads
 - **Related:** Architecture brief B2/B3; [architecture-overview](../architecture-overview.md) §3; ADR-0004, ADR-0011
