@@ -120,3 +120,16 @@ Consolidates the open decisions raised by the BRD, the gap analysis and the arch
 - **R3-02:** in P1, the PIT withholding certificate is data plus an unsigned PDF. The customer signs and issues through the tax authority's tool or its own provider. `[verify-legal]` for 2027.
 - **R3-05:** employees without e-mail get printed PDF payslips from HR, with no activation codes and no ESS access in P1.
 - **R3-11:** ADR-0004 rev. 2 and Amendment 1 of ADR-0001/0002/0012 set to Accepted.
+
+## 9. Round 4 — planning decisions (raised 2026-10-16 after estimation)
+Evidence: [backlog-summary.md](../01-requirements/user-stories/backlog-summary.md). Phase 1 = 608 stories, ≈ 3,130 SP, ≈ 195 person-months. The 16-week plan would need about 75 developers.
+
+| ID | Decision needed | PM recommendation | Decision |
+|---|---|---|---|
+| R4-01 | **Re-baseline the timeline.** The 16-week Phase-1 go-live is not feasible (about 4–5× over capacity). | Accept a re-baseline: full Phase 1 in ≈ 13–14 months with ~16 developers (≈ 22 FTE), and a first live payroll in ≈ 9–10 months via the release train (R4-02). | _Open_ |
+| R4-02 | **Release train by statutory calendar:** R1 first live payroll → R2 within ~3 months (retro, bonus/off-cycle before Tết, final-settlement edge cases, semi-annual labour report) → R3 before the PIT year-end deadline (05/QTT finalisation, certificates, self-service provisioning and billing). | Accept, then have the BAs tag every story R1/R2/R3 to size R1 precisely (PM estimate ~1,700–1,900 SP). | _Open_ |
+| R4-03 | **Team size and budget:** how many developers can be funded or staffed? | 16 developers (≈ 6 Payroll, 3 Core, 3 People/T&A, 4 platform/frontend) + QA, BA, UX, DevOps, PM ≈ 22 FTE. | _Open_ |
+| R4-04 | **Effort levers** (§6 of the summary, ~200–275 SP): simplified pilot platform (single tenant, backup/restore DR), defer the reporting store, defer DOCX tenant templates. | Accept, except static DB credentials (conflicts with R2-15). | _Open_ |
+| R4-05 | **Re-open OD-4:** open-source BPMN engine (e.g. Flowable) instead of the in-house workflow engine, saving ~30–40 SP and a [high-uncertainty] 13-SP story. | Run a 3-day comparison spike in sprint 0, then decide. | _Open_ |
+| R4-06 | **Velocity calibration:** dates are planning estimates until sprints 1–2 are measured. | Commit to the R1 date only after sprint 2. | _Open_ |
+| R4-07 | **VN payroll/tax consultant:** 4–6 consultant-weeks for the golden scenarios and `[verify-legal]` rules; also needed for R3-02/R3-03. | Engage before sprint 1. | _Open_ |
