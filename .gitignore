@@ -1,0 +1,26 @@
+# Secrets - never commit credentials
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+dist/
+build/
+target/
+bin/
+obj/
+.venv/
+__pycache__/
+
+# Migration working data (may contain personal data)
+migration/**/data/
+migration/**/*.csv
+migration/**/*.dmp
+
+# IDE / OS
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
