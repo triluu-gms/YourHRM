@@ -1,36 +1,36 @@
-# ADR-0022: Schema per module, no cross-schema foreign keys, event-fed projections
+# ADR-0022: Mỗi module một schema, không có foreign key chéo schema, projection được cấp bởi event
 
-- **Status:** Accepted (2026-10-16, D-01; X-02 read-only reference-data exception per ADR-0021)
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Solution architect, PM
-- **Related:** Architecture brief B1/B2/B3; gap-analysis §5 (single owner), §9 A-1; ADR-0001 (modular monolith), ADR-0004 (events); [DESIGN.md](../../../database/postgresql/DESIGN.md) §2
+- **Trạng thái:** Đã chấp thuận (2026-10-16, D-01; ngoại lệ dữ liệu tham chiếu chỉ đọc X-02 theo ADR-0021)
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, Solution architect, PM
+- **Liên quan:** Architecture brief B1/B2/B3; gap-analysis §5 (chủ sở hữu duy nhất), §9 A-1; ADR-0001 (modular monolith), ADR-0004 (event); [DESIGN.md](../../../database/postgresql/DESIGN.md) §2
 
-## Context
+## Bối cảnh
 
-The schema set is fixed: `saas`, `core`, `hr`, `att`, `pay`, `rec`. Each datum has a single owner (gap §5). Payroll workers and punch ingestion must be able to scale out separately and may later move to their own databases. A dedicated tenant DB and a tenant moving between clusters must carry the same model. The question is how rows in one module reference rows in another.
+Tập schema đã được cố định: `saas`, `core`, `hr`, `att`, `pay`, `rec`. Mỗi dữ liệu có một chủ sở hữu duy nhất (gap §5). Worker tính lương và việc tiếp nhận dữ liệu chấm công phải scale out được riêng rẽ và sau này có thể chuyển sang database riêng. Một DB tenant riêng và một tenant di chuyển giữa các cluster phải mang cùng một mô hình. Câu hỏi là các dòng trong một module tham chiếu tới các dòng trong module khác như thế nào.
 
-## Decision
+## Quyết định
 
-1. Each module owns exactly one schema (plus `audit`, owned by Core, and `sys`, a table-less shared kernel of functions and domains).
-2. **Inside a schema**, FKs are mandatory and composite: `(tenant_id, x_id) → x(tenant_id, id)`.
-3. **Across schemas there are no FKs**, including no FK to `saas.tenant`. References to another module's entity are *soft*: `<entity>_id uuid` with a comment `-> core.position (soft)`. They are validated through the owner's API at write time and checked nightly by an orphan-reference report.
-4. **Global master data is referenced by stable code** (`country_code`, `bank_code`, `admin_unit_code`, `currency_code`), not by surrogate id.
-5. A module that needs bulk access to another module's data keeps an **event-fed projection** named `ext_<owner>_<entity>` in its own schema. Each projection row stores `source_event_id`/`source_version`, has a re-sync job from the owner API, and has a checksum compare.
-6. Denormalised scope keys (`legal_entity_id`, `org_unit_id`) are copied onto employee-scoped rows so each module can filter by data scope without joining Core.
+1. Mỗi module sở hữu đúng một schema (cộng với `audit`, do Core sở hữu, và `sys`, một shared kernel không có bảng gồm các hàm và domain).
+2. **Bên trong một schema**, FK là bắt buộc và dạng composite: `(tenant_id, x_id) → x(tenant_id, id)`.
+3. **Giữa các schema không có FK**, kể cả không có FK tới `saas.tenant`. Tham chiếu tới entity của module khác là *mềm*: `<entity>_id uuid` với comment `-> core.position (soft)`. Chúng được kiểm tra qua API của chủ sở hữu tại thời điểm ghi và được kiểm tra hằng đêm bằng một báo cáo tham chiếu mồ côi.
+4. **Master data global được tham chiếu bằng mã ổn định** (`country_code`, `bank_code`, `admin_unit_code`, `currency_code`), không bằng surrogate id.
+5. Module nào cần truy cập hàng loạt dữ liệu của module khác sẽ giữ một **projection được cấp bởi event** tên là `ext_<owner>_<entity>` trong schema của chính nó. Mỗi dòng projection lưu `source_event_id`/`source_version`, có một job đồng bộ lại từ API của chủ sở hữu, và có so sánh checksum.
+6. Các khoá phạm vi phi chuẩn hoá (`legal_entity_id`, `org_unit_id`) được sao chép vào các dòng theo phạm vi nhân viên để mỗi module có thể lọc theo phạm vi dữ liệu mà không cần join với Core.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Cross-schema FKs to `core` only | Couples migration order and deletion order, breaks the moment a module moves to another database, and needs `REFERENCES` grants across modules. |
-| FK from every table to `saas.tenant` | `saas` lives in the platform cluster (ADR-0036). Every insert would also take a `FOR KEY SHARE` lock on one hot row per tenant. |
-| Shared "kernel" tables read by all modules (person, org) | Recreates the shared-database monolith that the brief forbids; ownership becomes ambiguous. |
-| Database views across schemas | Hidden coupling; breaks the role model (ADR-0021). |
+| FK chéo schema chỉ tới `core` | Gắn chặt thứ tự migration và thứ tự xoá, hỏng ngay khi một module chuyển sang database khác, và cần grant `REFERENCES` giữa các module. |
+| FK từ mọi bảng tới `saas.tenant` | `saas` nằm trong platform cluster (ADR-0036). Mỗi lần insert cũng sẽ lấy khoá `FOR KEY SHARE` trên một dòng nóng của mỗi tenant. |
+| Bảng "kernel" dùng chung mà mọi module đều đọc (person, org) | Tái tạo lại monolith dùng chung database mà brief cấm; quyền sở hữu trở nên mơ hồ. |
+| View database chéo schema | Phụ thuộc ẩn; phá vỡ mô hình role (ADR-0021). |
 
-## Consequences
+## Hệ quả
 
-- \+ Modules can be migrated, scaled and later extracted independently. The DB enforces the module map.
-- \+ Composite keys make cross-tenant references impossible inside a schema.
-- − Integrity across modules is eventual. It is mitigated by owner validation at write, versioned projections, nightly orphan checks, and the period-close version handshake (gap §7, ADR-0019).
-- − Some data is duplicated (projections). This is acceptable: projections are rebuildable caches, not masters.
-- − Reports joining modules run on the reporting store (ADR-0032), not on OLTP.
+- \+ Các module có thể được migrate, scale và sau này tách ra một cách độc lập. DB ép buộc bản đồ module.
+- \+ Khoá composite khiến tham chiếu chéo tenant là bất khả thi bên trong một schema.
+- − Tính toàn vẹn giữa các module là eventual. Được giảm thiểu bằng kiểm tra của chủ sở hữu khi ghi, projection có phiên bản, kiểm tra mồ côi hằng đêm, và bắt tay phiên bản khi chốt kỳ (gap §7, ADR-0019).
+- − Một số dữ liệu bị trùng lặp (projection). Điều này chấp nhận được: projection là cache có thể dựng lại, không phải bản gốc.
+- − Báo cáo join nhiều module chạy trên reporting store (ADR-0032), không chạy trên OLTP.

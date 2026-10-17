@@ -1,30 +1,30 @@
-# ADR-0017: Hosting in Vietnam on Kubernetes; secrets and key management; disaster recovery
+# ADR-0017: Hosting tại Việt Nam trên Kubernetes; quản lý secret và khoá; khôi phục thảm hoạ
 
-- **Status:** Proposed (rev. 2026-10-16, R2-01: Strimzi/Kafka and MirrorMaker 2 move to Phase 2; R2-15: no human access to application DB credentials)
-- **Date:** 2026-10-16
-- **Related:** BRD A4, C-2, DP3; NFR-SAAS-001/006/007/008/014; backup/PITR and encryption key hierarchy in the data architecture (DESIGN.md); [architecture-overview](../architecture-overview.md) §13, §14
+- **Trạng thái:** Đề xuất (sửa đổi 2026-10-16, R2-01: Strimzi/Kafka và MirrorMaker 2 chuyển sang Phase 2; R2-15: không có con người nào truy cập thông tin xác thực DB của ứng dụng)
+- **Ngày:** 2026-10-16
+- **Liên quan:** BRD A4, C-2, DP3; NFR-SAAS-001/006/007/008/014; backup/PITR và phân cấp khoá mã hoá trong kiến trúc dữ liệu (DESIGN.md); [architecture-overview](../architecture-overview.md) §13, §14
 
-## Context
+## Bối cảnh
 
-All personal data — including logs, backups, search indexes and support tooling — must stay in Vietnam. The platform needs ≥ 99.5% availability (99.9% Enterprise), RPO ≤ 15 min, RTO ≤ 4 h (≤ 2 h Enterprise) with a second VN data centre, zero-downtime releases, secrets rotated ≤ 90 days, and field-level encryption with per-tenant keys in KMS/HSM. Candidate providers: Viettel IDC/Viettel Cloud, FPT Cloud, VNG Cloud, CMC Cloud; hyperscalers only with a VN-located region and VN-resident sub-processors.
+Mọi dữ liệu cá nhân — bao gồm log, backup, chỉ mục tìm kiếm và công cụ hỗ trợ — phải nằm tại Việt Nam. Nền tảng cần độ sẵn sàng ≥ 99,5% (99,9% với Enterprise), RPO ≤ 15 phút, RTO ≤ 4 h (≤ 2 h với Enterprise) với trung tâm dữ liệu thứ hai tại VN, release không downtime, secret được xoay vòng ≤ 90 ngày, và mã hoá mức trường với khoá theo tenant trong KMS/HSM. Các nhà cung cấp ứng viên: Viettel IDC/Viettel Cloud, FPT Cloud, VNG Cloud, CMC Cloud; hyperscaler chỉ khi có region đặt tại VN và sub-processor lưu trú tại VN.
 
-## Decision
+## Quyết định
 
-1. **Kubernetes** (provider-managed where mature, CNCF-conformant) in DC1 (primary) and DC2 (DR), separate prod and non-prod clusters; node pools for app, workers, data, platform.
-2. **Operators for portability:** CloudNativePG (PostgreSQL), Strimzi (Kafka, **Phase 2**, ADR-0004 rev. 2), Valkey operator/Helm, Argo CD (GitOps), cert-manager, KEDA, Kyverno, Cilium (network policy + transparent encryption).
-3. **Secrets & keys: OpenBao** (Vault-compatible) with Kubernetes auth, dynamic DB credentials, transit engine for envelope encryption (per-tenant KEKs; DEKs wrapped); auto-unseal with provider KMS/HSM where available; software root of trust for the MVP and HSM-backed root before the Enterprise tier (OD-10, accepted 2026-10-16); provider choice after the 2-week SP-7 evaluation (OD-1). **No human access to application credentials (R2-15, accepted):** module DB login roles (`yhrm_app_*`), the relay, sealer and CDC roles get dynamic credentials only through OpenBao Kubernetes auth bound to their service accounts; no OpenBao policy lets an operator or developer read them; humans reach the database only through `yhrm_breakglass` (two-person approval, ≤ 4 h, pgaudit on every statement, session recording), and any login of a module role from outside the app pods raises an alert.
-4. **DR:** CNPG replica clusters in DC2 + WAL archive to DC2 object storage (`archive_timeout` 5 min) + daily base backups (35 days); Kafka MirrorMaker 2 plus outbox re-publication (Phase 2; in Phase 1 the outbox and event-delivery jobs are database rows and fail over with the database); object storage cross-site replication; Argo CD in DC2; scripted DNS switch; quarterly drill. Enterprise: hot standby with pre-scaled apps.
-5. **Provider selection** through SP-7 (scored: managed K8s maturity, two DCs ≥ 50 km apart, S3 replication, KMS/HSM, network, compliance certificates, price, support); same provider for DC1/DC2 in MVP; IaC in OpenTofu to keep a second provider viable.
+1. **Kubernetes** (do nhà cung cấp quản lý nếu đủ trưởng thành, tuân thủ CNCF) tại DC1 (chính) và DC2 (DR), tách cluster prod và non-prod; node pool cho app, worker, data, platform.
+2. **Operator để đảm bảo tính di động:** CloudNativePG (PostgreSQL), Strimzi (Kafka, **Phase 2**, ADR-0004 rev. 2), Valkey operator/Helm, Argo CD (GitOps), cert-manager, KEDA, Kyverno, Cilium (network policy + mã hoá trong suốt).
+3. **Secret & khoá: OpenBao** (tương thích Vault) với Kubernetes auth, thông tin xác thực DB động, transit engine cho envelope encryption (KEK theo tenant; DEK được bọc); auto-unseal bằng KMS/HSM của nhà cung cấp nếu có; root of trust bằng phần mềm cho MVP và root dựa trên HSM trước khi có gói Enterprise (OD-10, chấp thuận 2026-10-16); chọn nhà cung cấp sau đợt đánh giá SP-7 kéo dài 2 tuần (OD-1). **Không có con người nào truy cập thông tin xác thực của ứng dụng (R2-15, đã chấp thuận):** login role DB của module (`yhrm_app_*`), role relay, sealer và CDC chỉ nhận thông tin xác thực động qua OpenBao Kubernetes auth gắn với service account của chúng; không có policy OpenBao nào cho phép operator hay developer đọc chúng; con người chỉ truy cập database qua `yhrm_breakglass` (phê duyệt hai người, ≤ 4 h, pgaudit trên mọi câu lệnh, ghi lại phiên), và mọi lần đăng nhập bằng role của module từ bên ngoài pod ứng dụng đều phát cảnh báo.
+4. **DR:** CNPG replica cluster tại DC2 + lưu trữ WAL vào object storage DC2 (`archive_timeout` 5 phút) + base backup hằng ngày (35 ngày); Kafka MirrorMaker 2 cùng tái phát hành outbox (Phase 2; ở Phase 1 outbox và job gửi event là các dòng trong database và failover cùng database); sao chép object storage giữa hai site; Argo CD tại DC2; chuyển DNS bằng script; diễn tập hằng quý. Enterprise: hot standby với ứng dụng được scale sẵn.
+5. **Chọn nhà cung cấp** qua SP-7 (chấm điểm: độ trưởng thành K8s managed, hai DC cách nhau ≥ 50 km, sao chép S3, KMS/HSM, mạng, chứng chỉ tuân thủ, giá, hỗ trợ); cùng một nhà cung cấp cho DC1/DC2 ở MVP; IaC bằng OpenTofu để vẫn có thể dùng nhà cung cấp thứ hai.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-- **VMs without Kubernetes:** simpler for a small team, but zero-downtime rollouts, autoscaling for peaks and per-pool workers would be hand-built.
-- **Provider-managed PostgreSQL/Kafka:** acceptable if they offer PITR, logical decoding on standby, cross-DC replicas and VN residency; operators kept as default for portability.
-- **HashiCorp Vault:** BSL licence; OpenBao is the open fork with compatible APIs.
-- **Hyperscaler outside VN:** violates residency; rejected.
+- **VM không dùng Kubernetes:** đơn giản hơn cho đội nhỏ, nhưng rollout không downtime, autoscaling cho giờ cao điểm và worker theo pool sẽ phải tự xây.
+- **PostgreSQL/Kafka do nhà cung cấp quản lý:** chấp nhận được nếu có PITR, logical decoding trên standby, replica liên DC và lưu trú tại VN; operator vẫn là mặc định để đảm bảo tính di động.
+- **HashiCorp Vault:** license BSL; OpenBao là bản fork mở với API tương thích.
+- **Hyperscaler ngoài VN:** vi phạm yêu cầu lưu trú dữ liệu; bị loại.
 
-## Consequences
+## Hệ quả
 
-- + Portable across VN providers; GitOps makes DR rebuild repeatable.
-- − Operating data operators requires SRE skills; a platform engineer is needed from sprint 1.
-- − Cost of a warm DR site; mitigated by scaling DC2 apps to near zero.
+- + Di chuyển được giữa các nhà cung cấp VN; GitOps giúp dựng lại DR có thể lặp lại.
+- − Vận hành các data operator đòi hỏi kỹ năng SRE; cần một platform engineer từ sprint 1.
+- − Chi phí cho một site DR warm; giảm thiểu bằng cách scale ứng dụng ở DC2 về gần 0.

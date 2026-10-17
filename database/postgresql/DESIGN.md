@@ -1,73 +1,73 @@
-# YourHRM — Data Architecture (v0.3)
+# YourHRM — Kiến trúc dữ liệu (v0.3)
 
-| Item | Value |
+| Mục | Giá trị |
 |---|---|
-| Version | **0.3 — 2026-10-16** (round-2 decisions R2-01, R2-11, R2-12, R2-15, R2-16, R2-17, R2-18 of the [decision log](../../docs/00-project-management/decision-log.md) §7–§7.2 applied; v0.2 applied round 1; v0.1 was the draft for review) |
-| Status | Baseline for SRS and sprint 1. Decisions recorded as ADR-0020 … ADR-0037; status per ADR in §16 |
-| Author | Data Architect |
-| Inputs | [Architecture brief](../../docs/02-architecture/architecture-brief.md), [decision log](../../docs/00-project-management/decision-log.md), [BRD](../../docs/01-requirements/brd/BRD.md), [gap analysis](../../docs/01-requirements/brd/gap-analysis.md) §5/§6/§7/§9, module BRDs §6–§7 |
-| Target | PostgreSQL 17 on CloudNativePG (SA ADR-0002/0017); DDL kept compatible with 16+. Java 25 / Spring Boot 4 (OD-3; fallback Boot 3.5 / Java 21 decided after SP-1), Hibernate + jOOQ, modular monolith |
-| Aligned with | SA ADR-0002 (stack), 0003 (tenancy runtime, `saas.tenant_placement`, baseline capabilities), 0004 rev. 2 (outbox + polling relay; Phase-1 DB-backed bus, Kafka Phase 2), 0006 (scope predicates, `report_scope`), 0009 (snapshot-first runs), 0010 (Legal Parameter Service), 0011 (job queue), 0012 (reporting), 0017 (CNPG, OpenBao, DR), 0019 (close hold, accepted X-03) |
-| DDL | [`ddl/`](ddl/) — `000_extensions_roles.sql`, `001_saas.sql`, `002_core.sql`, `003_hr.sql`. **v0.1** was smoke-tested on PostgreSQL 16.4 (PGlite; pgcrypto/unaccent stubbed): all files loaded, cross-tenant reads and writes were blocked, no context = no rows, exclusion constraints, bi-temporal guard and audit tamper detection behaved as designed. **The v0.2 changes are NOT re-tested** (no PostgreSQL/Python available in this round; careful read-through only): `core.import_job`/`import_row`/`import_reconciliation` and `sys.cross_schema_grant_violations()` in `002`, `hr.v_salary_record_masked` and `source = 'OPENING_LOAD'` in `003`, audit actor `IMPORT`, comments in `000`/`001`. **The v0.3 changes are NOT tested either** (PostgreSQL and Python are not installed; read-through only): `saas.job.ordering_key`, `saas.claim_jobs()` ordered lanes, `saas.enqueue_event_delivery()`, entitlement source `BASELINE` and `saas.baseline_capability` in `001`; `hr.primary_employment` replacing `hr.employment.is_primary`, `employment_person_le_ex` in `003`; role comments in `000`. Note: the tenancy helpers live in `000` (schema `sys`), not `002`, because `001_saas` needs them. |
+| Phiên bản | **0.3 — 2026-10-16** (đã áp dụng các quyết định vòng 2 R2-01, R2-11, R2-12, R2-15, R2-16, R2-17, R2-18 trong [nhật ký quyết định](../../docs/00-project-management/decision-log.md) §7–§7.2; v0.2 áp dụng vòng 1; v0.1 là bản nháp để review) |
+| Trạng thái | Baseline cho SRS và sprint 1. Các quyết định được ghi nhận thành ADR-0020 … ADR-0037; trạng thái từng ADR ở §16 |
+| Tác giả | Data Architect |
+| Đầu vào | [Architecture brief](../../docs/02-architecture/architecture-brief.md), [nhật ký quyết định](../../docs/00-project-management/decision-log.md), [BRD](../../docs/01-requirements/brd/BRD.md), [gap analysis](../../docs/01-requirements/brd/gap-analysis.md) §5/§6/§7/§9, BRD của các module §6–§7 |
+| Mục tiêu | PostgreSQL 17 trên CloudNativePG (SA ADR-0002/0017); DDL giữ tương thích với 16+. Java 25 / Spring Boot 4 (OD-3; phương án dự phòng Boot 3.5 / Java 21 sẽ quyết định sau SP-1), Hibernate + jOOQ, modular monolith |
+| Đồng bộ với | SA ADR-0002 (stack), 0003 (tenancy runtime, `saas.tenant_placement`, baseline capabilities), 0004 rev. 2 (outbox + polling relay; bus dựa trên DB ở Phase 1, Kafka ở Phase 2), 0006 (scope predicates, `report_scope`), 0009 (snapshot-first runs), 0010 (Legal Parameter Service), 0011 (job queue), 0012 (reporting), 0017 (CNPG, OpenBao, DR), 0019 (close hold, đã chấp nhận X-03) |
+| DDL | [`ddl/`](ddl/) — `000_extensions_roles.sql`, `001_saas.sql`, `002_core.sql`, `003_hr.sql`. **v0.1** đã được smoke test trên PostgreSQL 16.4 (PGlite; pgcrypto/unaccent được stub): mọi file đều load được, đọc và ghi chéo tenant bị chặn, không có context = không có dòng nào, exclusion constraint, bi-temporal guard và phát hiện giả mạo audit hoạt động đúng thiết kế. **Các thay đổi của v0.2 CHƯA được test lại** (vòng này không có PostgreSQL/Python; chỉ đọc soát kỹ): `core.import_job`/`import_row`/`import_reconciliation` và `sys.cross_schema_grant_violations()` trong `002`, `hr.v_salary_record_masked` và `source = 'OPENING_LOAD'` trong `003`, audit actor `IMPORT`, comment trong `000`/`001`. **Các thay đổi của v0.3 cũng CHƯA được test** (chưa cài PostgreSQL và Python; chỉ đọc soát): `saas.job.ordering_key`, ordered lanes của `saas.claim_jobs()`, `saas.enqueue_event_delivery()`, entitlement source `BASELINE` và `saas.baseline_capability` trong `001`; `hr.primary_employment` thay cho `hr.employment.is_primary`, `employment_person_le_ex` trong `003`; comment về role trong `000`. Lưu ý: các helper tenancy nằm trong `000` (schema `sys`), không phải `002`, vì `001_saas` cần đến chúng. |
 
-**What changed in v0.3 (round 2, decision log §7–§7.2).** R2-01: Phase 1 has **no live external integrations** — no device connector or punch ingestion (`att.raw_punch` gets punches only from imported device-export files, §7.4), no Kafka in Phase 1 (the outbox relay feeds a DB-backed bus on `saas.job`, §9.1; SA ADR-0004 rev. 2), and the reporting store is fed by native logical replication (§11). R2-11: the X-02 exception list including the tenant override rows of `core.code_value`/`core.exchange_rate` and the two plumbing grants is **accepted** (§2.3). R2-12: `SUSPENDED` employments are **not billable** (§11). R2-15: plaintext salary amounts readable with `hr`/`pay` DB credentials — accepted with mitigations (§15.2). R2-16: concurrent employment across legal entities — `hr.primary_employment` with "at most one primary employment per person per purpose per period" (§7.3). R2-17: payslip PDF password (`pay.payslip_delivery_preference`, P3, §7.5, §9.3). R2-18: baseline always-on capabilities as `BASELINE` entitlements (§7.1).
+**Những thay đổi trong v0.3 (vòng 2, nhật ký quyết định §7–§7.2).** R2-01: Phase 1 **không có tích hợp ngoài trực tiếp (live)** — không có device connector hay tiếp nhận dữ liệu chấm công trực tiếp (`att.raw_punch` chỉ nhận lượt chấm công từ file xuất từ máy chấm công được import, §7.4), không có Kafka ở Phase 1 (outbox relay đẩy vào bus dựa trên DB trên `saas.job`, §9.1; SA ADR-0004 rev. 2), và reporting store được cấp dữ liệu bằng native logical replication (§11). R2-11: danh sách ngoại lệ X-02, bao gồm các dòng override của tenant trong `core.code_value`/`core.exchange_rate` và hai grant hạ tầng, được **chấp nhận** (§2.3). R2-12: các employment ở trạng thái `SUSPENDED` **không tính phí** (§11). R2-15: số tiền lương dạng plaintext có thể đọc được bằng DB credential của `hr`/`pay` — chấp nhận kèm biện pháp giảm thiểu (§15.2). R2-16: làm việc đồng thời tại nhiều pháp nhân — `hr.primary_employment` với quy tắc "mỗi người tối đa một employment chính cho mỗi mục đích trong mỗi khoảng thời gian" (§7.3). R2-17: mật khẩu PDF phiếu lương (`pay.payslip_delivery_preference`, P3, §7.5, §9.3). R2-18: các capability nền tảng luôn bật được ghi thành entitlement `BASELINE` (§7.1).
 
-**What changed in v0.2.** X-01: salary amounts stay plaintext (P2) with compensating controls; identifiers, bank accounts and special-category data stay encrypted (§9.3, ADR-0026). X-02: the read-only reference-data exception is listed explicitly and guarded by a DB test and an ArchUnit rule (§2.3, ADR-0021). D-09: **no Oracle migration**; §13 is now the generic **opening-balance import** (ADR-0037, supersedes ADR-0033) and the `stg_*`/`mig` schemas are removed. D-10: billable-employee definition (§11). X-05: punch rates (§10.1). OD-9: no mobile punches in Phase 1 (§7.4). D-01, D-03, Flyway Community: accepted (§15).
+**Những thay đổi trong v0.2.** X-01: số tiền lương giữ dạng plaintext (P2) kèm biện pháp kiểm soát bù trừ; định danh, tài khoản ngân hàng và dữ liệu nhạy cảm đặc biệt vẫn được mã hóa (§9.3, ADR-0026). X-02: ngoại lệ đọc dữ liệu tham chiếu chỉ-đọc được liệt kê tường minh và được bảo vệ bằng một DB test và một rule ArchUnit (§2.3, ADR-0021). D-09: **không migrate từ Oracle**; §13 nay là **import số dư đầu kỳ** tổng quát (ADR-0037, thay thế ADR-0033) và các schema `stg_*`/`mig` bị loại bỏ. D-10: định nghĩa nhân viên tính phí (§11). X-05: tốc độ chấm công (§10.1). OD-9: không chấm công qua mobile ở Phase 1 (§7.4). D-01, D-03, Flyway Community: đã chấp nhận (§15).
 
-Items marked **[spike]** need a technical proof before the decision is final. Items marked **[verify-legal]** follow the BRD convention.
-The Solution Architect (SA) owns the container view, bus technology, outbox relay, identity and the payroll engine (ADR-0001 … 0019). This document owns the tables underneath them.
-
----
-
-## 1. Principles
-
-1. **One owner per datum** (gap-analysis §5). A table lives in the schema of the module that owns the datum. Other modules hold an *event-fed projection* or call the owner's API. They never read the owner's tables.
-2. **Isolation enforced by the database.** Every tenant-owned row carries `tenant_id`. PostgreSQL row-level security (RLS) fails closed when no tenant is set. The application guard is the second layer, not the only one.
-3. **Time is a first-class column.** Business validity uses `valid_from`/`valid_to` with exclusion constraints. Salary, assignment and legal parameters also keep transaction time, so the system can answer "as of X, as known on Y".
-4. **Calculations are reproducible.** Payroll and attendance results are immutable once approved. They store the inputs, the legal-pack version, the config version and the code version they used, and stay reproducible for 10 years.
-5. **Identifiers, bank accounts and special-category data are encrypted by the application with per-tenant keys**, so destroying keys deletes data (crypto-shredding), including copies in replicas, the reporting store and exports. **Salary amounts are not column-encrypted** (X-01); they are protected by RLS, module roles, masking views and access audit.
-6. **The schema evolves without downtime.** Changes are forward-only expand/contract migrations, and every database (shared pool or dedicated) has the same schema.
+Các mục đánh dấu **[spike]** cần chứng minh kỹ thuật trước khi quyết định chính thức. Các mục đánh dấu **[verify-legal]** theo quy ước của BRD.
+Solution Architect (SA) chịu trách nhiệm container view, công nghệ bus, outbox relay, identity và payroll engine (ADR-0001 … 0019). Tài liệu này chịu trách nhiệm các bảng nằm bên dưới chúng.
 
 ---
 
-## 2. Schema map and ownership
+## 1. Nguyên tắc
 
-### 2.1 Schemas
+1. **Mỗi dữ liệu có một chủ sở hữu duy nhất** (gap-analysis §5). Một bảng nằm trong schema của module sở hữu dữ liệu đó. Các module khác giữ một *projection được cấp dữ liệu qua event* hoặc gọi API của module sở hữu. Chúng không bao giờ đọc bảng của module sở hữu.
+2. **Cô lập được thực thi bởi database.** Mọi dòng thuộc tenant đều mang `tenant_id`. Row-level security (RLS) của PostgreSQL fail closed khi chưa thiết lập tenant. Guard ở tầng ứng dụng là lớp thứ hai, không phải lớp duy nhất.
+3. **Thời gian là cột hạng nhất.** Hiệu lực nghiệp vụ dùng `valid_from`/`valid_to` với exclusion constraint. Lương, phân công và tham số pháp lý còn lưu cả transaction time, để hệ thống trả lời được câu hỏi "tại thời điểm X, theo hiểu biết vào ngày Y".
+4. **Phép tính có thể tái lập.** Kết quả tính lương và chấm công là bất biến sau khi được duyệt. Chúng lưu các đầu vào, phiên bản legal pack, phiên bản cấu hình và phiên bản code đã sử dụng, và có thể tái lập trong 10 năm.
+5. **Định danh, tài khoản ngân hàng và dữ liệu nhạy cảm đặc biệt được ứng dụng mã hóa bằng khóa riêng cho từng tenant**, nên hủy khóa là xóa dữ liệu (crypto-shredding), kể cả các bản sao trong replica, reporting store và file xuất. **Số tiền lương không được mã hóa ở mức cột** (X-01); chúng được bảo vệ bằng RLS, role theo module, masking view và audit truy cập.
+6. **Schema tiến hóa không downtime.** Thay đổi là các migration expand/contract chỉ tiến (forward-only), và mọi database (shared pool hay dedicated) có cùng một schema.
 
-| Schema | Owner module (code) | Content | RLS |
+---
+
+## 2. Bản đồ schema và quyền sở hữu
+
+### 2.1 Các schema
+
+| Schema | Module sở hữu (code) | Nội dung | RLS |
 |---|---|---|---|
-| `sys` | Platform shared kernel | **No tables.** Functions, domains and trigger functions: `uuid_v7()`, tenant-context getters, RLS helpers, partition helper, immutability guards, `f_unaccent()` | n/a |
-| `saas` | SaaS platform | Tenants, plans, subscriptions, entitlements, flags, usage, invoices, support grants, identity (credentials, MFA, IdP config, API clients), **legal parameter packs**, consent/DSR/retention registries, key registry | Mixed: platform rows (no RLS, platform role only) and tenant rows `(T)` with RLS |
-| `core` | Core | Global master data (country, currency, admin units + mapping, banks, code lists), legal entity, location, org tree, job architecture, grades catalogue, positions, cost centres, users/roles/data scope, workflow, notifications, documents, settings, custom fields, import/export jobs, exchange rates | Yes (global tables are read-only to apps and have no `tenant_id`) |
-| `audit` | Core (`audit` component) | `audit_event` (partitioned, hash-chained), chain heads and anchors | Yes; append-only grants |
-| `hr` | People | Person, employment, assignment, salary record, contract, decision, family/dependants, bank accounts, separation, documents meta, appraisal/training (P2) | Yes |
-| `att` | Time & Attendance | Holiday calendars, shifts, patterns, schedule assignment, rosters, devices, punches, daily timesheets, OT, leave, business trips, attendance periods and result versions | Yes |
-| `pay` | Payroll | Pay groups, calendars and periods, component catalogue, formulas, structures, pay scales/bands, pay profile projection, inputs, runs, snapshots, results, SI/PIT, payslips, bank files, GL, loans, final settlement | Yes |
-| `rec` | Recruitment (P2) | Staffing plan, requisition, opening, posting, candidate, application, interview, offer, hand-off | Yes |
+| `sys` | Platform shared kernel | **Không có bảng.** Function, domain và trigger function: `uuid_v7()`, getter cho tenant context, helper RLS, helper partition, guard bất biến, `f_unaccent()` | n/a |
+| `saas` | SaaS platform | Tenant, gói dịch vụ, subscription, entitlement, flag, usage, hóa đơn, support grant, identity (credential, MFA, cấu hình IdP, API client), **legal parameter pack**, registry về consent/DSR/lưu trữ, registry khóa | Hỗn hợp: dòng platform (không RLS, chỉ role platform) và dòng tenant `(T)` có RLS |
+| `core` | Core | Master data toàn cục (quốc gia, tiền tệ, đơn vị hành chính + mapping, ngân hàng, danh mục mã), pháp nhân, địa điểm, cây tổ chức, kiến trúc công việc, danh mục ngạch bậc, vị trí, trung tâm chi phí, user/role/data scope, workflow, thông báo, tài liệu, thiết lập, custom field, job import/export, tỷ giá | Có (bảng toàn cục chỉ-đọc với ứng dụng và không có `tenant_id`) |
+| `audit` | Core (component `audit`) | `audit_event` (partitioned, hash-chained), chain head và anchor | Có; grant chỉ cho phép append |
+| `hr` | People | Person, employment, assignment, hồ sơ lương, hợp đồng, quyết định, gia đình/người phụ thuộc, tài khoản ngân hàng, nghỉ việc, metadata tài liệu, đánh giá/đào tạo (P2) | Có |
+| `att` | Time & Attendance | Lịch ngày lễ, ca, mẫu ca, gán lịch làm việc, roster, thiết bị, lượt chấm công, bảng công ngày, OT, nghỉ phép, công tác, kỳ chấm công và các phiên bản kết quả | Có |
+| `pay` | Payroll | Nhóm lương, lịch và kỳ lương, danh mục thành phần lương, công thức, cấu trúc lương, thang/khung lương, projection hồ sơ lương, đầu vào, lần chạy, snapshot, kết quả, BHXH/thuế TNCN, phiếu lương, file ngân hàng, GL, khoản vay, quyết toán khi nghỉ việc | Có |
+| `rec` | Recruitment (P2) | Kế hoạch định biên, yêu cầu tuyển dụng, vị trí tuyển, tin đăng, ứng viên, hồ sơ ứng tuyển, phỏng vấn, offer, bàn giao | Có |
 
-The v0.1 `stg_*`/`mig` schemas (Oracle migration database) are **removed** (D-09: no Oracle migration). Go-live opening balances are staged in Core's generic import tables `core.import_job`/`import_row`/`import_reconciliation` (§13, ADR-0037), in the tenant's own cluster under RLS.
+Các schema `stg_*`/`mig` của v0.1 (database migrate từ Oracle) đã **bị loại bỏ** (D-09: không migrate từ Oracle). Số dư đầu kỳ khi go-live được đưa vào vùng staging trong các bảng import tổng quát của Core `core.import_job`/`import_row`/`import_reconciliation` (§13, ADR-0037), trong chính cluster của tenant và chịu RLS.
 
-Every module schema also contains its own `outbox_event` and `inbox_message` (§9.1) and its own Flyway history table (§12).
-The reporting store is a **separate database** (§11).
+Mỗi schema của module còn chứa `outbox_event` và `inbox_message` riêng (§9.1) và bảng lịch sử Flyway riêng (§12).
+Reporting store là một **database riêng biệt** (§11).
 
-**Why `audit` is its own schema** although Core owns it: it needs its own grants (INSERT-only for every module role, UPDATE only for the sealer), its own partitioning/retention lifecycle, and every module writes into it inside its business transaction (NFR-CORE-008). It is the **only** schema that all module roles may write to.
+**Vì sao `audit` là schema riêng** dù Core sở hữu nó: nó cần grant riêng (chỉ INSERT cho mọi role module, UPDATE chỉ cho sealer), vòng đời partition/lưu trữ riêng, và mọi module đều ghi vào nó bên trong transaction nghiệp vụ của mình (NFR-CORE-008). Đây là schema **duy nhất** mà mọi role module được phép ghi.
 
-**Why `sys` holds no tables:** functions and domains are code, not data, and every schema needs them. Having no tables means nobody "owns data" there.
+**Vì sao `sys` không có bảng:** function và domain là code, không phải dữ liệu, và mọi schema đều cần chúng. Không có bảng nghĩa là không ai "sở hữu dữ liệu" ở đó.
 
-### 2.2 Cross-schema rules (ADR-0022)
+### 2.2 Quy tắc giữa các schema (ADR-0022)
 
-| Rule | Decision |
+| Quy tắc | Quyết định |
 |---|---|
-| Foreign keys **inside** a schema | Mandatory, and composite: `(tenant_id, parent_id) → parent(tenant_id, id)`. A row can therefore never reference another tenant's row. |
-| Foreign keys **across** schemas | **None, with no exceptions** — not to `core`, and not even to `saas.tenant`. |
-| Referencing another module's entity | Store its ID as a *soft reference* (`position_id uuid`, column comment `-> core.position (soft)`). The application validates it through the owner's API at write time. Eventual integrity comes from owner events plus a nightly orphan-reference check. |
-| Referencing **global** master data | Use the **stable business code**, not a surrogate (`country_code char(2)`, `currency_code char(3)`, `admin_unit_code text`, `bank_code text`). Codes survive environment copies, dedicated DBs, tenant moves and imports unchanged. |
-| Reading another module's data in bulk | Through an **event-fed projection** in the consumer schema, named `ext_<owner>_<entity>` (for example `pay.ext_hr_salary`, `att.ext_core_location`). Each row stores the `source_event_id` and `source_version`. Projections are rebuildable from the owner API ("re-sync" job). |
-| `tenant_id` | Not a foreign key. Its validity is guaranteed by RLS context, provisioning and the tenant purge job. An FK to a single hot tenant row would also take `FOR KEY SHARE` locks on every insert (multixact pressure). |
+| Foreign key **bên trong** một schema | Bắt buộc, và là khóa ghép: `(tenant_id, parent_id) → parent(tenant_id, id)`. Do đó một dòng không bao giờ tham chiếu được đến dòng của tenant khác. |
+| Foreign key **giữa** các schema | **Không có, không ngoại lệ** — không tới `core`, kể cả tới `saas.tenant`. |
+| Tham chiếu đến entity của module khác | Lưu ID của nó dưới dạng *soft reference* (`position_id uuid`, comment cột `-> core.position (soft)`). Ứng dụng kiểm tra nó qua API của module sở hữu tại thời điểm ghi. Tính toàn vẹn cuối cùng (eventual integrity) đến từ event của module sở hữu cộng với job kiểm tra tham chiếu mồ côi hằng đêm. |
+| Tham chiếu master data **toàn cục** | Dùng **mã nghiệp vụ ổn định**, không dùng surrogate (`country_code char(2)`, `currency_code char(3)`, `admin_unit_code text`, `bank_code text`). Mã giữ nguyên qua các lần sao chép môi trường, DB dedicated, chuyển tenant và import. |
+| Đọc dữ liệu hàng loạt của module khác | Qua một **projection được cấp dữ liệu qua event** trong schema của bên tiêu thụ, đặt tên `ext_<owner>_<entity>` (ví dụ `pay.ext_hr_salary`, `att.ext_core_location`). Mỗi dòng lưu `source_event_id` và `source_version`. Projection có thể dựng lại từ API của module sở hữu (job "re-sync"). |
+| `tenant_id` | Không phải foreign key. Tính hợp lệ của nó được đảm bảo bởi RLS context, provisioning và job purge tenant. Một FK trỏ tới một dòng tenant "nóng" duy nhất còn khiến mọi lệnh insert phải lấy lock `FOR KEY SHARE` (áp lực multixact). |
 
-**Justification.** (a) PM baseline 3: modules never touch each other's tables. Cross-schema FKs would couple their migrations, deployment order and deletion order. (b) Per-module DB roles (§3.4) can then enforce the boundary with grants. (c) Payroll workers and punch ingestion can later move to their own database without rewriting the schema. (d) Cost: integrity across modules becomes eventual. This is mitigated by projections carrying versions, reconciliation reports and the period-close version handshake (gap §7).
+**Lý do.** (a) PM baseline 3: các module không bao giờ chạm vào bảng của nhau. FK giữa các schema sẽ ràng buộc migration, thứ tự deploy và thứ tự xóa của chúng với nhau. (b) Khi đó role DB theo module (§3.4) có thể thực thi ranh giới bằng grant. (c) Payroll worker và tiếp nhận chấm công sau này có thể chuyển sang database riêng mà không phải viết lại schema. (d) Cái giá: toàn vẹn giữa các module trở thành eventual. Điều này được giảm thiểu bằng projection mang phiên bản, báo cáo đối soát và cơ chế bắt tay phiên bản khi khóa kỳ (gap §7).
 
-### 2.3 Module → schema access matrix (DB grants)
+### 2.3 Ma trận truy cập module → schema (DB grant)
 
 | DB role | saas | core | audit | hr | att | pay | rec |
 |---|---|---|---|---|---|---|---|
@@ -78,37 +78,37 @@ The reporting store is a **separate database** (§11).
 | `yhrm_app_pay` | R (ref)¹ + job² | R (ref)¹ | INSERT | – | – | RW | – |
 | `yhrm_app_rec` | R (ref)¹ + job² | R (ref)¹ | INSERT | – | – | – | RW |
 
-¹ **X-02 read-only exception (accepted 2026-10-16; the complete list below, including the tenant override rows of `core.code_value`/`core.exchange_rate` and the two plumbing grants of footnote ², was accepted as covered by X-02 in R2-11)** — the only reads across schemas, all `SELECT`, granted to the group role `yhrm_app`:
+¹ **Ngoại lệ chỉ-đọc X-02 (chấp nhận 2026-10-16; toàn bộ danh sách dưới đây, bao gồm các dòng override của tenant trong `core.code_value`/`core.exchange_rate` và hai grant hạ tầng ở chú thích ², đã được chấp nhận là thuộc phạm vi X-02 tại R2-11)** — là những lần đọc giữa các schema duy nhất, tất cả đều là `SELECT`, được cấp cho group role `yhrm_app`:
 
-| Object | Content | Why it is safe |
+| Đối tượng | Nội dung | Vì sao an toàn |
 |---|---|---|
-| `core.country`, `core.currency`, `core.admin_unit`, `core.admin_unit_mapping`, `core.bank`, `core.bank_branch`, `core.code_list` | Pure global reference data | Immutable between platform releases (`core.MasterDataReleased`), no tenant data |
-| `core.code_value`, `core.v_code_value_effective`, `core.exchange_rate` | Global rows + the tenant's own reference overrides | RLS returns own + sentinel rows only; reference data, read-only |
-| `saas.tenant` | The tenant's own row (locale, time zone, state) | Policy `tenant_self_read` |
+| `core.country`, `core.currency`, `core.admin_unit`, `core.admin_unit_mapping`, `core.bank`, `core.bank_branch`, `core.code_list` | Dữ liệu tham chiếu toàn cục thuần túy | Bất biến giữa các bản phát hành platform (`core.MasterDataReleased`), không có dữ liệu tenant |
+| `core.code_value`, `core.v_code_value_effective`, `core.exchange_rate` | Dòng toàn cục + các override tham chiếu của chính tenant | RLS chỉ trả về dòng của chính tenant + dòng sentinel; dữ liệu tham chiếu, chỉ đọc |
+| `saas.tenant` | Dòng của chính tenant (locale, múi giờ, trạng thái) | Policy `tenant_self_read` |
 
-² Platform plumbing, not data reads (accepted R2-11): `SELECT, INSERT` on `saas.job` (transactional enqueue, ADR-0011) and `INSERT` on `audit.audit_event` (ADR-0027). Phase-1 event-bus delivery jobs in `saas.job` carry only a pointer to the outbox row, never the business payload (§9.1), so this grant does not expose amounts across modules.
+² Hạ tầng platform, không phải đọc dữ liệu (chấp nhận tại R2-11): `SELECT, INSERT` trên `saas.job` (enqueue trong transaction, ADR-0011) và `INSERT` trên `audit.audit_event` (ADR-0027). Các job phân phối event-bus ở Phase 1 trong `saas.job` chỉ mang con trỏ tới dòng outbox, không bao giờ mang payload nghiệp vụ (§9.1), nên grant này không làm lộ số tiền giữa các module.
 
-Not covered: legal parameter tables (other modules use the Legal Parameter Service API; only `yhrm_app_saas` reads them), any other module's tenant data, any amount table. **Guards (release-blocking):** (a) DB test `SELECT count(*) FROM sys.cross_schema_grant_violations()` = 0 (function in `002_core.sql`, reads `pg_class.relacl` and compares with this allow-list); (b) ArchUnit/jOOQ rule allowing schema-Y references from module X only for these objects. A new entry needs an ADR-0021 amendment.
+Không bao gồm: các bảng tham số pháp lý (module khác dùng API của Legal Parameter Service; chỉ `yhrm_app_saas` đọc chúng), dữ liệu tenant của bất kỳ module nào khác, bất kỳ bảng số tiền nào. **Guard (chặn release):** (a) DB test `SELECT count(*) FROM sys.cross_schema_grant_violations()` = 0 (function trong `002_core.sql`, đọc `pg_class.relacl` và so sánh với allow-list này); (b) rule ArchUnit/jOOQ chỉ cho phép module X tham chiếu schema Y đối với các đối tượng này. Thêm mục mới cần sửa đổi ADR-0021.
 
 ---
 
-## 3. Multi-tenancy at the data level (ADR-0020, ADR-0021, ADR-0035, ADR-0036)
+## 3. Multi-tenancy ở tầng dữ liệu (ADR-0020, ADR-0021, ADR-0035, ADR-0036)
 
-### 3.1 Model
+### 3.1 Mô hình
 
-* **Shared pool (default):** one PostgreSQL cluster per region pool. All tenants share the tables, every tenant-owned table has `tenant_id uuid NOT NULL`, and RLS is enabled and **forced**.
-* **Dedicated tier (Enterprise):** a separate database (and normally a separate cluster) with **byte-identical DDL**, including `tenant_id` and RLS. Tenant routing comes from `saas.tenant_placement` (SA ADR-0003). Keeping RLS on in a single-tenant DB costs little, keeps one code path and is defence in depth (ADR-0036).
-* **Platform cluster and placement classes** (aligned with the SA overview: "the `saas` schema lives in a platform cluster"). Every database has the **same DDL**, all schemas included. What differs is where each table is *authoritative*:
+* **Shared pool (mặc định):** một PostgreSQL cluster cho mỗi region pool. Mọi tenant dùng chung các bảng, mọi bảng thuộc tenant có `tenant_id uuid NOT NULL`, và RLS được bật và **forced**.
+* **Dedicated tier (Enterprise):** một database riêng (và thường là một cluster riêng) với **DDL giống hệt từng byte**, bao gồm `tenant_id` và RLS. Định tuyến tenant lấy từ `saas.tenant_placement` (SA ADR-0003). Giữ RLS trong DB chỉ có một tenant tốn rất ít, giữ được một luồng code duy nhất và là phòng thủ nhiều lớp (ADR-0036).
+* **Platform cluster và placement class** (đồng bộ với SA overview: "schema `saas` nằm trong một platform cluster"). Mọi database có **cùng DDL**, gồm tất cả các schema. Điểm khác nhau là nơi mỗi bảng được coi là *nguồn chuẩn (authoritative)*:
 
-  | Class | Authoritative in | Copies | Tables |
+  | Class | Nguồn chuẩn tại | Bản sao | Bảng |
   |---|---|---|---|
-  | PLATFORM | platform cluster | none | `saas.plan*`, `subscription*`, `invoice*`, `support_grant`, `tenant_key`, `subject_key`, `consent_record`, `data_subject_request`, `archive_manifest`, `platform_audit_event`, legal-pack authoring |
-  | REPLICATED | platform cluster | read-only logical replication to every pool/dedicated cluster (`pub_platform_ref`) | `saas.tenant`, `tenant_placement`, `entitlement`, `legal_param_*` (published packs only), `retention_policy`, Core global master data (`core.country`, `admin_unit`, `bank`, global `code_value` rows) |
-  | LOCAL | each cluster | none | module schemas `core`/`audit`/`hr`/`att`/`pay`/`rec`, `saas.job` (queue; enqueued in the business transaction, ADR-0011), every `outbox_event`/`inbox_message` |
+  | PLATFORM | platform cluster | không có | `saas.plan*`, `subscription*`, `invoice*`, `support_grant`, `tenant_key`, `subject_key`, `consent_record`, `data_subject_request`, `archive_manifest`, `platform_audit_event`, soạn thảo legal pack |
+  | REPLICATED | platform cluster | logical replication chỉ-đọc tới mọi pool/dedicated cluster (`pub_platform_ref`) | `saas.tenant`, `tenant_placement`, `entitlement`, `legal_param_*` (chỉ các pack đã publish), `retention_policy`, master data toàn cục của Core (`core.country`, `admin_unit`, `bank`, các dòng `code_value` toàn cục) |
+  | LOCAL | từng cluster | không có | các schema module `core`/`audit`/`hr`/`att`/`pay`/`rec`, `saas.job` (queue; enqueue trong transaction nghiệp vụ, ADR-0011), mọi `outbox_event`/`inbox_message` |
 
-  Keeping the keyring (`subject_key`) in the platform cluster also means pool-cluster backups never contain wrapped DEKs. **[spike: logical replication of REPLICATED tables vs release-job push; conflict handling for global `code_value` rows]**
+  Giữ keyring (`subject_key`) trong platform cluster còn có nghĩa là bản backup của pool cluster không bao giờ chứa DEK đã wrap. **[spike: logical replication các bảng REPLICATED so với release job đẩy dữ liệu; xử lý xung đột cho các dòng `code_value` toàn cục]**
 
-### 3.2 Tenant context per transaction
+### 3.2 Tenant context cho mỗi transaction
 
 ```sql
 -- issued by the application as the FIRST statement of every transaction
@@ -120,139 +120,139 @@ SELECT set_config('app.tenant_id', :tenantId, true),   -- true = transaction-loc
        set_config('app.mask_level', :maskLevel, true);      -- NONE | PII | PII_AND_PAY (masking views, §9.4)
 ```
 
-* `sys.current_tenant_id()` returns `NULLIF(current_setting('app.tenant_id', true), '')::uuid`. The `NULLIF` matters: after a `SET LOCAL` has ended, a pooled session still holds the placeholder as `''`, not NULL.
-* Policies compare `tenant_id = (SELECT sys.current_tenant_id())`. The scalar subquery becomes an InitPlan that is evaluated **once per statement**, so the comparison stays index-friendly.
-* **Fail closed:** without a tenant, the comparison is NULL, so the query returns no rows and every insert fails `WITH CHECK`.
-* Spring: a `TenantAwareDataSource` / `TransactionSynchronization` runs `set_config` right after `BEGIN`. **Every** DB access must run inside `@Transactional` (read-only included). An ArchUnit rule plus a runtime check (`sys.assert_tenant()` in a `connectionInitSql`-like hook per transaction) enforces this. The context is never set at session level.
-* **Background jobs** (payroll workers, schedulers) set the context per tenant per transaction. Cross-tenant jobs loop over tenants. They never use a BYPASSRLS role.
+* `sys.current_tenant_id()` trả về `NULLIF(current_setting('app.tenant_id', true), '')::uuid`. `NULLIF` là quan trọng: sau khi một `SET LOCAL` kết thúc, session trong pool vẫn giữ placeholder ở dạng `''`, không phải NULL.
+* Policy so sánh `tenant_id = (SELECT sys.current_tenant_id())`. Scalar subquery trở thành một InitPlan được tính **một lần cho mỗi câu lệnh**, nên phép so sánh vẫn tận dụng được index.
+* **Fail closed:** khi không có tenant, phép so sánh cho kết quả NULL, nên truy vấn không trả về dòng nào và mọi lệnh insert đều thất bại ở `WITH CHECK`.
+* Spring: một `TenantAwareDataSource` / `TransactionSynchronization` chạy `set_config` ngay sau `BEGIN`. **Mọi** truy cập DB phải chạy bên trong `@Transactional` (kể cả read-only). Một rule ArchUnit cộng với kiểm tra lúc runtime (`sys.assert_tenant()` trong một hook kiểu `connectionInitSql` cho mỗi transaction) thực thi điều này. Context không bao giờ được thiết lập ở mức session.
+* **Background job** (payroll worker, scheduler) thiết lập context theo từng tenant cho mỗi transaction. Job liên tenant lặp qua từng tenant. Chúng không bao giờ dùng role BYPASSRLS.
 
 ### 3.3 Connection pooling
 
-* **PgBouncer in transaction mode** in front of each cluster. `SET LOCAL`/`set_config(..., true)` is safe because the context dies with the transaction.
-* Forbidden: session `SET`, session advisory locks (use `pg_advisory_xact_lock`), `LISTEN/NOTIFY` through PgBouncer (the relay uses a direct connection), and `WITH HOLD` cursors.
-* Server-side prepared statements: PgBouncer ≥ 1.21 with `max_prepared_statements > 0` **[spike: pgJDBC + PgBouncer 1.21+ prepared-statement mode under load]**.
-* There is one Hikari pool per module role (six pools). Total server connections are bounded by PgBouncer `default_pool_size` per (db, user). Payroll workers get their own PgBouncer pool, so a payroll run cannot starve OLTP (NFR-SAAS-005).
+* **PgBouncer ở transaction mode** đặt trước mỗi cluster. `SET LOCAL`/`set_config(..., true)` an toàn vì context mất đi cùng transaction.
+* Bị cấm: `SET` ở mức session, session advisory lock (dùng `pg_advisory_xact_lock`), `LISTEN/NOTIFY` qua PgBouncer (relay dùng kết nối trực tiếp), và cursor `WITH HOLD`.
+* Server-side prepared statement: PgBouncer ≥ 1.21 với `max_prepared_statements > 0` **[spike: pgJDBC + chế độ prepared-statement của PgBouncer 1.21+ dưới tải]**.
+* Có một Hikari pool cho mỗi role module (sáu pool). Tổng số kết nối server bị giới hạn bởi `default_pool_size` của PgBouncer cho mỗi cặp (db, user). Payroll worker có PgBouncer pool riêng, nên một lần chạy lương không thể làm cạn tài nguyên của OLTP (NFR-SAAS-005).
 
-### 3.4 Database roles
+### 3.4 Database role
 
-| Role | Login | BYPASSRLS | Purpose |
+| Role | Login | BYPASSRLS | Mục đích |
 |---|---|---|---|
-| `yhrm_owner` | no | **yes** | Owns every object. Used only via `SET ROLE` by the migrator. BYPASSRLS allows cross-tenant backfills in migrations. |
-| `yhrm_migrator` | yes | no (inherits via `SET ROLE`) | Flyway. Member of `yhrm_owner`. Used only by the CI/CD pipeline. |
-| `yhrm_app` | no | **no** | Group role that all RLS policies target. |
-| `yhrm_app_{saas,core,hr,att,pay,rec}` | yes | no | One login role per module, member of `yhrm_app`. Grants per §2.3. |
-| `yhrm_platform` | yes | no | Operator back-office. Has DML on platform tables in `saas`, and **no** grants on tenant business schemas. Operator support access goes through the application under a support grant (BR-SAAS-033) and is masked there. |
-| `yhrm_relay` | yes | no | Outbox polling relay (SA ADR-0004 rev. 2). Can `SELECT` and update `published_at` on outbox tables (policy `TO yhrm_relay USING (true)`). Phase 1: `EXECUTE` on `saas.enqueue_event_delivery()` (SECURITY DEFINER) to fan events out as delivery jobs; Phase 2: publishes to Kafka instead. Not a module role, so outside the X-02 list. |
-| `yhrm_cdc` | yes | no | `REPLICATION`. **Reporting-store feed only** (SA ADR-0012 amendment): Phase 1 native logical replication with column-listed publications (P3 columns never published); Debezium on a standby is a Phase-2 option. |
-| `yhrm_audit_sealer` | yes | no | Seals the audit hash chain (UPDATE of seal columns only). |
-| `yhrm_reporting_ro` | yes | no | Read-only role for the few OLTP-real-time statutory reports (BR-SAAS-047 exception), RLS applies. |
-| `yhrm_ops_ro` | yes | no | `pg_monitor`, `pg_read_all_stats`. No table data. |
-| `yhrm_breakglass` | no | **yes** | Granted temporarily to a named DBA on two-person approval (BR-SAAS-036), with pgaudit logging every statement. Revoked automatically after ≤ 4 h. |
+| `yhrm_owner` | không | **có** | Sở hữu mọi đối tượng. Chỉ được migrator dùng qua `SET ROLE`. BYPASSRLS cho phép backfill liên tenant trong migration. |
+| `yhrm_migrator` | có | không (kế thừa qua `SET ROLE`) | Flyway. Thành viên của `yhrm_owner`. Chỉ CI/CD pipeline sử dụng. |
+| `yhrm_app` | không | **không** | Group role mà mọi RLS policy nhắm tới. |
+| `yhrm_app_{saas,core,hr,att,pay,rec}` | có | không | Mỗi module một login role, là thành viên của `yhrm_app`. Grant theo §2.3. |
+| `yhrm_platform` | có | không | Back-office của operator. Có quyền DML trên các bảng platform trong `saas`, và **không** có grant nào trên các schema nghiệp vụ của tenant. Truy cập hỗ trợ của operator đi qua ứng dụng dưới một support grant (BR-SAAS-033) và được che dữ liệu tại đó. |
+| `yhrm_relay` | có | không | Outbox polling relay (SA ADR-0004 rev. 2). Có thể `SELECT` và cập nhật `published_at` trên các bảng outbox (policy `TO yhrm_relay USING (true)`). Phase 1: `EXECUTE` trên `saas.enqueue_event_delivery()` (SECURITY DEFINER) để phân phối event thành các delivery job; Phase 2: publish lên Kafka thay vào đó. Không phải role module, nên nằm ngoài danh sách X-02. |
+| `yhrm_cdc` | có | không | `REPLICATION`. **Chỉ dùng để cấp dữ liệu cho reporting store** (sửa đổi SA ADR-0012): Phase 1 dùng native logical replication với publication liệt kê cột (cột P3 không bao giờ được publish); Debezium trên standby là phương án cho Phase 2. |
+| `yhrm_audit_sealer` | có | không | Niêm phong (seal) hash chain của audit (chỉ UPDATE các cột seal). |
+| `yhrm_reporting_ro` | có | không | Role chỉ-đọc cho số ít báo cáo pháp định thời gian thực trên OLTP (ngoại lệ BR-SAAS-047), RLS vẫn áp dụng. |
+| `yhrm_ops_ro` | có | không | `pg_monitor`, `pg_read_all_stats`. Không có dữ liệu bảng. |
+| `yhrm_breakglass` | không | **có** | Cấp tạm thời cho một DBA có danh tính khi được hai người phê duyệt (BR-SAAS-036), pgaudit ghi log mọi câu lệnh. Tự động thu hồi sau ≤ 4 h. |
 
-### 3.5 Table classes and RLS policy templates
+### 3.5 Phân loại bảng và mẫu RLS policy
 
-| Class | `tenant_id` | Policy (applied by `sys.enable_tenant_rls()`) | Examples |
+| Class | `tenant_id` | Policy (áp dụng bởi `sys.enable_tenant_rls()`) | Ví dụ |
 |---|---|---|---|
-| **Tenant-owned** | `NOT NULL` | `FOR ALL TO yhrm_app USING (tenant_id = cur) WITH CHECK (tenant_id = cur)` | almost everything |
-| **Global + tenant-overridable** | `NOT NULL`; global rows use the sentinel `sys.global_tenant_id()` = `00000000-0000-0000-0000-000000000000` | `SELECT` where `tenant_id IN (cur, global)`; writes only `tenant_id = cur` | `core.code_value`, `att` holiday template copies, `pay.salary_component` templates |
-| **Pure global** | none | No RLS. `SELECT` granted to app roles for the Core tables (X-02 list, §2.3); `saas.legal_param_*` only to `yhrm_app_saas` (others use the LPS API); writes only by `yhrm_owner`/release job | `core.country`, `core.currency`, `core.admin_unit`, `core.bank`, `saas.legal_param_*` (published packs) |
-| **Platform-only** | none or optional | No grants to tenant app roles | `saas.plan`, `saas.feature_flag`, `saas.invoice` (read by tenant UI through the SaaS API) |
+| **Thuộc tenant** | `NOT NULL` | `FOR ALL TO yhrm_app USING (tenant_id = cur) WITH CHECK (tenant_id = cur)` | gần như mọi bảng |
+| **Toàn cục + tenant override được** | `NOT NULL`; dòng toàn cục dùng sentinel `sys.global_tenant_id()` = `00000000-0000-0000-0000-000000000000` | `SELECT` với `tenant_id IN (cur, global)`; chỉ ghi khi `tenant_id = cur` | `core.code_value`, bản sao template ngày lễ trong `att`, template `pay.salary_component` |
+| **Toàn cục thuần túy** | không có | Không RLS. `SELECT` cấp cho các app role đối với các bảng Core (danh sách X-02, §2.3); `saas.legal_param_*` chỉ cho `yhrm_app_saas` (các module khác dùng LPS API); chỉ `yhrm_owner`/release job được ghi | `core.country`, `core.currency`, `core.admin_unit`, `core.bank`, `saas.legal_param_*` (các pack đã publish) |
+| **Chỉ platform** | không có hoặc tùy chọn | Không grant cho app role của tenant | `saas.plan`, `saas.feature_flag`, `saas.invoice` (UI tenant đọc qua SaaS API) |
 
-Override resolution for the global + tenant class uses `DISTINCT ON (list_code, value_code) … ORDER BY (tenant_id = sys.global_tenant_id())`, so a tenant row shadows the global row with the same code. Tenants can add or deactivate values but cannot edit global rows.
+Việc phân giải override cho class toàn cục + tenant dùng `DISTINCT ON (list_code, value_code) … ORDER BY (tenant_id = sys.global_tenant_id())`, nên dòng của tenant che dòng toàn cục có cùng mã. Tenant có thể thêm hoặc vô hiệu hóa giá trị nhưng không thể sửa dòng toàn cục.
 
-### 3.6 Indexing for tenancy
+### 3.6 Index cho tenancy
 
-* The PK of every tenant-owned table is `(tenant_id, id)`. Every secondary index **starts with `tenant_id`** unless it is a globally unique technical index (for example `outbox_event(published_at)`).
-* Uniqueness of business keys is per tenant: `UNIQUE (tenant_id, code)`, or `(tenant_id, legal_entity_id, code)` where needed.
-* Partitioned big tables use time ranges, not tenant hashes (§10). A tenant big enough to need its own partitions goes to the dedicated tier.
+* PK của mọi bảng thuộc tenant là `(tenant_id, id)`. Mọi index phụ **bắt đầu bằng `tenant_id`**, trừ khi đó là index kỹ thuật duy nhất toàn cục (ví dụ `outbox_event(published_at)`).
+* Tính duy nhất của khóa nghiệp vụ là theo tenant: `UNIQUE (tenant_id, code)`, hoặc `(tenant_id, legal_entity_id, code)` khi cần.
+* Các bảng lớn được partition theo khoảng thời gian, không theo hash tenant (§10). Tenant đủ lớn để cần partition riêng sẽ chuyển sang dedicated tier.
 
-### 3.7 Tenant export, offboarding and deletion
+### 3.7 Xuất dữ liệu, offboarding và xóa tenant
 
-| Step | Mechanism |
+| Bước | Cơ chế |
 |---|---|
-| Export (NFR-SAAS-019) | An export job runs per module as the module app role with the tenant context set: `COPY (SELECT …) TO STDOUT` as versioned NDJSON per entity, plus documents from object storage. Encrypted fields are decrypted by the application into the export, which is itself encrypted with a customer-supplied key or password. Target: 10k employees ≤ 6 h. |
-| Termination | `saas.tenant.state = TERMINATING`. Login is blocked and data stays read-only for 90 days (SaaS Q10). |
-| Purge | (1) **Crypto-shred:** schedule KMS deletion of the tenant KEK (§9.3). From that moment every encrypted column in the primary, replicas, reporting store, exports and **backups** is unreadable. (2) Delete rows in batches per schema (`DELETE … WHERE tenant_id = $1` in chunks of 10k by PK range, throttled). (3) Delete the tenant's reporting-store rows and object-storage prefix. (4) Write a purge certificate to the platform audit, with row counts per table. Plaintext data in backups ages out with backup retention (35 days), which is documented to the DPO. |
-| Dedicated tier | Drop the database after export plus KEK destruction. |
-| Per-tenant restore (NFR-SAAS-006) | Restore the cluster PITR into a scratch instance, then copy the tenant's rows into a sandbox tenant through the export/import format (never `pg_restore` into the shared pool). |
+| Xuất dữ liệu (NFR-SAAS-019) | Một export job chạy theo từng module dưới app role của module với tenant context đã thiết lập: `COPY (SELECT …) TO STDOUT` dưới dạng NDJSON có phiên bản cho mỗi entity, cộng với tài liệu từ object storage. Các trường mã hóa được ứng dụng giải mã vào file xuất, bản thân file xuất được mã hóa bằng khóa hoặc mật khẩu do khách hàng cung cấp. Mục tiêu: 10k nhân viên ≤ 6 h. |
+| Chấm dứt | `saas.tenant.state = TERMINATING`. Đăng nhập bị chặn và dữ liệu ở trạng thái chỉ-đọc trong 90 ngày (SaaS Q10). |
+| Purge | (1) **Crypto-shred:** lên lịch cho KMS xóa KEK của tenant (§9.3). Từ thời điểm đó mọi cột mã hóa trong primary, replica, reporting store, file xuất và **backup** đều không đọc được. (2) Xóa dòng theo lô cho từng schema (`DELETE … WHERE tenant_id = $1` theo khối 10k dựa trên khoảng PK, có điều tiết). (3) Xóa các dòng của tenant trong reporting store và prefix object storage. (4) Ghi chứng nhận purge vào platform audit, kèm số dòng của từng bảng. Dữ liệu plaintext trong backup hết hạn theo thời hạn lưu backup (35 ngày), điều này được thông báo bằng văn bản cho DPO. |
+| Dedicated tier | Drop database sau khi xuất dữ liệu và hủy KEK. |
+| Khôi phục theo tenant (NFR-SAAS-006) | Khôi phục PITR của cluster vào một instance tạm, sau đó sao chép các dòng của tenant vào một sandbox tenant qua định dạng export/import (không bao giờ `pg_restore` vào shared pool). |
 
 ---
 
-## 4. Keys and conventions (ADR-0023, ADR-0034)
+## 4. Khóa và quy ước (ADR-0023, ADR-0034)
 
-### 4.1 Primary keys
+### 4.1 Khóa chính
 
-* **Surrogate `id uuid`, UUIDv7**, generated by the application (time-ordered, so B-tree inserts stay right-leaning and index bloat is close to bigint). It is globally unique, safe to expose in APIs and events, mergeable across shared and dedicated DBs, and known before insert (outbox payloads, idempotent imports). The SQL fallback `sys.uuid_v7()` is the column default. On PostgreSQL 18 it can be swapped for the built-in `uuidv7()`.
-* `tenant_id uuid` (UUIDv7 as well).
-* **PK `(tenant_id, id)`** on tenant-owned tables. This makes composite FKs possible and keeps all of a tenant's index entries adjacent. APIs still address rows by `id` alone (globally unique), and lookups add `tenant_id` from the context.
-* `bigint` is used only where a gap-free order is the point: `audit.audit_event.chain_seq` and `saas.legal_param_pack.pack_version`. Punches and result lines also use UUIDv7, so one rule applies everywhere.
-* **Business keys** (`employee_no`, `code`, contract `number`) are separate unique constraints and editable under governance.
+* **Surrogate `id uuid`, UUIDv7**, do ứng dụng sinh (có thứ tự theo thời gian, nên insert vào B-tree luôn dồn về bên phải và độ phình index gần với bigint). Nó duy nhất toàn cục, an toàn để lộ ra trong API và event, có thể gộp giữa DB shared và dedicated, và biết trước khi insert (payload outbox, import idempotent). Hàm dự phòng trong SQL `sys.uuid_v7()` là giá trị mặc định của cột. Trên PostgreSQL 18 có thể thay bằng hàm có sẵn `uuidv7()`.
+* `tenant_id uuid` (cũng là UUIDv7).
+* **PK `(tenant_id, id)`** trên các bảng thuộc tenant. Điều này cho phép dùng FK ghép và giữ mọi entry index của một tenant nằm liền nhau. API vẫn định danh dòng chỉ bằng `id` (duy nhất toàn cục), và khi tra cứu thì bổ sung `tenant_id` từ context.
+* `bigint` chỉ được dùng ở nơi thứ tự không có khoảng trống là mục đích chính: `audit.audit_event.chain_seq` và `saas.legal_param_pack.pack_version`. Lượt chấm công và dòng kết quả cũng dùng UUIDv7, để một quy tắc áp dụng ở mọi nơi.
+* **Khóa nghiệp vụ** (`employee_no`, `code`, `number` của hợp đồng) là các unique constraint riêng và có thể sửa theo quy trình quản trị.
 
-### 4.2 Naming
+### 4.2 Đặt tên
 
-| Object | Convention | Example |
+| Đối tượng | Quy ước | Ví dụ |
 |---|---|---|
-| Schema, table, column | `snake_case`, singular nouns, ASCII, English | `hr.salary_record` |
-| PK / FK column | `id` / `<entity>_id` | `employment_id` |
-| Soft cross-schema reference | `<entity>_id` with comment `-> core.position (soft)` | `position_id` |
-| Global code reference | `<thing>_code` | `country_code`, `bank_code` |
-| Booleans | `is_` / `has_` | `is_retro` |
-| Instants / dates | `_at` (`timestamptz`) / `_date`, `valid_from`, `valid_to` (`date`) | `approved_at` |
-| Money / quantity / rate | `_amount` + `currency_code`, `_qty`, `_rate` | `base_salary_amount` |
-| Encrypted / blind index / display hint | `_enc` (`bytea`), `_bidx` (`bytea`), `_last4` (`text`) | `national_id_enc` |
-| Constraints | `<table>_pk`, `<table>_<col>_fk`, `_uq`, `_ck`, `_ex` (exclusion) | `assignment_period_ex` |
-| Indexes | `<table>_<cols>_ix` | `employment_person_ix` |
-| Projections of another module | `ext_<owner>_<entity>` | `pay.ext_hr_salary` |
-| Views | `v_<name>`; masking views `v_<table>_masked` | `hr.v_person_masked` |
+| Schema, bảng, cột | `snake_case`, danh từ số ít, ASCII, tiếng Anh | `hr.salary_record` |
+| Cột PK / FK | `id` / `<entity>_id` | `employment_id` |
+| Soft reference giữa các schema | `<entity>_id` với comment `-> core.position (soft)` | `position_id` |
+| Tham chiếu mã toàn cục | `<thing>_code` | `country_code`, `bank_code` |
+| Boolean | `is_` / `has_` | `is_retro` |
+| Thời điểm / ngày | `_at` (`timestamptz`) / `_date`, `valid_from`, `valid_to` (`date`) | `approved_at` |
+| Tiền / số lượng / tỷ lệ | `_amount` + `currency_code`, `_qty`, `_rate` | `base_salary_amount` |
+| Mã hóa / blind index / gợi ý hiển thị | `_enc` (`bytea`), `_bidx` (`bytea`), `_last4` (`text`) | `national_id_enc` |
+| Constraint | `<table>_pk`, `<table>_<col>_fk`, `_uq`, `_ck`, `_ex` (exclusion) | `assignment_period_ex` |
+| Index | `<table>_<cols>_ix` | `employment_person_ix` |
+| Projection của module khác | `ext_<owner>_<entity>` | `pay.ext_hr_salary` |
+| View | `v_<name>`; masking view `v_<table>_masked` | `hr.v_person_masked` |
 
-### 4.3 Standard columns
+### 4.3 Cột chuẩn
 
-| Column | Type | Rule |
+| Cột | Kiểu | Quy tắc |
 |---|---|---|
-| `tenant_id` | `uuid NOT NULL` | Immutable. A trigger blocks changes. |
+| `tenant_id` | `uuid NOT NULL` | Bất biến. Trigger chặn mọi thay đổi. |
 | `id` | `uuid NOT NULL DEFAULT sys.uuid_v7()` | |
-| `created_at`, `created_by` | `timestamptz NOT NULL DEFAULT now()`, `uuid` | `created_by` = `core.user_account.id`, a system principal id, or an API client id (soft reference) |
-| `updated_at`, `updated_by` | same | Trigger `sys.tg_touch()` sets `updated_at`. The application sets `updated_by`. |
-| `version` | `integer NOT NULL DEFAULT 0` | Optimistic lock (JPA `@Version`). Not used on append-only tables. |
+| `created_at`, `created_by` | `timestamptz NOT NULL DEFAULT now()`, `uuid` | `created_by` = `core.user_account.id`, id của một system principal, hoặc id của API client (soft reference) |
+| `updated_at`, `updated_by` | như trên | Trigger `sys.tg_touch()` thiết lập `updated_at`. Ứng dụng thiết lập `updated_by`. |
+| `version` | `integer NOT NULL DEFAULT 0` | Optimistic lock (JPA `@Version`). Không dùng trên bảng append-only. |
 
-Append-only tables (punches, outbox, audit, result lines, snapshots) carry only `created_at`/`created_by`.
+Bảng append-only (lượt chấm công, outbox, audit, dòng kết quả, snapshot) chỉ mang `created_at`/`created_by`.
 
-### 4.4 Deletion policy
+### 4.4 Chính sách xóa
 
-* **No generic soft delete** (`deleted_at` flags are not used). Each lifecycle is modelled explicitly: `status` (`DRAFT/ACTIVE/INACTIVE/CANCELLED`), effective dating (`valid_to`), or supersession (bi-temporal tables).
-* Hard delete is allowed only for `DRAFT` rows that never took effect and for technical rows (outbox, inbox, expired sessions).
-* Records with a legal retention period (contracts, payroll, SI/PIT, attendance) are removed only by the **retention scheduler** (SaaS owner): anonymise, crypto-shred, then delete, with evidence in the audit log.
+* **Không dùng soft delete chung chung** (không dùng cờ `deleted_at`). Mỗi vòng đời được mô hình hóa tường minh: `status` (`DRAFT/ACTIVE/INACTIVE/CANCELLED`), ngày hiệu lực (`valid_to`), hoặc thay thế (supersession, ở các bảng bi-temporal).
+* Hard delete chỉ được phép với các dòng `DRAFT` chưa từng có hiệu lực và với các dòng kỹ thuật (outbox, inbox, session hết hạn).
+* Bản ghi có thời hạn lưu trữ theo luật (hợp đồng, bảng lương, BHXH/thuế TNCN, chấm công) chỉ được xóa bởi **retention scheduler** (do SaaS sở hữu): ẩn danh hóa, crypto-shred, rồi xóa, có bằng chứng trong audit log.
 
-### 4.5 Enumerations
+### 4.5 Kiểu liệt kê (enumeration)
 
-| Kind | Storage | Why |
+| Loại | Lưu trữ | Lý do |
 |---|---|---|
-| System state machines and closed technical sets (`status`, `run_type`, `assignment_type`) | `text` + `CHECK (col IN (...))` | Values can be added with `NOT VALID` + `VALIDATE` and no lock-heavy `ALTER TYPE`. They read well in CDC and reports. **PostgreSQL `ENUM` types are not used.** |
-| Statutory classifications (contract type, SI decrease reason, PIT residency, relationship, ethnicity) | Global code list `core.code_value` (pure global, versioned) | Owned by the platform release workflow. Codes are referenced as text. |
-| Tenant-configurable lists (leave reasons, employee category, separation reasons) | `core.code_value` global + tenant override | Tenants extend them without schema change. |
-| Module configuration with behaviour (leave type, salary component, attendance code) | A proper table in the owning module | It has attributes and rules. |
+| State machine của hệ thống và tập kỹ thuật đóng (`status`, `run_type`, `assignment_type`) | `text` + `CHECK (col IN (...))` | Có thể thêm giá trị bằng `NOT VALID` + `VALIDATE` mà không cần `ALTER TYPE` nặng lock. Dễ đọc trong CDC và báo cáo. **Không dùng kiểu `ENUM` của PostgreSQL.** |
+| Phân loại theo luật định (loại hợp đồng, lý do giảm BHXH, tình trạng cư trú thuế TNCN, quan hệ, dân tộc) | Danh mục mã toàn cục `core.code_value` (toàn cục thuần túy, có phiên bản) | Thuộc quy trình phát hành của platform. Mã được tham chiếu dạng text. |
+| Danh sách tenant cấu hình được (lý do nghỉ phép, loại nhân viên, lý do nghỉ việc) | `core.code_value` toàn cục + tenant override | Tenant mở rộng mà không cần thay đổi schema. |
+| Cấu hình module có hành vi (loại nghỉ phép, thành phần lương, mã chấm công) | Một bảng riêng trong module sở hữu | Nó có thuộc tính và quy tắc. |
 
-### 4.6 Money, quantities, rounding
+### 4.6 Tiền, số lượng, làm tròn
 
-* Domains in `sys`: `sys.money_amount = numeric(19,4)`, `sys.rate = numeric(12,8)` (SI 8% stays exact, and FX rates are supported), `sys.quantity = numeric(12,4)` (hours, days, half-days).
-* Every money column has a sibling `currency_code char(3)` (default `VND`), or the row inherits the currency from its header (for example `result_line` from `payroll_run`).
-* **VND has no minor unit.** Values *payable or declared* (net pay, PIT withheld, SI contributions, bank lines, declarations) are stored **already rounded to 1 VND** in `numeric(19,4)` (scale kept for USD contracts and intermediate values). The rounding rule is configuration, not code: `pay.salary_component.rounding_mode` (`HALF_UP`, `DOWN`, `UP`, `HALF_EVEN`) and `rounding_unit` (1, 10, 100, 1000). Statutory defaults come from the legal pack (`ROUNDING.PIT`, `ROUNDING.SI`) **[verify-legal]**.
-* Result lines keep both `amount` (rounded, authoritative) and `amount_unrounded numeric(24,8)` for traceability and penny reconciliation.
-* Java uses `BigDecimal` with an explicit `MathContext`. Floating point is forbidden (NFR-PAY-002).
+* Các domain trong `sys`: `sys.money_amount = numeric(19,4)`, `sys.rate = numeric(12,8)` (8% BHXH vẫn chính xác, và hỗ trợ tỷ giá), `sys.quantity = numeric(12,4)` (giờ, ngày, nửa ngày).
+* Mọi cột tiền có một cột đi kèm `currency_code char(3)` (mặc định `VND`), hoặc dòng kế thừa loại tiền từ header của nó (ví dụ `result_line` từ `payroll_run`).
+* **VND không có đơn vị lẻ.** Các giá trị *phải trả hoặc phải kê khai* (lương thực nhận, thuế TNCN khấu trừ, đóng BHXH, dòng ngân hàng, tờ khai) được lưu **đã làm tròn tới 1 VND** trong `numeric(19,4)` (giữ scale cho hợp đồng USD và giá trị trung gian). Quy tắc làm tròn là cấu hình, không phải code: `pay.salary_component.rounding_mode` (`HALF_UP`, `DOWN`, `UP`, `HALF_EVEN`) và `rounding_unit` (1, 10, 100, 1000). Giá trị mặc định theo luật lấy từ legal pack (`ROUNDING.PIT`, `ROUNDING.SI`) **[verify-legal]**.
+* Dòng kết quả giữ cả `amount` (đã làm tròn, giá trị chuẩn) và `amount_unrounded numeric(24,8)` để truy vết và đối soát từng đồng lẻ.
+* Java dùng `BigDecimal` với `MathContext` tường minh. Cấm dùng số dấu phẩy động (NFR-PAY-002).
 
-### 4.7 Dates, times, time zones
+### 4.7 Ngày, giờ, múi giờ
 
-* The DB server and every session run in `TimeZone = 'UTC'`. All instants are `timestamptz`.
-* **Business dates are `date`** in the *local* calendar of the location or legal entity: work date, effective dates, pay period dates. They are never derived inside SQL from `now()` without an explicit zone. Activation jobs run at 00:00 `Asia/Ho_Chi_Minh` (NFR-CORE-015).
-* Shift times use `time` plus a `crosses_midnight` flag. Punches store `punch_at timestamptz` (normalised UTC), `local_ts timestamp` (device wall clock, as received) and `tz_name text` (NFR-ATT-005).
-* Year-month periods are stored as the first day of the month (`date`, with `CHECK (date_trunc('month', m) = m)`), not as strings.
-* Text: database encoding UTF-8, ICU collation `und-x-icu` as default, and an ICU `vi-VN` collation used for name sorting. Accent-insensitive search uses `sys.f_unaccent(lower(x))` with `pg_trgm` GIN indexes (NFR-CORE-011, NFR-PPL-009).
+* DB server và mọi session chạy với `TimeZone = 'UTC'`. Mọi thời điểm là `timestamptz`.
+* **Ngày nghiệp vụ là `date`** theo lịch *địa phương* của địa điểm hoặc pháp nhân: ngày công, ngày hiệu lực, ngày của kỳ lương. Chúng không bao giờ được suy ra trong SQL từ `now()` mà không có múi giờ tường minh. Job kích hoạt chạy lúc 00:00 `Asia/Ho_Chi_Minh` (NFR-CORE-015).
+* Giờ ca dùng `time` cộng cờ `crosses_midnight`. Lượt chấm công lưu `punch_at timestamptz` (chuẩn hóa về UTC), `local_ts timestamp` (giờ trên đồng hồ thiết bị, như khi nhận) và `tz_name text` (NFR-ATT-005).
+* Kỳ năm-tháng được lưu là ngày đầu tháng (`date`, với `CHECK (date_trunc('month', m) = m)`), không lưu dạng chuỗi.
+* Văn bản: encoding database UTF-8, collation ICU `und-x-icu` làm mặc định, và một collation ICU `vi-VN` dùng để sắp xếp tên. Tìm kiếm không phân biệt dấu dùng `sys.f_unaccent(lower(x))` với index GIN `pg_trgm` (NFR-CORE-011, NFR-PPL-009).
 
 ---
 
-## 5. Effective dating and bi-temporality (ADR-0024)
+## 5. Ngày hiệu lực và bi-temporality (ADR-0024)
 
-### 5.1 Pattern A — valid time only (most master data)
+### 5.1 Pattern A — chỉ valid time (phần lớn master data)
 
 ```
 valid_from  date NOT NULL,
@@ -262,14 +262,14 @@ CONSTRAINT x_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
 CONSTRAINT x_period_ex EXCLUDE USING gist (tenant_id WITH =, <entity>_id WITH =, valid_during WITH &&)
 ```
 
-* The bounds are **half-open `[valid_from, valid_to)`**. An "end date" shown in the UI is `valid_to - 1`. This avoids the classic off-by-one when ranges are contiguous.
-* The exclusion constraint needs `btree_gist` (for the `uuid` equality) and guarantees there is no overlap. Gaps are allowed unless the entity says otherwise; "no gap" is checked by the service.
-* Structure: an **anchor table** holds the identity and immutable attributes (`core.org_unit`: `id`, `code`), and a **version table** holds the effective-dated attributes (`core.org_unit_version`). Corrections to a version are plain updates captured by the audit log, which is enough for core master data.
-* Used for: legal entity, location, org unit, position, job, grade, cost centre, schedule assignment, pay group assignment, bank account, dependant registration, special status, address.
+* Các biên là **nửa mở `[valid_from, valid_to)`**. "Ngày kết thúc" hiển thị trên UI là `valid_to - 1`. Cách này tránh lỗi lệch một đơn vị kinh điển khi các khoảng liền kề nhau.
+* Exclusion constraint cần `btree_gist` (cho phép so sánh bằng trên `uuid`) và đảm bảo không có chồng lấn. Khoảng trống được phép trừ khi entity quy định khác; "không có khoảng trống" do service kiểm tra.
+* Cấu trúc: một **anchor table** giữ định danh và các thuộc tính bất biến (`core.org_unit`: `id`, `code`), và một **version table** giữ các thuộc tính theo ngày hiệu lực (`core.org_unit_version`). Việc sửa một phiên bản là các lệnh update thông thường được audit log ghi lại, như vậy là đủ cho master data cốt lõi.
+* Dùng cho: pháp nhân, địa điểm, đơn vị tổ chức, vị trí, công việc, ngạch bậc, trung tâm chi phí, gán lịch làm việc, gán nhóm lương, tài khoản ngân hàng, đăng ký người phụ thuộc, tình trạng đặc biệt, địa chỉ.
 
-### 5.2 Pattern B — bi-temporal (salary, assignment, legal parameters; NFR-PPL-001, BR-PAY-072)
+### 5.2 Pattern B — bi-temporal (lương, phân công, tham số pháp lý; NFR-PPL-001, BR-PAY-072)
 
-Pattern A plus transaction time on the same table:
+Pattern A cộng thêm transaction time trên cùng bảng:
 
 ```
 recorded_at    timestamptz NOT NULL DEFAULT now(),   -- when this version became known
@@ -279,11 +279,11 @@ correction_reason text NULL,
 EXCLUDE USING gist (tenant_id WITH =, <key> WITH =, valid_during WITH &&) WHERE (superseded_at IS NULL)
 ```
 
-* **Rows are never updated in place**, except to stamp `superseded_at`/`superseded_by`. The trigger `sys.tg_bitemporal_guard()` rejects any other change, and `DELETE` is rejected too. (Stored generated columns are NULL in `NEW` inside BEFORE triggers, so the guard ignores `valid_during`. This was found in the smoke test.)
-* Transaction time is the **transaction timestamp** (`now()`), so a supersession and its replacement made in one transaction share the same instant. "As known on" has per-transaction granularity, which is the intended semantics.
-* **Prospective change** (new salary from 1 Jan): close the current row by superseding it and inserting a copy with `valid_to = 2027-01-01`, then insert the new row. All of this happens in one transaction.
-* **Retroactive correction** (the March salary was wrong): supersede the affected rows and insert corrected rows with the same or a new valid range. Payroll detects the change because `recorded_at` is later than the run's watermark, which creates retro items (gap §7.2 steps 7 and 13).
-* Queries:
+* **Dòng không bao giờ được update tại chỗ**, ngoại trừ việc đóng dấu `superseded_at`/`superseded_by`. Trigger `sys.tg_bitemporal_guard()` từ chối mọi thay đổi khác, và `DELETE` cũng bị từ chối. (Cột generated dạng stored có giá trị NULL trong `NEW` bên trong BEFORE trigger, nên guard bỏ qua `valid_during`. Điều này được phát hiện trong smoke test.)
+* Transaction time là **timestamp của transaction** (`now()`), nên một lần thay thế và dòng thay thế của nó được tạo trong cùng một transaction sẽ có cùng thời điểm. "Theo hiểu biết vào ngày" có độ chi tiết theo từng transaction, đó là ngữ nghĩa mong muốn.
+* **Thay đổi cho tương lai** (lương mới từ 1/1): đóng dòng hiện tại bằng cách thay thế nó và insert một bản sao với `valid_to = 2027-01-01`, rồi insert dòng mới. Tất cả diễn ra trong một transaction.
+* **Điều chỉnh hồi tố** (lương tháng 3 bị sai): thay thế các dòng bị ảnh hưởng và insert các dòng đã sửa với cùng khoảng hiệu lực hoặc khoảng mới. Payroll phát hiện thay đổi vì `recorded_at` muộn hơn watermark của lần chạy, từ đó tạo ra các khoản điều chỉnh hồi tố (retro item) (gap §7.2 bước 7 và 13).
+* Truy vấn:
 
 ```sql
 -- as of business date :d, current knowledge
@@ -302,21 +302,21 @@ SELECT * FROM hr.salary_record
    AND valid_during && daterange(:p_start, :p_end, '[]');
 ```
 
-* Indexes: a partial B-tree `(tenant_id, employment_id, valid_from) WHERE superseded_at IS NULL` for the hot path, plus the GiST exclusion index (which also serves `@>`/`&&`). Full-history queries use `(tenant_id, employment_id, recorded_at)`.
-* Identity across versions: every version row has its own `id` (referenced by snapshots and audit). The stable business identity is `employment_id` for salary, and `assignment_key` for assignment (one employment may hold several concurrent assignments).
-* A shared Java library (`temporal-kit`) implements supersede/split/merge, so services never hand-write these updates.
+* Index: một B-tree partial `(tenant_id, employment_id, valid_from) WHERE superseded_at IS NULL` cho luồng nóng, cộng với index GiST của exclusion constraint (cũng phục vụ `@>`/`&&`). Truy vấn toàn bộ lịch sử dùng `(tenant_id, employment_id, recorded_at)`.
+* Định danh xuyên suốt các phiên bản: mỗi dòng phiên bản có `id` riêng (được snapshot và audit tham chiếu). Định danh nghiệp vụ ổn định là `employment_id` đối với lương, và `assignment_key` đối với phân công (một employment có thể giữ nhiều phân công đồng thời).
+* Một thư viện Java dùng chung (`temporal-kit`) cài đặt các thao tác supersede/split/merge, nên service không bao giờ tự viết tay các lệnh update này.
 
-### 5.3 As-of org structures and data scope
+### 5.3 Cơ cấu tổ chức theo thời điểm và data scope
 
-`core.org_unit_version` stores `parent_id` and a materialised `path ltree` per version. An as-of tree is `WHERE valid_during @> :d`. A subtree is `path <@ :root_path`, backed by a GiST index on `path`. A path changes only when a re-organisation activates a new version, and Core recomputes the descendants' versions in the same package (`reorg_package`). Target: NFR-CORE-003 (2,000 units ≤ 1 s).
+`core.org_unit_version` lưu `parent_id` và một `path ltree` được vật chất hóa cho mỗi phiên bản. Cây tổ chức tại một thời điểm là `WHERE valid_during @> :d`. Một cây con là `path <@ :root_path`, được hỗ trợ bởi index GiST trên `path`. Path chỉ thay đổi khi một đợt tái cơ cấu kích hoạt phiên bản mới, và Core tính lại các phiên bản của các đơn vị con trong cùng gói (`reorg_package`). Mục tiêu: NFR-CORE-003 (2,000 đơn vị ≤ 1 s).
 
-Data scope (SA owns the enforcement): every employee-scoped row in `hr`, `att`, `pay` carries denormalised `legal_entity_id` and `org_unit_id` (as of the row's date, taken from the assignment). Core resolves a user's scope into a set of org unit ids (cached, from `core.org_unit_version.path`). Modules apply `org_unit_id = ANY(:scopeIds)` against indexes `(tenant_id, org_unit_id, ...)`. RLS enforces **only** the tenant, not data scope: scope is user-relative and changes with delegation, so putting it in RLS would defeat plan caching and the ≤ 20 ms budget (NFR-CORE-002).
+Data scope (SA chịu trách nhiệm thực thi): mọi dòng gắn với nhân viên trong `hr`, `att`, `pay` mang `legal_entity_id` và `org_unit_id` được phi chuẩn hóa (tại ngày của dòng, lấy từ phân công). Core phân giải scope của user thành một tập id đơn vị tổ chức (có cache, từ `core.org_unit_version.path`). Các module áp dụng `org_unit_id = ANY(:scopeIds)` trên các index `(tenant_id, org_unit_id, ...)`. RLS **chỉ** thực thi tenant, không thực thi data scope: scope phụ thuộc vào user và thay đổi theo ủy quyền, nên đưa nó vào RLS sẽ phá vỡ plan caching và ngân sách ≤ 20 ms (NFR-CORE-002).
 
 ---
 
-## 6. Legal parameter packs (ADR-0025)
+## 6. Legal parameter pack (ADR-0025)
 
-Owner: SaaS (gap §5 #1). The Payroll BRD entities `legal_param_set`/`pit_schedule` move here. Payroll, T&A, People, Core and Rec read through the Legal Parameter Service API (SA owns the API and caching), as of an effective date.
+Chủ sở hữu: SaaS (gap §5 #1). Các entity `legal_param_set`/`pit_schedule` của BRD Payroll chuyển về đây. Payroll, T&A, People, Core và Rec đọc qua API của Legal Parameter Service (SA chịu trách nhiệm API và caching), tại một ngày hiệu lực.
 
 ```mermaid
 erDiagram
@@ -373,28 +373,28 @@ erDiagram
   }
 ```
 
-Rules:
+Quy tắc:
 
-1. **A pack is a cumulative, immutable snapshot.** Pack version *N* contains **every** parameter with its **whole effective-date history**: hundreds of keys × a few ranges, which is small. "Value of key K on date D under pack N" is a single lookup in N. Older packs stay queryable forever, which gives 10-year reproducibility without replaying deltas. A trigger blocks any change once the pack is `PUBLISHED`.
-2. Value shapes: scalars in `value_num`; structured values (PIT brackets, OT multipliers by category, retirement roadmap) in `value_json`, validated against `definition.json_schema`. A new PIT schedule structure therefore needs **no schema change** (NFR-PAY-007). Large maps (admin unit → minimum-wage region, about 3,300 communes after the 2025 restructure) go to `legal_param_table_row`.
-3. **Publishing** (lifecycle per SA ADR-0010: `DRAFT → IN_TEST → APPROVED → PUBLISHED → SUPERSEDED`, plus `WITHDRAWN`): published packs form a total order per `pack_code`. Exactly one pack is *current*, and publishing a new one moves the previous pack to `SUPERSEDED` (content unchanged, still used for reproduction). The event `saas.LegalParameterPackPublished` (pack version, changed keys and dates) drives cache invalidation and retro detection.
-4. **Retroactive law** (NFR-SAAS-016): a later pack may change a value for past dates. Results already approved keep their stamped pack. Payroll compares the stamped pack with the current pack for the affected keys and dates, and proposes retro.
-5. **Tenant overrides** are allowed only where `override_rule <> NONE`, at the most specific level the definition allows (`TENANT`, `LEGAL_ENTITY` or `LOCATION`; resolution order GLOBAL → TENANT → LEGAL_ENTITY → LOCATION, ADR-0010):
-   * `FLOOR`: the tenant value must be ≥ the statutory value (for example leave days, a minimum wage used in a pay scale).
-   * `CAP`: the tenant value must be ≤ the statutory value (for example an internal OT cap).
-   * `ANY`: free choice (for example the std-day method default).
+1. **Một pack là một snapshot lũy kế, bất biến.** Pack phiên bản *N* chứa **mọi** tham số kèm **toàn bộ lịch sử ngày hiệu lực** của nó: vài trăm khóa × vài khoảng thời gian, tức là nhỏ. "Giá trị của khóa K vào ngày D theo pack N" là một lần tra cứu duy nhất trong N. Các pack cũ vẫn truy vấn được mãi mãi, giúp tái lập được trong 10 năm mà không cần phát lại các delta. Trigger chặn mọi thay đổi khi pack đã ở trạng thái `PUBLISHED`.
+2. Hình dạng giá trị: giá trị vô hướng trong `value_num`; giá trị có cấu trúc (biểu thuế TNCN lũy tiến, hệ số OT theo loại, lộ trình nghỉ hưu) trong `value_json`, được kiểm tra theo `definition.json_schema`. Do đó một cấu trúc biểu thuế TNCN mới **không cần thay đổi schema** (NFR-PAY-007). Các bảng ánh xạ lớn (đơn vị hành chính → vùng lương tối thiểu, khoảng 3,300 xã/phường sau đợt sắp xếp năm 2025) nằm trong `legal_param_table_row`.
+3. **Publish** (vòng đời theo SA ADR-0010: `DRAFT → IN_TEST → APPROVED → PUBLISHED → SUPERSEDED`, cộng với `WITHDRAWN`): các pack đã publish tạo thành một thứ tự toàn phần theo `pack_code`. Chính xác một pack là *hiện hành*, và publish pack mới sẽ chuyển pack trước sang `SUPERSEDED` (nội dung không đổi, vẫn dùng để tái lập). Event `saas.LegalParameterPackPublished` (phiên bản pack, các khóa và ngày thay đổi) điều khiển việc vô hiệu hóa cache và phát hiện retro.
+4. **Luật có hiệu lực hồi tố** (NFR-SAAS-016): pack sau có thể thay đổi giá trị cho các ngày trong quá khứ. Các kết quả đã duyệt giữ nguyên pack đã đóng dấu. Payroll so sánh pack đã đóng dấu với pack hiện hành cho các khóa và ngày bị ảnh hưởng, và đề xuất retro.
+5. **Tenant override** chỉ được phép khi `override_rule <> NONE`, ở mức cụ thể nhất mà định nghĩa cho phép (`TENANT`, `LEGAL_ENTITY` hoặc `LOCATION`; thứ tự phân giải GLOBAL → TENANT → LEGAL_ENTITY → LOCATION, ADR-0010):
+   * `FLOOR`: giá trị của tenant phải ≥ giá trị luật định (ví dụ số ngày phép, mức lương tối thiểu dùng trong thang lương).
+   * `CAP`: giá trị của tenant phải ≤ giá trị luật định (ví dụ trần OT nội bộ).
+   * `ANY`: tự do lựa chọn (ví dụ phương pháp tính ngày công chuẩn mặc định).
 
-   The check runs against the statutory value **for the same dates** at activation, and again when a new pack is published; a violation raises an alert to the tenant admin and the payroll SME. Overrides are grouped into a tenant `override_set` with a monotonic `override_version`, approved through Core workflow and audited. Activated sets are immutable, and a change creates a new set version.
-6. **Version stamping:** every attendance result version, payroll run, run input snapshot, offer simulation (`rec.offer.sim_param_version`) and People eligibility calculation stores `legal_pack_id` + `override_version`. Payroll runs also store `config_version` and `code_version` (NFR-SAAS-017).
-7. Dedicated DBs receive published packs by replication. Packs are pure-global tables with no `tenant_id`; overrides are tenant-owned.
+   Việc kiểm tra chạy so với giá trị luật định **cho cùng các ngày** tại thời điểm kích hoạt, và chạy lại khi một pack mới được publish; vi phạm sẽ phát cảnh báo cho tenant admin và payroll SME. Các override được gom vào một `override_set` của tenant với `override_version` tăng đơn điệu, được phê duyệt qua workflow của Core và có audit. Các set đã kích hoạt là bất biến, và một thay đổi sẽ tạo ra phiên bản set mới.
+6. **Đóng dấu phiên bản:** mọi phiên bản kết quả chấm công, lần chạy lương, snapshot đầu vào của lần chạy, mô phỏng offer (`rec.offer.sim_param_version`) và phép tính điều kiện hưởng của People đều lưu `legal_pack_id` + `override_version`. Lần chạy lương còn lưu `config_version` và `code_version` (NFR-SAAS-017).
+7. DB dedicated nhận các pack đã publish qua replication. Pack là bảng toàn cục thuần túy không có `tenant_id`; override thuộc tenant.
 
-The calculation-time resolution order is: tenant LE override → tenant override → pack value. The resolved value set for a run is frozen into the run config snapshot (§7.3).
+Thứ tự phân giải tại thời điểm tính toán là: override của tenant theo pháp nhân → override của tenant → giá trị trong pack. Tập giá trị đã phân giải cho một lần chạy được đóng băng vào run config snapshot (§7.3).
 
 ---
 
-## 7. Key entity models per schema
+## 7. Mô hình entity chính theo schema
 
-The diagrams show key tables and columns only. Every tenant-owned table also has `tenant_id` in its PK and the standard columns (§4.3). Dashed relationships (`..`) are **soft cross-schema references** (no FK). DDL exists for `saas`, `core` and `hr` (see `ddl/`); `att`, `pay` and `rec` are specified here and get DDL in the next iteration.
+Các sơ đồ chỉ thể hiện các bảng và cột chính. Mọi bảng thuộc tenant còn có `tenant_id` trong PK và các cột chuẩn (§4.3). Các quan hệ nét đứt (`..`) là **soft reference giữa các schema** (không có FK). DDL đã có cho `saas`, `core` và `hr` (xem `ddl/`); `att`, `pay` và `rec` được đặc tả ở đây và sẽ có DDL ở vòng lặp tiếp theo.
 
 ### 7.1 `saas`
 
@@ -465,11 +465,11 @@ erDiagram
   }
 ```
 
-Also in `saas`: `price_book`, `feature_flag`, `usage_record` (monthly partitions), `payment`, `operator_session`, `identity_provider_config (T)` (SSO, **Phase 2**, R2-04), `mfa_factor (T)` (TOTP and e-mail OTP in Phase 1), `api_client (T)` (public API, **Phase 2**), `webhook_subscription (T)` (**Phase 2**, R2-01), `retention_policy (T)`, `security_incident`, plus the legal parameter tables (§6). (The v0.1 `import_batch`/`reconciliation_run` for the Oracle migration programme are dropped; go-live imports and their reconciliation live in `core.import_*`, §13.)
+Ngoài ra trong `saas`: `price_book`, `feature_flag`, `usage_record` (partition theo tháng), `payment`, `operator_session`, `identity_provider_config (T)` (SSO, **Phase 2**, R2-04), `mfa_factor (T)` (TOTP và OTP qua e-mail ở Phase 1), `api_client (T)` (public API, **Phase 2**), `webhook_subscription (T)` (**Phase 2**, R2-01), `retention_policy (T)`, `security_incident`, cộng với các bảng tham số pháp lý (§6). (Các bảng `import_batch`/`reconciliation_run` của v0.1 dành cho chương trình migrate từ Oracle đã bị bỏ; việc import khi go-live và đối soát của nó nằm trong `core.import_*`, §13.)
 
-`saas.billing_party (T)` holds only the invoicing identity of a tenant's legal entities, keyed by `legal_entity_id` (soft reference). The legal entity master stays in Core (gap §5 #23).
+`saas.billing_party (T)` chỉ giữ thông tin định danh xuất hóa đơn của các pháp nhân thuộc tenant, khóa theo `legal_entity_id` (soft reference). Master data pháp nhân vẫn nằm ở Core (gap §5 #23).
 
-**Baseline always-on capabilities (R2-18, GAP-060; SA ADR-0003 decision 5).** `saas.baseline_capability` (platform table, replicated) lists the feature keys every tenant has whatever it bought: `baseline.core` (Core), `baseline.people.master` (People basics: person, employment, assignment, salary record), `baseline.legal_params` (legal parameter packs via the LPS API), `baseline.pay.scales_bands` (pay scales/bands, gap §5 #7) and `baseline.att.excel_import` (Excel attendance import producing a standard Attendance Result). The entitlement resolver writes one `saas.entitlement` row with `source = 'BASELINE'` per tenant and key. `entitlement_baseline_ck` allows a BASELINE row only as an enabled, tenant-wide grant, and `entitlement_period_ex` (one row per tenant × feature × LE × period) then prevents any `OVERRIDE`/`PLAN` row from disabling it in the same period. Module subscriptions add `PLAN`/`ADDON` rows for the full module features.
+**Capability nền tảng luôn bật (R2-18, GAP-060; SA ADR-0003 quyết định 5).** `saas.baseline_capability` (bảng platform, được replicate) liệt kê các feature key mà mọi tenant đều có bất kể đã mua gì: `baseline.core` (Core), `baseline.people.master` (People cơ bản: person, employment, assignment, hồ sơ lương), `baseline.legal_params` (legal parameter pack qua LPS API), `baseline.pay.scales_bands` (thang/khung lương, gap §5 #7) và `baseline.att.excel_import` (import chấm công từ Excel, tạo ra một Attendance Result chuẩn). Entitlement resolver ghi một dòng `saas.entitlement` với `source = 'BASELINE'` cho mỗi tenant và mỗi key. `entitlement_baseline_ck` chỉ cho phép dòng BASELINE dưới dạng grant được bật trên toàn tenant, và `entitlement_period_ex` (một dòng cho mỗi tenant × feature × pháp nhân × khoảng thời gian) khi đó ngăn mọi dòng `OVERRIDE`/`PLAN` vô hiệu hóa nó trong cùng khoảng thời gian. Subscription của module thêm các dòng `PLAN`/`ADDON` cho đầy đủ tính năng của module.
 
 ### 7.2 `core`
 
@@ -537,9 +537,9 @@ erDiagram
   }
 ```
 
-Global (no `tenant_id`): `country`, `currency`, `admin_unit` (with `valid_from/valid_to`, `replaced_by_code`), `admin_unit_mapping` (old→new, `MERGE/SPLIT/RENAME`), `bank`, `bank_branch`, `code_list`/`code_value` (global rows use the sentinel tenant, see §3.5), `exchange_rate` (global VCB/SBV reference rates; tenants may add their own rows).
+Toàn cục (không có `tenant_id`): `country`, `currency`, `admin_unit` (với `valid_from/valid_to`, `replaced_by_code`), `admin_unit_mapping` (cũ→mới, `MERGE/SPLIT/RENAME`), `bank`, `bank_branch`, `code_list`/`code_value` (dòng toàn cục dùng sentinel tenant, xem §3.5), `exchange_rate` (tỷ giá tham chiếu toàn cục VCB/SBV; tenant có thể thêm dòng riêng).
 
-Also in `core`: `company_group`, `employee_category`, `reorg_package`/`reorg_change`/`reorg_mapping`, `permission`, `sod_rule`, `approval_delegation`, `notification_template`/`notification`/`notification_delivery`, `setting_definition`/`setting_value`, `sequence_counter`, `custom_field_def`/`custom_field_value` (value table keyed by `(target_schema, target_table, target_id)`), `import_job`/`import_row`/`import_reconciliation` (DDL in `002`, §13; import types are registered by modules in code), `export_job`.
+Ngoài ra trong `core`: `company_group`, `employee_category`, `reorg_package`/`reorg_change`/`reorg_mapping`, `permission`, `sod_rule`, `approval_delegation`, `notification_template`/`notification`/`notification_delivery`, `setting_definition`/`setting_value`, `sequence_counter`, `custom_field_def`/`custom_field_value` (bảng giá trị khóa theo `(target_schema, target_table, target_id)`), `import_job`/`import_row`/`import_reconciliation` (DDL trong `002`, §13; các loại import do module đăng ký trong code), `export_job`.
 
 ### 7.3 `hr`
 
@@ -648,23 +648,23 @@ erDiagram
   }
 ```
 
-`hr.separation` (DDL next iteration): `employment_id`, `separation_type`, `reason_code`, `legal_ground_code`, `notice_date`, `required_notice_days`, `last_working_date`, `termination_date`, `access_revocation_date`, `severance_type`, `is_protected`, `status`, `workflow_instance_id`. Also: `person_contact`, `emergency_contact`, `education`, `certificate`, `work_permit`, `checklist*`, `discipline_case`, `reward`, appraisal and training (P2), and `hr_document` (metadata only; the files are in Core's document service).
+`hr.separation` (DDL ở vòng lặp tiếp theo): `employment_id`, `separation_type`, `reason_code`, `legal_ground_code`, `notice_date`, `required_notice_days`, `last_working_date`, `termination_date`, `access_revocation_date`, `severance_type`, `is_protected`, `status`, `workflow_instance_id`. Ngoài ra: `person_contact`, `emergency_contact`, `education`, `certificate`, `work_permit`, `checklist*`, `discipline_case`, `reward`, đánh giá và đào tạo (P2), và `hr_document` (chỉ metadata; file nằm trong document service của Core).
 
-Bank accounts belong to the **person**, not the employment, so one account can serve concurrent employments. Payroll chooses one through `employment_id` on `pay.ext_hr_bank_split`.
+Tài khoản ngân hàng thuộc về **person**, không thuộc employment, nên một tài khoản có thể phục vụ nhiều employment đồng thời. Payroll chọn một tài khoản qua `employment_id` trên `pay.ext_hr_bank_split`.
 
-**Concurrent employment across legal entities (R2-16, GAP-031, BR-PPL-002/004; Phase 1, basic).** One `hr.person` per real individual per tenant; one `hr.employment` per legal entity engagement. The data model supports it as follows:
+**Làm việc đồng thời tại nhiều pháp nhân (R2-16, GAP-031, BR-PPL-002/004; Phase 1, mức cơ bản).** Mỗi cá nhân thực có một `hr.person` trong mỗi tenant; mỗi quan hệ làm việc với một pháp nhân là một `hr.employment`. Mô hình dữ liệu hỗ trợ như sau:
 
-| Rule | Where enforced |
+| Quy tắc | Nơi thực thi |
 |---|---|
-| A person has at most one live employment per legal entity at a time (more work in the same LE = a `CONCURRENT` assignment) | `employment_person_le_ex` (exclusion constraint, `003_hr.sql`) |
-| **At most one primary employment per person, per purpose, per period** — purposes `PIT_FAMILY_DEDUCTION` (the employer that applies the self and dependant deductions) and `SOCIAL_INSURANCE` (the employer through which SI is paid, SI Law 2024 multiple-contract rule `[verify-legal]`) | `hr.primary_employment` + `primary_employment_ex`; the composite FK `(tenant_id, person_id, employment_id)` guarantees the designated employment belongs to the person |
-| The primary can change while both employments continue (e.g. the primary one ends, or the employee re-registers for PIT) | `hr.primary_employment` is valid-time (Pattern A, §5.1): close the old row, open a new one; history is kept |
-| A person with one live employment needs no row; with two or more, both purposes must be designated for every day | People service on hire/termination + nightly consistency job (a cross-row rule, not a constraint) |
-| Dependants are claimed via the PIT primary employment only | `pit_dependant_claim_ex` (one claim per dependant per month) + People service rule on `pit_dependant.employment_id` |
-| Each legal entity withholds PIT on its own payments; only the PIT primary applies family deductions; only the SI primary declares SI | Payroll (reads the designation from People events/API into `pay.employee_pay_profile`) |
-| Cross-entity annual OT cap | **Phase 2** (R2-08); Phase-1 OT cap is per employment |
+| Tại một thời điểm, một người có tối đa một employment đang hiệu lực cho mỗi pháp nhân (làm thêm việc trong cùng pháp nhân = một assignment `CONCURRENT`) | `employment_person_le_ex` (exclusion constraint, `003_hr.sql`) |
+| **Mỗi người tối đa một employment chính cho mỗi mục đích trong mỗi khoảng thời gian** — các mục đích `PIT_FAMILY_DEDUCTION` (đơn vị sử dụng lao động áp dụng giảm trừ bản thân và người phụ thuộc) và `SOCIAL_INSURANCE` (đơn vị sử dụng lao động mà qua đó đóng BHXH, quy tắc nhiều hợp đồng của Luật BHXH 2024 `[verify-legal]`) | `hr.primary_employment` + `primary_employment_ex`; FK ghép `(tenant_id, person_id, employment_id)` đảm bảo employment được chỉ định thuộc về chính người đó |
+| Employment chính có thể thay đổi trong khi cả hai employment vẫn tiếp tục (ví dụ employment chính kết thúc, hoặc nhân viên đăng ký lại thuế TNCN) | `hr.primary_employment` là valid-time (Pattern A, §5.1): đóng dòng cũ, mở dòng mới; lịch sử được giữ lại |
+| Người chỉ có một employment đang hiệu lực thì không cần dòng nào; có từ hai trở lên thì cả hai mục đích phải được chỉ định cho mọi ngày | People service khi tuyển dụng/chấm dứt + job kiểm tra nhất quán hằng đêm (quy tắc liên dòng, không phải constraint) |
+| Người phụ thuộc chỉ được đăng ký giảm trừ qua employment chính về thuế TNCN | `pit_dependant_claim_ex` (mỗi người phụ thuộc một lần đăng ký mỗi tháng) + quy tắc của People service trên `pit_dependant.employment_id` |
+| Mỗi pháp nhân khấu trừ thuế TNCN trên khoản chi trả của chính mình; chỉ employment chính về thuế TNCN áp dụng giảm trừ gia cảnh; chỉ employment chính về BHXH kê khai BHXH | Payroll (đọc thông tin chỉ định từ event/API của People vào `pay.employee_pay_profile`) |
+| Trần OT năm tính gộp giữa các pháp nhân | **Phase 2** (R2-08); trần OT ở Phase 1 tính theo từng employment |
 
-The v0.2 boolean `hr.employment.is_primary` (one flag for the whole employment period, with an exclusion over `employment_period`) is withdrawn because it could not express a change of primary while both employments continue. Event: designation changes are published by People; the event name (proposed `people.PrimaryEmploymentChanged`) needs adding to the gap §6 catalogue by the Integration analyst.
+Cờ boolean `hr.employment.is_primary` của v0.2 (một cờ cho toàn bộ khoảng thời gian employment, với exclusion trên `employment_period`) bị rút lại vì nó không thể biểu diễn việc đổi employment chính trong khi cả hai employment vẫn tiếp tục. Event: các thay đổi chỉ định do People publish; tên event (đề xuất `people.PrimaryEmploymentChanged`) cần được Integration analyst bổ sung vào danh mục gap §6.
 
 ### 7.4 `att`
 
@@ -746,17 +746,17 @@ erDiagram
   }
 ```
 
-Key rules:
+Quy tắc chính:
 
-* `raw_punch` is append-only, range-partitioned by `work_date_hint` (monthly), and de-duplicated by `UNIQUE (tenant_id, dedup_key, work_date_hint)` where `dedup_key = hash(device_id|enrol_id|punch_at)` (NFR-ATT-001). Ingestion is an `INSERT … ON CONFLICT DO NOTHING` batch: in Phase 1 from the import commit of a device-export file (one chunk per import job chunk, `import_job_id` kept on the row), in Phase 2 also from the punch-stream consumer.
-* `daily_timesheet` is mutable until its period is LOCKED. It is partitioned monthly by `work_date` with `fillfactor = 80` for HOT updates. It is recomputed rather than edited, and `calc_version` increments on every recalculation.
-* **Attendance results are immutable.** Re-close creates `result_version + 1`, and the previous version becomes `WITHDRAWN`.
-* **Close hold** (SA ADR-0019): `att.attendance_result_hold (tenant_id, id, period_id, result_version, payroll_run_id, held_at, released_at, status ACTIVE/RELEASED/CONSUMED)` with a partial unique index `(tenant_id, period_id) WHERE status = 'ACTIVE'`. Payroll acquires it on submit through the in-process T&A API. Re-open checks for an ACTIVE hold in the same transaction (`SELECT … FOR UPDATE` on the period row) and is refused while one exists. On approval the hold becomes `CONSUMED`, and the period moves to LOCKED with `UPDATE att.attendance_period SET status='LOCKED', locked_version=:v WHERE id=:p AND current_version=:v AND status='CLOSED'`. Thanks to the hold this cannot affect zero rows, but the predicate stays as a guard.
-* Retro deltas after LOCKED are lines with `is_retro = true` and `original_period_id`, inside the next OPEN period's result (or an off-cycle result for leavers).
-* `ot_cap_ledger` (per employment × month/year) is updated in the same transaction as OT approval, with `SELECT … FOR UPDATE` on the ledger row, which serialises cap checks per employee.
-* **Phase-1 punch sources (OD-9, R2-01): file import only.** There is no live device connector or ingestion endpoint in Phase 1. Punches arrive as `IMPORT` rows from the **device-export-file template** (CSV/Excel exported by the customer's time-device software, mapped by a per-vendor column layout: enrol id, date-time, device/terminal id, in/out flag if any) through the Core import engine; `dedup_key` uses the terminal id from the file, so re-importing an overlapping file is harmless. Summary attendance (days/hours per employee) uses the separate Excel attendance import, which produces an Attendance Result directly (baseline capability, R2-18). `DEVICE` (live connector, Phase 2), `MOBILE`/`WEB` sources, `geo_enc`, selfie references and `geofence` are Phase 2; the CHECK on `source` lists only `IMPORT` in the Phase-1 DDL and is widened (expand migration) in Phase 2. `att.device` stays in Phase 1 as the registry of terminals and enrolment mappings used by the file import.
-* `leave_balance_ledger` rows with `txn_type = 'OPENING'` are the go-live balances loaded by `OB_LEAVE_BALANCE` (ADR-0037), one per employment × leave type × year, dated at the go-live date.
-* Also: `device`, `geofence` (P2), `enrolment_mapping`, `business_trip`, `remote_work_request`, `attendance_code`, `leave_policy`, `ext_core_location`, `ext_hr_assignment` (projections), `ext_pay_pay_group_assignment`.
+* `raw_punch` là append-only, được range-partition theo `work_date_hint` (theo tháng), và loại trùng bằng `UNIQUE (tenant_id, dedup_key, work_date_hint)` với `dedup_key = hash(device_id|enrol_id|punch_at)` (NFR-ATT-001). Việc tiếp nhận là một batch `INSERT … ON CONFLICT DO NOTHING`: ở Phase 1 từ bước commit import của một file xuất từ máy chấm công (mỗi chunk của import job là một chunk, `import_job_id` được giữ trên dòng), ở Phase 2 còn từ consumer của punch stream.
+* `daily_timesheet` có thể thay đổi cho đến khi kỳ của nó ở trạng thái LOCKED. Nó được partition theo tháng theo `work_date` với `fillfactor = 80` để tận dụng HOT update. Nó được tính lại thay vì sửa, và `calc_version` tăng lên sau mỗi lần tính lại.
+* **Kết quả chấm công là bất biến.** Khóa lại kỳ sẽ tạo `result_version + 1`, và phiên bản trước chuyển sang `WITHDRAWN`.
+* **Close hold** (SA ADR-0019): `att.attendance_result_hold (tenant_id, id, period_id, result_version, payroll_run_id, held_at, released_at, status ACTIVE/RELEASED/CONSUMED)` với partial unique index `(tenant_id, period_id) WHERE status = 'ACTIVE'`. Payroll giành hold khi submit qua T&A API chạy in-process. Thao tác mở lại kỳ kiểm tra hold ACTIVE trong cùng transaction (`SELECT … FOR UPDATE` trên dòng kỳ) và bị từ chối khi đang có hold. Khi được duyệt, hold chuyển sang `CONSUMED`, và kỳ chuyển sang LOCKED bằng `UPDATE att.attendance_period SET status='LOCKED', locked_version=:v WHERE id=:p AND current_version=:v AND status='CLOSED'`. Nhờ có hold nên lệnh này không thể ảnh hưởng tới 0 dòng, nhưng predicate vẫn được giữ làm guard.
+* Các delta hồi tố sau khi LOCKED là các dòng có `is_retro = true` và `original_period_id`, nằm trong kết quả của kỳ OPEN tiếp theo (hoặc một kết quả off-cycle cho người nghỉ việc).
+* `ot_cap_ledger` (theo employment × tháng/năm) được cập nhật trong cùng transaction với việc duyệt OT, với `SELECT … FOR UPDATE` trên dòng ledger, giúp tuần tự hóa việc kiểm tra trần theo từng nhân viên.
+* **Nguồn chấm công ở Phase 1 (OD-9, R2-01): chỉ import file.** Ở Phase 1 không có device connector trực tiếp hay endpoint tiếp nhận. Lượt chấm công đến dưới dạng các dòng `IMPORT` từ **template file xuất từ máy chấm công** (CSV/Excel xuất từ phần mềm máy chấm công của khách hàng, ánh xạ theo bố cục cột riêng của từng nhà cung cấp: enrol id, ngày-giờ, id thiết bị/terminal, cờ vào/ra nếu có) thông qua import engine của Core; `dedup_key` dùng terminal id trong file, nên import lại một file bị chồng lấn cũng không gây hại. Chấm công tổng hợp (số ngày/giờ theo nhân viên) dùng luồng import chấm công Excel riêng, tạo trực tiếp một Attendance Result (capability nền tảng, R2-18). Nguồn `DEVICE` (connector trực tiếp, Phase 2), `MOBILE`/`WEB`, `geo_enc`, tham chiếu ảnh selfie và `geofence` thuộc Phase 2; CHECK trên `source` trong DDL Phase 1 chỉ liệt kê `IMPORT` và sẽ được mở rộng (expand migration) ở Phase 2. `att.device` vẫn có ở Phase 1 làm registry các terminal và ánh xạ enrolment dùng cho việc import file.
+* Các dòng `leave_balance_ledger` có `txn_type = 'OPENING'` là số dư khi go-live được nạp bởi `OB_LEAVE_BALANCE` (ADR-0037), mỗi employment × loại nghỉ phép × năm một dòng, ghi ngày là ngày go-live.
+* Ngoài ra: `device`, `geofence` (P2), `enrolment_mapping`, `business_trip`, `remote_work_request`, `attendance_code`, `leave_policy`, `ext_core_location`, `ext_hr_assignment` (projection), `ext_pay_pay_group_assignment`.
 
 ### 7.5 `pay`
 
@@ -834,9 +834,9 @@ erDiagram
   }
 ```
 
-Also in `pay`: `pay_scale`/`pay_scale_step`/`grade_band` (owned here, gap §5 #7), `employee_pay_profile` (projection of People + payroll-only settings), `ext_hr_salary`, `ext_hr_bank_split`, `ext_hr_dependant_count`, `ext_att_result` (pointer to consumed result versions), `variable_input`/`input_batch`, `retro_item`, `loan`/`loan_schedule`, `deduction_order`, `final_settlement`, `casual_payee`/`casual_payment`, `pit_commitment`, `pit_finalisation_auth`, `pit_certificate`, `payslip_delivery`, `payslip_delivery_preference` (below), `bank_file_template`, `gl_mapping`, `cost_allocation`, `ytd_balance` (per employment × tax year × month × balance code; rows with `source = 'OPENING'` are the pre-go-live months of the current tax year loaded by `OB_YTD_PAYROLL`, ADR-0037, and are never recalculated).
+Ngoài ra trong `pay`: `pay_scale`/`pay_scale_step`/`grade_band` (sở hữu tại đây, gap §5 #7), `employee_pay_profile` (projection của People + các thiết lập chỉ dành cho payroll), `ext_hr_salary`, `ext_hr_bank_split`, `ext_hr_dependant_count`, `ext_att_result` (con trỏ tới các phiên bản kết quả đã sử dụng), `variable_input`/`input_batch`, `retro_item`, `loan`/`loan_schedule`, `deduction_order`, `final_settlement`, `casual_payee`/`casual_payment`, `pit_commitment`, `pit_finalisation_auth`, `pit_certificate`, `payslip_delivery`, `payslip_delivery_preference` (bên dưới), `bank_file_template`, `gl_mapping`, `cost_allocation`, `ytd_balance` (theo employment × năm tính thuế × tháng × mã số dư; các dòng có `source = 'OPENING'` là các tháng trước go-live của năm tính thuế hiện tại được nạp bởi `OB_YTD_PAYROLL`, ADR-0037, và không bao giờ được tính lại).
 
-**Payslip e-mail as password-protected PDF (R2-17, GAP-057; SA ADR-0015).** `pay.payslip_delivery_preference (tenant_id, id, person_id, channel ESS_ONLY|EMAIL_PDF, email_target WORK|PERSONAL, pdf_password_enc bytea, password_set_at, password_set_by, subject_key_version, status)` — one row per person (one password for all of the person's employments). `pdf_password_enc` is **P3**: encrypted with the person's subject DEK (§9.3), write-only through the API (never returned, never logged, never in events or job payloads), decrypted only in memory by the payslip e-mail job. It is set **by the employee in ESS** with step-up (`acr ≥ 2`); HR and operators can only clear it (forces "set a new password"), never read or set it. Without a password the e-mail carries no attachment, only the notification and the ESS link. `pay.payslip_delivery` records each delivery (payslip id, encrypted-attachment SHA-256, recipient, sent/bounced status, `password_set_at` used); the encrypted PDF itself is transient (built per e-mail, handed to the e-mail channel as a short-lived object under the tenant prefix and deleted after sending, at most 24 h), while the archived payslip stays the unencrypted PDF/A in the document service (PDF/A does not allow encryption). Crypto-shredding the subject DEK also destroys the password. Audit: password set/cleared, every e-mail with attachment, every failure (`audit.audit_event`, no value).
+**Gửi phiếu lương qua e-mail dưới dạng PDF có mật khẩu (R2-17, GAP-057; SA ADR-0015).** `pay.payslip_delivery_preference (tenant_id, id, person_id, channel ESS_ONLY|EMAIL_PDF, email_target WORK|PERSONAL, pdf_password_enc bytea, password_set_at, password_set_by, subject_key_version, status)` — mỗi người một dòng (một mật khẩu cho mọi employment của người đó). `pdf_password_enc` là **P3**: được mã hóa bằng subject DEK của người đó (§9.3), chỉ-ghi qua API (không bao giờ trả về, không bao giờ ghi log, không bao giờ có trong event hay payload của job), chỉ được giải mã trong bộ nhớ bởi job gửi phiếu lương qua e-mail. Mật khẩu do **nhân viên tự đặt trong ESS** với step-up (`acr ≥ 2`); HR và operator chỉ có thể xóa nó (buộc "đặt mật khẩu mới"), không bao giờ đọc hay đặt nó. Khi không có mật khẩu, e-mail không có file đính kèm, chỉ có thông báo và đường link ESS. `pay.payslip_delivery` ghi lại mỗi lần gửi (id phiếu lương, SHA-256 của file đính kèm đã mã hóa, người nhận, trạng thái đã gửi/bị trả về, `password_set_at` đã dùng); bản thân file PDF mã hóa là tạm thời (được tạo cho mỗi e-mail, chuyển cho kênh e-mail dưới dạng một object tồn tại ngắn trong prefix của tenant và bị xóa sau khi gửi, tối đa 24 h), trong khi phiếu lương lưu trữ vẫn là file PDF/A không mã hóa trong document service (PDF/A không cho phép mã hóa). Crypto-shred subject DEK cũng hủy luôn mật khẩu. Audit: đặt/xóa mật khẩu, mọi e-mail có file đính kèm, mọi lỗi (`audit.audit_event`, không chứa giá trị).
 
 ### 7.6 `rec` (Phase 2)
 
@@ -890,66 +890,66 @@ erDiagram
   }
 ```
 
-Candidate PII uses per-candidate subject keys, so the 12-month retention expiry is a key destruction plus anonymisation (NFR-REC-009). There is no cross-tenant candidate matching.
+PII của ứng viên dùng subject key riêng cho từng ứng viên, nên việc hết hạn lưu trữ 12 tháng là thao tác hủy khóa cộng với ẩn danh hóa (NFR-REC-009). Không có việc so khớp ứng viên giữa các tenant.
 
 ---
 
-## 8. Payroll storage: immutability, reproducibility, retention (ADR-0029)
+## 8. Lưu trữ dữ liệu lương: bất biến, tái lập, lưu trữ dài hạn (ADR-0029)
 
-| Concern | Design |
+| Vấn đề | Thiết kế |
 |---|---|
-| Inputs | At `INPUT_CUTOFF`/calculation, every input of every employee is **frozen** into `pay.run_input_snapshot.payload` (`jsonb`, TOAST `lz4`). The payload holds pay profile, salary segments with record ids and `recorded_at`, assignment segments, attendance result lines (period, version, checksum), variable inputs, loans, dependant count by month, YTD balances, bank split, residency, and SI history needed for caps. `payload_sha256` is computed over canonical JSON. |
-| Configuration | `pay.run_config_snapshot` (one per run) holds the resolved component versions, formula versions (expression text and hash), structure lines, rounding rules, and the **resolved legal value set** for the period (pack id + override version + the values themselves). Identical configs across runs are de-duplicated by `config_sha256`, and the run references it. |
-| Code | `payroll_run.code_version` = release tag of the payroll engine plus the formula-sandbox version. Releases are kept as container images for 10 years **[spike: image retention/escrow policy]**. |
-| Results | `run_employee` (header, totals, `result_sha256`) and `result_line` (one row per component × segment). |
-| Write path (SA ADR-0009) | While the run is `SNAPSHOTTING/CALCULATING`, chunk workers write `run_employee` and `result_line` with `COPY` (idempotent delete-and-rewrite per chunk, keyed by `run_id` + chunk number). Snapshots are written once, before calculation starts. |
-| Immutability | Trigger `pay.tg_run_immutable` blocks INSERT/UPDATE/DELETE on snapshots, run_employee and result_line once the run is `APPROVED` or later. The only allowed path is `UNLOCKED` (privileged with a second approval), which archives the previous result into `pay.run_result_history` (same structure, keyed by `unlock_seq`) before recalculation. Nothing approved is ever lost. |
-| Reproduction | The "replay" service loads a config snapshot and an input snapshot, runs the engine version `code_version`, and compares the hash with `result_sha256`. A scheduled job replays a 0.5 % sample of last year's runs every month (golden-file drift detection, NFR-PAY-003/008). |
-| Partitioning | `result_line` is range-partitioned by `period_month` (monthly). PK `(tenant_id, id, period_month)`; index `(tenant_id, run_employee_id)` per partition. |
-| Volume | 1M employees × ~60 lines × ~1.2 runs per month ≈ **72M rows/month**, about 0.86B rows/year, at ~150 B/row with indexes ≈ 11 GB/month. |
-| Retention (10 years, BR-PAY-123) | Hot: 36 monthly partitions online. Warm (37–120 months): each month is **compacted** into `pay.result_archive` (one row per `run_employee`, `lines jsonb` lz4-compressed, about 8× smaller), then the line partition is detached and dropped. Payslips, declarations, snapshots, run headers and `si_contribution`/`pit_withholding` stay online for the full 10 years (low volume). After 10 years plus the employment end, the retention scheduler purges or anonymises **[verify-legal]**. |
-| Reporting | `fact_payroll_line` in the reporting store keeps the full 10 years in columnar form (§11), so analytics never touch the archive. |
+| Đầu vào | Tại `INPUT_CUTOFF`/khi tính toán, mọi đầu vào của mọi nhân viên được **đóng băng** vào `pay.run_input_snapshot.payload` (`jsonb`, TOAST `lz4`). Payload chứa hồ sơ lương, các đoạn lương kèm id bản ghi và `recorded_at`, các đoạn phân công, các dòng kết quả chấm công (kỳ, phiên bản, checksum), đầu vào biến đổi, khoản vay, số người phụ thuộc theo tháng, số dư lũy kế từ đầu năm (YTD), phân bổ tài khoản ngân hàng, tình trạng cư trú, và lịch sử BHXH cần cho việc áp trần. `payload_sha256` được tính trên JSON chuẩn hóa. |
+| Cấu hình | `pay.run_config_snapshot` (mỗi lần chạy một bản) giữ các phiên bản thành phần lương đã phân giải, phiên bản công thức (văn bản biểu thức và hash), các dòng cấu trúc lương, quy tắc làm tròn, và **tập giá trị pháp lý đã phân giải** cho kỳ (pack id + override version + chính các giá trị đó). Các cấu hình giống hệt nhau giữa các lần chạy được loại trùng theo `config_sha256`, và lần chạy tham chiếu tới nó. |
+| Code | `payroll_run.code_version` = release tag của payroll engine cộng với phiên bản formula-sandbox. Các bản release được giữ dưới dạng container image trong 10 năm **[spike: chính sách lưu giữ/ký quỹ image]**. |
+| Kết quả | `run_employee` (header, tổng, `result_sha256`) và `result_line` (mỗi thành phần × đoạn một dòng). |
+| Luồng ghi (SA ADR-0009) | Khi lần chạy đang ở `SNAPSHOTTING/CALCULATING`, các chunk worker ghi `run_employee` và `result_line` bằng `COPY` (xóa-và-ghi-lại idempotent theo từng chunk, khóa theo `run_id` + số thứ tự chunk). Snapshot được ghi một lần, trước khi bắt đầu tính toán. |
+| Tính bất biến | Trigger `pay.tg_run_immutable` chặn INSERT/UPDATE/DELETE trên snapshot, run_employee và result_line khi lần chạy đã ở `APPROVED` hoặc trạng thái sau đó. Đường duy nhất được phép là `UNLOCKED` (đặc quyền, cần phê duyệt lần hai), lưu kết quả trước đó vào `pay.run_result_history` (cùng cấu trúc, khóa theo `unlock_seq`) trước khi tính lại. Không có gì đã duyệt bị mất. |
+| Tái lập | Service "replay" nạp một config snapshot và một input snapshot, chạy engine phiên bản `code_version`, và so sánh hash với `result_sha256`. Một job định kỳ hằng tháng replay mẫu 0.5 % các lần chạy của năm trước (phát hiện sai lệch bằng golden-file, NFR-PAY-003/008). |
+| Partitioning | `result_line` được range-partition theo `period_month` (theo tháng). PK `(tenant_id, id, period_month)`; index `(tenant_id, run_employee_id)` trên mỗi partition. |
+| Khối lượng | 1M nhân viên × ~60 dòng × ~1.2 lần chạy mỗi tháng ≈ **72M dòng/tháng**, khoảng 0.86B dòng/năm, với ~150 B/dòng kể cả index ≈ 11 GB/tháng. |
+| Lưu trữ (10 năm, BR-PAY-123) | Hot: 36 partition tháng online. Warm (tháng 37–120): mỗi tháng được **nén gọn** vào `pay.result_archive` (mỗi `run_employee` một dòng, `lines jsonb` nén lz4, nhỏ hơn khoảng 8×), sau đó partition dòng được detach và drop. Phiếu lương, tờ khai, snapshot, header lần chạy và `si_contribution`/`pit_withholding` được giữ online đủ 10 năm (khối lượng thấp). Sau 10 năm cộng thời điểm kết thúc employment, retention scheduler sẽ purge hoặc ẩn danh hóa **[verify-legal]**. |
+| Báo cáo | `fact_payroll_line` trong reporting store giữ đủ 10 năm ở dạng cột (§11), nên phân tích không bao giờ chạm vào kho lưu trữ. |
 
-`si_contribution` (one row per employment × month × scheme) is the **SI contribution history** master (gap §5 #20). It also holds the pre-go-live months loaded by the `OB_SI_HISTORY` template (from the employee's SI book / VSS C12 statement) with `status = 'OPENING'` and `import_job_id` (soft reference to `core.import_job`), ADR-0037.
+`si_contribution` (mỗi employment × tháng × chế độ một dòng) là master **lịch sử đóng BHXH** (gap §5 #20). Nó cũng chứa các tháng trước go-live được nạp bởi template `OB_SI_HISTORY` (từ sổ BHXH của nhân viên / bảng C12 của VSS) với `status = 'OPENING'` và `import_job_id` (soft reference tới `core.import_job`), ADR-0037.
 
 ---
 
-## 9. Outbox/inbox, audit, PII protection
+## 9. Outbox/inbox, audit, bảo vệ PII
 
-### 9.1 Transactional outbox and inbox (ADR-0028)
+### 9.1 Transactional outbox và inbox (ADR-0028)
 
-Every module schema has the same pair of tables (DDL template in `002_core.sql`, procedure `sys.create_outbox_inbox(schema)`):
+Mỗi schema của module có cùng một cặp bảng (template DDL trong `002_core.sql`, procedure `sys.create_outbox_inbox(schema)`):
 
-| Table | Key columns | Notes |
+| Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `<schema>.outbox_event` | `id` (= envelope `event_id`, UUIDv7), `tenant_id`, `legal_entity_id`, `aggregate_type`, `aggregate_id`, `event_type`, `schema_version`, `occurred_at`, `effective_date`, `correlation_id`, `causation_id`, `is_retro`, `person_id`, `employment_id`, `payload jsonb`, `headers jsonb`, `created_at`, `published_at` | Envelope as in gap §6. Inserted in the **same transaction** as the business change (NFR-PPL-002). Range-partitioned **daily** by `created_at`. Partitions older than 7 days are dropped, so no `DELETE` and no vacuum churn. |
-| `<schema>.inbox_message` | PK `(consumer, event_id)`, `tenant_id`, `event_type`, `received_at`, `processed_at`, `status`, `attempts`, `last_error` | Idempotent consumption: the handler inserts the inbox row and applies its effect in one transaction, and a duplicate hits the PK. Monthly partitions, 90-day retention. |
+| `<schema>.outbox_event` | `id` (= `event_id` của envelope, UUIDv7), `tenant_id`, `legal_entity_id`, `aggregate_type`, `aggregate_id`, `event_type`, `schema_version`, `occurred_at`, `effective_date`, `correlation_id`, `causation_id`, `is_retro`, `person_id`, `employment_id`, `payload jsonb`, `headers jsonb`, `created_at`, `published_at` | Envelope như trong gap §6. Được insert trong **cùng transaction** với thay đổi nghiệp vụ (NFR-PPL-002). Range-partition **theo ngày** theo `created_at`. Partition cũ hơn 7 ngày bị drop, nên không có `DELETE` và không có vacuum churn. |
+| `<schema>.inbox_message` | PK `(consumer, event_id)`, `tenant_id`, `event_type`, `received_at`, `processed_at`, `status`, `attempts`, `last_error` | Tiêu thụ idempotent: handler insert dòng inbox và áp dụng hiệu ứng của nó trong một transaction, và bản trùng sẽ vướng PK. Partition theo tháng, lưu 90 ngày. |
 
-* Relay (SA ADR-0004 rev. 2): an in-app **polling relay** in `hrm-worker` runs `SELECT … WHERE published_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 500` (partial index `outbox_event_unpublished_ix`) over a direct (non-PgBouncer) connection and sets `published_at`. **Phase 1 (no Kafka, R2-01):** in the same transaction it calls `saas.enqueue_event_delivery()`, which inserts one `saas.job` row per subscribed consumer (queue `events`, type `bus.Deliver`, `idempotency_key = consumer:event_id`, `ordering_key = consumer:aggregate_id`). `saas.claim_jobs()` runs at most one non-terminal job per ordering key, oldest first, so each consumer sees an aggregate's events in order; retries, backoff, `DEAD` (the Phase-1 dead-letter state), operator replay and tenant fair share come from the job framework. The job payload is only a pointer (source cluster, schema, `event_id`, `created_at`); the delivery worker reads the event through the relay connection and runs the consumer handler in the consumer module's transaction with its own role and inbox. Platform events of the platform cluster (e.g. `saas.LegalParameterPackPublished`) are enqueued by the relay on each pool cluster with the sentinel tenant. **Phase 2:** the relay publishes to Kafka with key `tenant_id:aggregate_id` instead; tables and consumer code are unchanged. A `DEAD` delivery must be replayed within the 7-day outbox window, otherwise the consumer re-syncs from the owner API. Published rows stay for 7 days for re-publication after DR, which matches the daily partitions dropped after 7 days. Debezium is **not** on the business path. The envelope's `initial_load` flag (opening-balance import, ADR-0037; formerly `migration`) travels in `headers`.
-* The relay role `yhrm_relay` reads all tenants through a dedicated `USING (true)` policy. The application roles see only their tenant.
-* PII in payloads is minimised (ids plus changed field *names*). Sensitive values (bank account, ID numbers) are never in payloads; consumers call the owner's API (gap §6 `PersonalDataChanged` "minimised").
+* Relay (SA ADR-0004 rev. 2): một **polling relay** trong ứng dụng chạy ở `hrm-worker` thực thi `SELECT … WHERE published_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 500` (partial index `outbox_event_unpublished_ix`) qua kết nối trực tiếp (không qua PgBouncer) và thiết lập `published_at`. **Phase 1 (không có Kafka, R2-01):** trong cùng transaction nó gọi `saas.enqueue_event_delivery()`, hàm này insert một dòng `saas.job` cho mỗi consumer đã đăng ký (queue `events`, type `bus.Deliver`, `idempotency_key = consumer:event_id`, `ordering_key = consumer:aggregate_id`). `saas.claim_jobs()` chạy tối đa một job chưa kết thúc cho mỗi ordering key, cũ nhất trước, nên mỗi consumer thấy các event của một aggregate theo đúng thứ tự; retry, backoff, `DEAD` (trạng thái dead-letter ở Phase 1), replay bởi operator và chia sẻ công bằng giữa các tenant đến từ job framework. Payload của job chỉ là một con trỏ (cluster nguồn, schema, `event_id`, `created_at`); delivery worker đọc event qua kết nối relay và chạy handler của consumer trong transaction của module tiêu thụ với role và inbox riêng của nó. Các platform event của platform cluster (ví dụ `saas.LegalParameterPackPublished`) được relay enqueue trên từng pool cluster với sentinel tenant. **Phase 2:** relay publish lên Kafka với key `tenant_id:aggregate_id` thay vào đó; bảng và code consumer không đổi. Một delivery ở trạng thái `DEAD` phải được replay trong cửa sổ 7 ngày của outbox, nếu không consumer sẽ re-sync từ API của module sở hữu. Các dòng đã publish được giữ 7 ngày để có thể publish lại sau DR, khớp với việc partition theo ngày bị drop sau 7 ngày. Debezium **không** nằm trên luồng nghiệp vụ. Cờ `initial_load` của envelope (import số dư đầu kỳ, ADR-0037; trước đây là `migration`) được truyền trong `headers`.
+* Role relay `yhrm_relay` đọc mọi tenant qua một policy riêng `USING (true)`. Các role ứng dụng chỉ thấy tenant của mình.
+* PII trong payload được tối thiểu hóa (id cộng với *tên* các trường thay đổi). Các giá trị nhạy cảm (tài khoản ngân hàng, số giấy tờ định danh) không bao giờ nằm trong payload; consumer gọi API của module sở hữu (gap §6 `PersonalDataChanged` "minimised").
 
 ### 9.2 Audit log (ADR-0027)
 
-* `audit.audit_event`: monthly range partitions on `occurred_at`; PK `(tenant_id, id, occurred_at)`. Columns: actor type/id, `on_behalf_of_id`, `support_grant_id`, `operator_id`, action, object schema/type/id, `legal_entity_id`, `purpose`, `request_id`, `correlation_id`, `client_ip`, `user_agent`, `change jsonb` (masked before/after diff), `is_sensitive_read`, plus seal columns `chain_seq`, `prev_hash`, `row_hash`, `sealed_at`.
-* **Writes** happen in the business transaction: explicitly by services (business semantics, sensitive reads) and by the generic row trigger `audit.tg_row_audit` on configuration and HR tables. Encrypted columns appear only as `"<encrypted:changed>"`.
-* **Tamper evidence:** sealing is **asynchronous** to avoid serialising every business transaction on a per-tenant chain head. `audit.seal_batch(tenant)`, run by `yhrm_audit_sealer` every few seconds, locks `audit.chain_head(tenant)`, takes unsealed rows older than 2 s in `id` order, and assigns `chain_seq = last + 1` and `row_hash = sha256(prev_hash || canonical(row))`. The chain order is the seal order. A row that commits late is simply sealed later.
-* **Anchoring:** every day the chain head per tenant is written to `audit.chain_anchor` and to a WORM (object-lock) bucket in a second VN data centre. `audit.verify_chain(tenant, from_seq, to_seq)` recomputes hashes. Any in-DB tampering breaks either the chain or the anchor.
-* Grants: modules have `INSERT` only; the sealer can update only the seal columns (column-level grant); nobody has `DELETE`. Partitions are archived (detach → Parquet in WORM storage) after 24 months hot and kept for 10 years (payroll-related actions). Query target: 1 year for one record ≤ 3 s (NFR-CORE-008), via index `(tenant_id, object_type, object_id, occurred_at)` per partition.
-* Platform-only events (operator logins, plan changes) go to `saas.platform_audit_event` with the same chain mechanics, using the sentinel tenant.
+* `audit.audit_event`: range partition theo tháng trên `occurred_at`; PK `(tenant_id, id, occurred_at)`. Các cột: loại/id của actor, `on_behalf_of_id`, `support_grant_id`, `operator_id`, hành động, schema/loại/id của đối tượng, `legal_entity_id`, `purpose`, `request_id`, `correlation_id`, `client_ip`, `user_agent`, `change jsonb` (diff trước/sau đã che), `is_sensitive_read`, cộng với các cột seal `chain_seq`, `prev_hash`, `row_hash`, `sealed_at`.
+* **Ghi** diễn ra trong transaction nghiệp vụ: tường minh bởi service (ngữ nghĩa nghiệp vụ, các lần đọc nhạy cảm) và bởi trigger dòng chung `audit.tg_row_audit` trên các bảng cấu hình và HR. Cột mã hóa chỉ xuất hiện dưới dạng `"<encrypted:changed>"`.
+* **Bằng chứng chống giả mạo:** việc seal là **bất đồng bộ** để tránh tuần tự hóa mọi transaction nghiệp vụ trên chain head của từng tenant. `audit.seal_batch(tenant)`, do `yhrm_audit_sealer` chạy vài giây một lần, lock `audit.chain_head(tenant)`, lấy các dòng chưa seal cũ hơn 2 s theo thứ tự `id`, và gán `chain_seq = last + 1` và `row_hash = sha256(prev_hash || canonical(row))`. Thứ tự chuỗi là thứ tự seal. Một dòng commit muộn đơn giản sẽ được seal muộn hơn.
+* **Anchoring:** hằng ngày, chain head của mỗi tenant được ghi vào `audit.chain_anchor` và vào một bucket WORM (object-lock) ở data centre thứ hai tại VN. `audit.verify_chain(tenant, from_seq, to_seq)` tính lại hash. Mọi giả mạo trong DB đều phá vỡ hoặc chuỗi hoặc anchor.
+* Grant: module chỉ có `INSERT`; sealer chỉ có thể cập nhật các cột seal (grant ở mức cột); không ai có `DELETE`. Partition được lưu trữ (detach → Parquet trong WORM storage) sau 24 tháng hot và giữ trong 10 năm (các hành động liên quan đến lương). Mục tiêu truy vấn: 1 năm cho một bản ghi ≤ 3 s (NFR-CORE-008), qua index `(tenant_id, object_type, object_id, occurred_at)` trên mỗi partition.
+* Các event chỉ thuộc platform (operator đăng nhập, thay đổi gói) đi vào `saas.platform_audit_event` với cùng cơ chế chuỗi, dùng sentinel tenant.
 
-### 9.3 PII classification and encryption (ADR-0026)
+### 9.3 Phân loại và mã hóa PII (ADR-0026)
 
-| Class | Examples | Protection |
+| Class | Ví dụ | Bảo vệ |
 |---|---|---|
-| **P3 — identifiers, bank accounts, special-category data** | CCCD/passport no., personal tax code, SI number, bank account no., religion, ethnicity, health/medical data, disability, GPS coordinates and selfie references (Phase 2 only, OD-9), family members' ID and tax codes, candidate ID documents, staged import rows (`core.import_row.payload_enc`), the employee-set payslip PDF password (`pay.payslip_delivery_preference.pdf_password_enc`, R2-17) | **Application-level envelope encryption** (AES-256-GCM) in `_enc bytea`. Blind index `_bidx` (HMAC-SHA256 with the tenant blind-index key, truncated to 16 bytes) where equality lookup is needed. `_last4` display hint where the UI masks. Access is logged as a sensitive read. |
-| **P2 — confidential personal / pay** | Salary amounts (salary record, result lines, payslips), date of birth, addresses, phone, personal email, dependants' names, discipline | Plaintext in DB: protected by RLS + module grants + storage encryption (AES-256 volume/TDE-equivalent) + **masking views** + field permissions in Core + audit. **Salary amounts are P2 and are not column-encrypted (decided X-01, 2026-10-16; closes D-02/D-11).** Compensating controls, all mandatory: RLS; only `yhrm_app_hr`/`yhrm_app_pay` hold grants on amount tables (none is on the X-02 list); masking views that hide amounts unless `app.mask_level` ∈ (`NONE`, `PII`), fail closed when unset (`hr.v_salary_record_masked`, payroll equivalents); API field masking; step-up for bulk views/exports; sensitive-read audit; `people.SalaryChanged` delivered only to the Payroll consumer (Phase-1 bus jobs carry no payload; ACL-restricted topic in Phase 2); OpenBao dynamic credentials with no human access to the app credentials and pgaudit on DB sessions (R2-15); amounts in the reporting store only through the reporting service (§11). |
-| **P1 — internal** | Names, employee no., org, position, work email | RLS + grants. |
-| **P0 — public/reference** | Global master data | none |
+| **P3 — định danh, tài khoản ngân hàng, dữ liệu nhạy cảm đặc biệt** | Số CCCD/hộ chiếu, MST cá nhân, số sổ BHXH, số tài khoản ngân hàng, tôn giáo, dân tộc, dữ liệu sức khỏe/y tế, khuyết tật, tọa độ GPS và tham chiếu ảnh selfie (chỉ Phase 2, OD-9), số định danh và MST của thành viên gia đình, giấy tờ định danh của ứng viên, các dòng import ở staging (`core.import_row.payload_enc`), mật khẩu PDF phiếu lương do nhân viên đặt (`pay.payslip_delivery_preference.pdf_password_enc`, R2-17) | **Envelope encryption ở tầng ứng dụng** (AES-256-GCM) trong `_enc bytea`. Blind index `_bidx` (HMAC-SHA256 với blind-index key của tenant, cắt còn 16 byte) ở nơi cần tra cứu bằng. Gợi ý hiển thị `_last4` ở nơi UI che dữ liệu. Truy cập được ghi log như một lần đọc nhạy cảm. |
+| **P2 — thông tin cá nhân / lương bảo mật** | Số tiền lương (hồ sơ lương, dòng kết quả, phiếu lương), ngày sinh, địa chỉ, điện thoại, e-mail cá nhân, tên người phụ thuộc, kỷ luật | Plaintext trong DB: được bảo vệ bởi RLS + grant theo module + mã hóa lưu trữ (AES-256 ở mức volume/tương đương TDE) + **masking view** + phân quyền trường trong Core + audit. **Số tiền lương là P2 và không được mã hóa ở mức cột (quyết định X-01, 2026-10-16; đóng D-02/D-11).** Các biện pháp kiểm soát bù trừ, tất cả đều bắt buộc: RLS; chỉ `yhrm_app_hr`/`yhrm_app_pay` có grant trên các bảng số tiền (không bảng nào nằm trong danh sách X-02); masking view ẩn số tiền trừ khi `app.mask_level` ∈ (`NONE`, `PII`), fail closed khi chưa thiết lập (`hr.v_salary_record_masked`, các view tương đương bên payroll); che trường ở API; step-up cho view/xuất dữ liệu hàng loạt; audit đọc nhạy cảm; `people.SalaryChanged` chỉ được gửi tới consumer Payroll (bus job ở Phase 1 không mang payload; topic hạn chế bằng ACL ở Phase 2); credential động của OpenBao, không ai có quyền truy cập thủ công vào app credential, và pgaudit trên các DB session (R2-15); số tiền trong reporting store chỉ truy cập được qua reporting service (§11). |
+| **P1 — nội bộ** | Họ tên, mã nhân viên, tổ chức, vị trí, e-mail công việc | RLS + grant. |
+| **P0 — công khai/tham chiếu** | Master data toàn cục | không có |
 
-The classification is registered per column in the SaaS PD inventory (gap §5 #27) through `COMMENT ON COLUMN … IS 'pii:P3 …'`. A CI check parses the comments and fails when a new column has no class.
+Phân loại được đăng ký cho từng cột trong danh mục dữ liệu cá nhân (PD inventory) của SaaS (gap §5 #27) qua `COMMENT ON COLUMN … IS 'pii:P3 …'`. Một kiểm tra CI phân tích các comment và báo lỗi khi một cột mới không có phân loại.
 
-**Key hierarchy:**
+**Phân cấp khóa:**
 
 ```
 OpenBao transit (in VN; software root for the MVP, HSM-backed before the Enterprise tier, OD-10; SA ADR-0017) ─ tenant KEK (one per tenant, per purpose, rotatable; ref in saas.tenant_key)
@@ -959,55 +959,55 @@ OpenBao transit (in VN; software root for the MVP, HSM-backed before the Enterpr
    └─ wraps ─ import-job DEK (core.import_job.wrapped_dek) ─ encrypts staged rows; destroyed 30 days after commit
 ```
 
-* **Refinement of SA ADR-0017:** the SA describes per-tenant DEKs wrapped by tenant KEKs. This design adds one level, **per-subject DEKs**, so one person or candidate can be crypto-shredded without re-encrypting the tenant. The KEK level is unchanged.
-* **pgcrypto vs application encryption:** the application is chosen. With pgcrypto the keys would travel in SQL text and appear in `pg_stat_statements`/logs, the DB process would see plaintext, and per-tenant KMS is awkward. Application envelope encryption keeps keys out of the database and makes crypto-shredding meaningful. `pgcrypto` is still used for `digest()` (audit hashes) and `gen_random_bytes()`.
-* Cost: the payroll run decrypts only what it needs (bank account at bank-file time, tax code for declarations). Unwrapping subject DEKs is local AES with the cached tenant KEK, about 10k unwraps in < 1 s **[spike: benchmark with the chosen KMS + cache TTL]**.
+* **Tinh chỉnh so với SA ADR-0017:** SA mô tả DEK theo tenant được wrap bởi KEK của tenant. Thiết kế này thêm một cấp, **DEK theo từng chủ thể dữ liệu (per-subject DEK)**, để có thể crypto-shred một người hoặc một ứng viên mà không phải mã hóa lại toàn bộ tenant. Cấp KEK không đổi.
+* **pgcrypto so với mã hóa ở tầng ứng dụng:** chọn tầng ứng dụng. Với pgcrypto, khóa sẽ đi trong văn bản SQL và xuất hiện trong `pg_stat_statements`/log, tiến trình DB sẽ thấy plaintext, và KMS theo tenant rất khó áp dụng. Envelope encryption ở tầng ứng dụng giữ khóa ngoài database và khiến crypto-shredding có ý nghĩa thực sự. `pgcrypto` vẫn được dùng cho `digest()` (hash của audit) và `gen_random_bytes()`.
+* Chi phí: lần chạy lương chỉ giải mã những gì cần (tài khoản ngân hàng khi tạo file ngân hàng, MST cho tờ khai). Unwrap subject DEK là AES cục bộ với KEK của tenant đã cache, khoảng 10k lần unwrap trong < 1 s **[spike: benchmark với KMS được chọn + cache TTL]**.
 * **Crypto-shredding:**
-  * Subject level (DSR erasure, candidate retention, end of the 10-year retention): set `wrapped_dek = NULL`, `destroyed_at = now()`. Ciphertext in the DB, replicas, reporting store and exports becomes unreadable at once. Backups still contain the wrapped DEK and expire within 35 days, which is documented to the DPO.
-  * Tenant level: schedule KMS destruction of the tenant KEK. All P3 data of the tenant, backups included, becomes unreadable.
-* Key rotation: KEK rotation re-wraps the DEKs (cheap). DEK rotation re-encrypts the subject's columns lazily on write, and a background job finishes within 90 days.
-* Search on encrypted values is equality only (blind index). Partial or fuzzy search on CCCD or bank numbers is not supported, which is acceptable by design.
+  * Mức chủ thể (xóa theo DSR, hết hạn lưu trữ ứng viên, hết thời hạn lưu trữ 10 năm): đặt `wrapped_dek = NULL`, `destroyed_at = now()`. Ciphertext trong DB, replica, reporting store và file xuất lập tức không đọc được. Backup vẫn chứa DEK đã wrap và hết hạn trong vòng 35 ngày, điều này được thông báo bằng văn bản cho DPO.
+  * Mức tenant: lên lịch cho KMS hủy KEK của tenant. Mọi dữ liệu P3 của tenant, kể cả backup, trở nên không đọc được.
+* Xoay vòng khóa: xoay vòng KEK sẽ wrap lại các DEK (chi phí thấp). Xoay vòng DEK mã hóa lại các cột của chủ thể theo kiểu lazy khi ghi, và một background job hoàn tất trong vòng 90 ngày.
+* Tìm kiếm trên giá trị mã hóa chỉ hỗ trợ so khớp bằng (blind index). Không hỗ trợ tìm kiếm một phần hay tìm gần đúng trên số CCCD hoặc số tài khoản ngân hàng, điều này được chấp nhận theo thiết kế.
 
-### 9.4 Masking views
+### 9.4 Masking view
 
-* `<schema>.v_<table>_masked` views expose `_last4` hints, null out `_enc` columns and round or hide P2 amounts by a session flag `app.mask_level` (`NONE`, `PII`, `PII_AND_PAY`) set per transaction from the user's field permissions or the support grant (BR-SAAS-034). They are views with `security_barrier = true` and `security_invoker = true` (PG15+), so RLS keeps applying to the caller. Because salary amounts are not encrypted (X-01), the pay views fail closed: an unset `app.mask_level` hides amounts (`hr.v_salary_record_masked` in `003_hr.sql`; `pay` views follow the same template), whereas the PII views default to `PII`.
-* Non-production copies (sandbox from production, BR-SAAS-031) use the **masking pipeline**: P3 columns are re-encrypted under a sandbox tenant key after deterministic fake substitution, and P2 names and addresses are replaced by synthetic Vietnamese names. Nothing from production keys reaches non-production.
+* Các view `<schema>.v_<table>_masked` hiển thị gợi ý `_last4`, đặt NULL cho các cột `_enc` và làm tròn hoặc ẩn số tiền P2 theo cờ session `app.mask_level` (`NONE`, `PII`, `PII_AND_PAY`) được thiết lập cho mỗi transaction từ phân quyền trường của user hoặc từ support grant (BR-SAAS-034). Đây là các view với `security_barrier = true` và `security_invoker = true` (PG15+), nên RLS vẫn áp dụng cho bên gọi. Vì số tiền lương không được mã hóa (X-01), các view lương fail closed: `app.mask_level` chưa thiết lập sẽ ẩn số tiền (`hr.v_salary_record_masked` trong `003_hr.sql`; các view `pay` theo cùng template), trong khi các view PII mặc định là `PII`.
+* Các bản sao ngoài production (sandbox từ production, BR-SAAS-031) dùng **masking pipeline**: các cột P3 được mã hóa lại bằng khóa của sandbox tenant sau khi thay thế bằng dữ liệu giả có tính xác định, và tên cùng địa chỉ P2 được thay bằng tên tiếng Việt tổng hợp. Không có gì từ khóa production đến được môi trường ngoài production.
 
 ---
 
-## 10. Partitioning, volumes, indexing, vacuum, archiving (ADR-0030)
+## 10. Partitioning, khối lượng, index, vacuum, lưu trữ (ADR-0030)
 
-### 10.1 Volume estimate (sizing case: 500 tenants, 1,000,000 employees; launch target is 200k = 1/5)
+### 10.1 Ước tính khối lượng (kịch bản định cỡ: 500 tenant, 1,000,000 nhân viên; mục tiêu khi ra mắt là 200k = 1/5)
 
-| Table | Driver | Rows / month | Rows / year | Size / year (incl. idx) | Partitioning | Hot retention in OLTP |
+| Bảng | Yếu tố quyết định | Dòng / tháng | Dòng / năm | Dung lượng / năm (gồm idx) | Partitioning | Thời gian lưu hot trong OLTP |
 |---|---|---|---|---|---|---|
-| `att.raw_punch` | 1M × 4 punches × 26 d | 104M | 1.25B | ~360 GB | monthly range on `work_date_hint` | 25 months, then archive (Parquet + manifest), restorable within ~2 working days (thresholds accepted, D-03) |
-| `att.daily_timesheet` | 1M × 30 d | 30M | 360M | ~150 GB | monthly range on `work_date` | 37 months, then compacted archive |
-| `att.attendance_result_line` | 1M × ~15 categories × 1.3 versions | 20M | 240M | ~50 GB | monthly range on `period_start` | 10 years (narrow rows) **[spike]** |
-| `att.leave_balance_ledger` | ~3 txn / emp / month | 3M | 36M | ~8 GB | none (index on tenant, employment) | 10 years |
-| `pay.result_line` | 1M × 60 × 1.2 | 72M | 864M | ~130 GB | monthly range on `period_month` | 36 months, then `result_archive` |
-| `pay.run_input_snapshot` | 1M × 1.2 × ~8 KB compressed | 1.2M | 14M | ~110 GB | yearly range on `period_month` | 10 years |
-| `audit.audit_event` | ~40 events / emp / month | 40M | 480M | ~250 GB | monthly range | 24 months hot, 10 years archive |
-| `*.outbox_event` | ~2× business writes | ~60M | — | ≤ 7 days kept | daily range | 7 days |
-| `saas.usage_record` | per tenant × metric × day | 0.5M | 6M | small | monthly | 25 months |
+| `att.raw_punch` | 1M × 4 lượt chấm công × 26 ngày | 104M | 1.25B | ~360 GB | range theo tháng trên `work_date_hint` | 25 tháng, sau đó lưu trữ (Parquet + manifest), khôi phục được trong ~2 ngày làm việc (ngưỡng đã chấp nhận, D-03) |
+| `att.daily_timesheet` | 1M × 30 ngày | 30M | 360M | ~150 GB | range theo tháng trên `work_date` | 37 tháng, sau đó lưu trữ dạng nén gọn |
+| `att.attendance_result_line` | 1M × ~15 loại × 1.3 phiên bản | 20M | 240M | ~50 GB | range theo tháng trên `period_start` | 10 năm (dòng hẹp) **[spike]** |
+| `att.leave_balance_ledger` | ~3 giao dịch / nhân viên / tháng | 3M | 36M | ~8 GB | không có (index trên tenant, employment) | 10 năm |
+| `pay.result_line` | 1M × 60 × 1.2 | 72M | 864M | ~130 GB | range theo tháng trên `period_month` | 36 tháng, sau đó `result_archive` |
+| `pay.run_input_snapshot` | 1M × 1.2 × ~8 KB đã nén | 1.2M | 14M | ~110 GB | range theo năm trên `period_month` | 10 năm |
+| `audit.audit_event` | ~40 event / nhân viên / tháng | 40M | 480M | ~250 GB | range theo tháng | 24 tháng hot, 10 năm lưu trữ |
+| `*.outbox_event` | ~2× số lần ghi nghiệp vụ | ~60M | — | giữ ≤ 7 ngày | range theo ngày | 7 ngày |
+| `saas.usage_record` | theo tenant × chỉ số × ngày | 0.5M | 6M | nhỏ | theo tháng | 25 tháng |
 
-Peak write rates: the X-05 punch figures (**500/s platform-wide sustained and 50/s per tenant**, 1,000/s bursts; covers NFR-SAAS-004's 20,000/min ≈ 333/s) are a **Phase-2** target, together with the live device connector and SP-3 (postponed by R2-01). The table design (append-only, monthly partitions, batched `ON CONFLICT DO NOTHING`) is kept so Phase 2 needs no remodelling. Phase-1 punches come only from imported device-export files: one file of a 2,000-employee site for a month is about 250k rows, committed in chunks by the import job, well within batched-insert capacity. Payroll writes 10k employees × 60 lines = 600k rows in ≤ 15 min per run, using `COPY`-style batch inserts from the workers (JDBC `reWriteBatchedInserts=true`).
+Tốc độ ghi đỉnh: các con số chấm công của X-05 (**duy trì 500/s toàn platform và 50/s mỗi tenant**, đột biến 1,000/s; đáp ứng 20,000/phút ≈ 333/s của NFR-SAAS-004) là mục tiêu của **Phase 2**, cùng với device connector trực tiếp và SP-3 (bị hoãn theo R2-01). Thiết kế bảng (append-only, partition theo tháng, batch `ON CONFLICT DO NOTHING`) được giữ nguyên để Phase 2 không cần mô hình hóa lại. Lượt chấm công ở Phase 1 chỉ đến từ các file xuất từ máy chấm công được import: một file của một địa điểm 2,000 nhân viên trong một tháng có khoảng 250k dòng, được import job commit theo từng chunk, nằm thoải mái trong khả năng insert theo batch. Payroll ghi 10k nhân viên × 60 dòng = 600k dòng trong ≤ 15 phút mỗi lần chạy, dùng batch insert kiểu `COPY` từ các worker (JDBC `reWriteBatchedInserts=true`).
 
-Platform-wide, 1M employees means about 1.1 TB/year of new hot data. Following SA ADR-0003, **pool clusters hold about 100k employees each**, so the sizing case is about 10 pool clusters (launch: 2). Per pool cluster that is about 110 GB/year of hot data and peaks of about 100 punches/s (a single 100k-employee cluster can still receive the whole 500/s platform peak during a regional shift change; the batched consumer absorbs it). One CNPG primary (16 vCPU / 128 GB, NVMe) plus a sync standby is comfortable at that size. Scale-out is by **adding pool clusters (tenant cohorts)**, routed like the dedicated tier, never by splitting tables across clusters. **[spike: SP-2 RLS performance and load test on the reference dataset before pilot go-live]**
+Trên toàn platform, 1M nhân viên nghĩa là khoảng 1.1 TB/năm dữ liệu hot mới. Theo SA ADR-0003, **mỗi pool cluster chứa khoảng 100k nhân viên**, nên kịch bản định cỡ là khoảng 10 pool cluster (khi ra mắt: 2). Mỗi pool cluster tương ứng khoảng 110 GB/năm dữ liệu hot và đỉnh khoảng 100 lượt chấm công/s (một cluster 100k nhân viên vẫn có thể nhận toàn bộ đỉnh 500/s của platform khi đổi ca trong vùng; consumer theo batch sẽ hấp thụ). Một CNPG primary (16 vCPU / 128 GB, NVMe) cộng một sync standby là thoải mái ở quy mô đó. Mở rộng bằng cách **thêm pool cluster (nhóm tenant)**, được định tuyến giống dedicated tier, không bao giờ bằng cách chia bảng qua nhiều cluster. **[spike: SP-2 hiệu năng RLS và load test trên bộ dữ liệu tham chiếu trước khi go-live pilot]**
 
-### 10.2 Rules
+### 10.2 Quy tắc
 
-* Partition management: `pg_partman` 5.x where the managed service allows it; otherwise the shipped `sys.create_range_partitions()` run by the SaaS scheduler. Partitions are pre-created 3 periods ahead. There is no `DEFAULT` partition on hot tables, because rows outside the range must fail loudly. Opening-balance data (ADR-0037) goes only into non-partitioned tables (`pay.ytd_balance`, `pay.si_contribution`, `att.leave_balance_ledger`, `pay.loan`), so a go-live never needs back-dated partitions.
-* Indexes on partitioned tables are created on the parent (propagated). New indexes on big tables are built per partition `CONCURRENTLY`, then attached.
-* **Autovacuum:** append-only tables (`raw_punch`, `audit_event`, `result_line`) set `autovacuum_vacuum_insert_scale_factor = 0.05` and freeze aggressively once the partition is closed (`VACUUM (FREEZE)` on month close). Update-heavy tables (`daily_timesheet`, `employee_pay_profile`, `ot_cap_ledger`) use `fillfactor = 80`, `autovacuum_vacuum_scale_factor = 0.02`, `autovacuum_analyze_scale_factor = 0.01`. Global settings: `autovacuum_max_workers = 6`, `maintenance_work_mem = 2GB`.
-* Closed partitions older than the hot window are detached (`DETACH PARTITION … CONCURRENTLY`), exported to Parquet (tenant-partitioned directories, encrypted with the tenant KEK, in VN object storage with object lock) and dropped. A manifest table `saas.archive_manifest` records the URI, row count and checksum. Restoring re-attaches into a scratch schema on request (DSR, audit, dispute).
-* Index policy: every FK is indexed. Lists use `(tenant_id, <filter>, <sort>)`. Partial indexes for "current" rows (`WHERE superseded_at IS NULL`, `WHERE status = 'ACTIVE'`). GIN trigram on unaccented names. No index on low-cardinality flags alone.
+* Quản lý partition: `pg_partman` 5.x nếu dịch vụ managed cho phép; nếu không thì dùng `sys.create_range_partitions()` đi kèm, do SaaS scheduler chạy. Partition được tạo trước 3 kỳ. Không có partition `DEFAULT` trên các bảng hot, vì dòng nằm ngoài khoảng phải báo lỗi rõ ràng. Dữ liệu số dư đầu kỳ (ADR-0037) chỉ đi vào các bảng không partition (`pay.ytd_balance`, `pay.si_contribution`, `att.leave_balance_ledger`, `pay.loan`), nên một lần go-live không bao giờ cần partition lùi ngày.
+* Index trên bảng partition được tạo trên bảng cha (lan truyền xuống). Index mới trên bảng lớn được build cho từng partition bằng `CONCURRENTLY`, rồi attach.
+* **Autovacuum:** các bảng append-only (`raw_punch`, `audit_event`, `result_line`) đặt `autovacuum_vacuum_insert_scale_factor = 0.05` và freeze mạnh khi partition đã đóng (`VACUUM (FREEZE)` khi đóng tháng). Các bảng update nhiều (`daily_timesheet`, `employee_pay_profile`, `ot_cap_ledger`) dùng `fillfactor = 80`, `autovacuum_vacuum_scale_factor = 0.02`, `autovacuum_analyze_scale_factor = 0.01`. Thiết lập toàn cục: `autovacuum_max_workers = 6`, `maintenance_work_mem = 2GB`.
+* Các partition đã đóng cũ hơn cửa sổ hot được detach (`DETACH PARTITION … CONCURRENTLY`), xuất ra Parquet (thư mục phân theo tenant, mã hóa bằng KEK của tenant, trong object storage tại VN có object lock) và drop. Bảng manifest `saas.archive_manifest` ghi lại URI, số dòng và checksum. Khôi phục bằng cách attach lại vào một schema tạm khi có yêu cầu (DSR, audit, tranh chấp).
+* Chính sách index: mọi FK đều có index. Danh sách dùng `(tenant_id, <filter>, <sort>)`. Partial index cho các dòng "hiện hành" (`WHERE superseded_at IS NULL`, `WHERE status = 'ACTIVE'`). GIN trigram trên tên đã bỏ dấu. Không tạo index chỉ trên các cờ có số lượng giá trị phân biệt thấp.
 
 ---
 
-## 11. Reporting data model (ADR-0032)
+## 11. Mô hình dữ liệu báo cáo (ADR-0032)
 
-Technology (SA ADR-0012, amended for Phase 1 by R2-01): a **separate PostgreSQL 17 reporting store** in VN. **Phase 1:** fed by **native logical replication** — one publication per module schema on each OLTP cluster, with **column lists** (PG 15+) that leave out every P3 `_enc`/`_bidx` column and with only the tables the star schema needs; the reporting DB subscribes (role `yhrm_cdc`, slot on a standby where the provider supports PG 16+ standby decoding **[spike SP-6]**) into `rpt_raw`. No Kafka, no Kafka Connect. DDL changes on published tables follow the same expand/contract rule plus an `rpt_raw` migration step (logical replication does not carry DDL). `rpt_raw` is a landing area without RLS (the apply worker writes as the subscription owner), readable only by the transformation role; users and the reporting service read only `rpt`, which has `tenant_id` + RLS. **Phase 2 option:** Debezium on a standby → Kafka `cdc.*` → loader, if streaming transforms or a columnar engine need it. Freshness ≤ 15 min (normally ≤ 2 min; BR-SAAS-047). Superset (P2) connects with RLS. Dimensional tables live in `rpt`, raw replicated tables in `rpt_raw`, and transformations are written as SQL models (dbt-style) run by the scheduler. If the volume after 12 months exceeds what plain PostgreSQL serves within 3 s (NFR-SAAS-003), the same star schema is deployed on a columnar engine **[spike: Citus columnar or ClickHouse VN-hosted, against fact_payroll_line 1B rows]**.
+Công nghệ (SA ADR-0012, sửa đổi cho Phase 1 theo R2-01): một **reporting store PostgreSQL 17 riêng biệt** tại VN. **Phase 1:** được cấp dữ liệu bằng **native logical replication** — mỗi schema module một publication trên mỗi OLTP cluster, với **column list** (PG 15+) loại bỏ mọi cột P3 `_enc`/`_bidx` và chỉ gồm các bảng mà star schema cần; reporting DB subscribe (role `yhrm_cdc`, slot trên standby nếu nhà cung cấp hỗ trợ standby decoding của PG 16+ **[spike SP-6]**) vào `rpt_raw`. Không có Kafka, không có Kafka Connect. Thay đổi DDL trên các bảng đã publish tuân theo cùng quy tắc expand/contract cộng thêm một bước migration cho `rpt_raw` (logical replication không mang DDL). `rpt_raw` là vùng tiếp nhận không có RLS (apply worker ghi với quyền subscription owner), chỉ role transformation đọc được; user và reporting service chỉ đọc `rpt`, nơi có `tenant_id` + RLS. **Phương án Phase 2:** Debezium trên standby → Kafka `cdc.*` → loader, nếu cần streaming transform hoặc columnar engine. Độ tươi ≤ 15 phút (thông thường ≤ 2 phút; BR-SAAS-047). Superset (P2) kết nối với RLS. Các bảng dimensional nằm trong `rpt`, các bảng replicate thô trong `rpt_raw`, và các phép biến đổi được viết dưới dạng SQL model (kiểu dbt) do scheduler chạy. Nếu khối lượng sau 12 tháng vượt quá mức mà PostgreSQL thông thường phục vụ được trong 3 s (NFR-SAAS-003), cùng star schema đó sẽ được triển khai trên một columnar engine **[spike: Citus columnar hoặc ClickHouse host tại VN, với fact_payroll_line 1B dòng]**.
 
 ```mermaid
 erDiagram
@@ -1066,33 +1066,33 @@ erDiagram
   }
 ```
 
-* Facts: `fact_headcount_daily` (periodic snapshot), `fact_movement` (hire, exit, transfer, promotion, with reason), `fact_payroll_line` and `fact_payroll_employee_month` (aggregate), `fact_attendance_daily`, `fact_ot`, `fact_leave`, `fact_si_contribution`, `fact_recruitment_funnel` (P2).
-* Dimensions: SCD2 for `dim_employee`, `dim_org_unit` (with `path`), `dim_position`, `dim_legal_entity`; SCD1 for `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; plus `dim_date` and `dim_pay_run`.
-* **Tenant isolation:** `tenant_id` is on every fact and dimension and is the leading column of every index and of the partitioning (facts are partitioned by month). The same RLS template and `app.tenant_id` context apply, and the reporting service sets the context exactly like OLTP. The **data scope** comes from the `report_scope(tenant_id, user_account_id, employment_id)` table maintained from Core authorisation snapshots (SA ADR-0006/0012). Every fact query joins it on `employment_id` (index `(tenant_id, user_account_id, employment_id)`), and `dim_employee` carries `employment_id` for that join. Dedicated-tier tenants get their own reporting DB.
-* **PII:** no P3 data in the reporting store (no CCCD, tax code or bank account). Names are kept (P1). Amounts are P2 and visible only through the reporting service with pay-permission checks. Crypto-shredding: the DSR anonymiser updates `dim_employee` name attributes, and a tenant purge deletes by `tenant_id`.
-* **Billing (D-10, decided 2026-10-16):** the billable unit is an **active person at month end, per legal entity**. `is_billable` on the last day of the month is true only for an employment with status `ACTIVE` on that day. **`SUSPENDED` is not billable (R2-12a, decided 2026-10-16)**; neither are `PRE_HIRE`, `CANCELLED` or `TERMINATED` with `end_date` before the last day. A person with one `ACTIVE` and one `SUSPENDED` employment in the same legal entity is billable once for that entity. The monthly usage job counts `DISTINCT (legal_entity_id, person_id)` with `is_billable` on that date, so concurrent assignments in one legal entity count once, and a person employed by two legal entities of the tenant counts twice (D-10 stands; R2-12b not answered, decision-log §7.2). The result is written to `saas.usage_record` (metric `BILLABLE_PERSON`, per tenant × legal entity × month) and is frozen once the invoice is issued; later back-dated hires/terminations adjust the next invoice, never the issued one.
+* Fact: `fact_headcount_daily` (snapshot định kỳ), `fact_movement` (tuyển dụng, nghỉ việc, điều chuyển, thăng chức, kèm lý do), `fact_payroll_line` và `fact_payroll_employee_month` (tổng hợp), `fact_attendance_daily`, `fact_ot`, `fact_leave`, `fact_si_contribution`, `fact_recruitment_funnel` (P2).
+* Dimension: SCD2 cho `dim_employee`, `dim_org_unit` (có `path`), `dim_position`, `dim_legal_entity`; SCD1 cho `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; cộng với `dim_date` và `dim_pay_run`.
+* **Cô lập tenant:** `tenant_id` có mặt trên mọi fact và dimension và là cột đứng đầu của mọi index và của partitioning (fact được partition theo tháng). Cùng template RLS và context `app.tenant_id` được áp dụng, và reporting service thiết lập context giống hệt OLTP. **Data scope** lấy từ bảng `report_scope(tenant_id, user_account_id, employment_id)` được duy trì từ các snapshot phân quyền của Core (SA ADR-0006/0012). Mọi truy vấn fact đều join với nó theo `employment_id` (index `(tenant_id, user_account_id, employment_id)`), và `dim_employee` mang `employment_id` để phục vụ phép join đó. Tenant ở dedicated tier có reporting DB riêng.
+* **PII:** không có dữ liệu P3 trong reporting store (không có CCCD, MST hay tài khoản ngân hàng). Họ tên được giữ (P1). Số tiền là P2 và chỉ hiển thị qua reporting service có kiểm tra quyền xem lương. Crypto-shredding: bộ ẩn danh hóa DSR cập nhật các thuộc tính tên trong `dim_employee`, và purge tenant xóa theo `tenant_id`.
+* **Tính phí (D-10, quyết định 2026-10-16):** đơn vị tính phí là **một người đang làm việc vào cuối tháng, theo từng pháp nhân**. `is_billable` vào ngày cuối tháng chỉ đúng với employment có trạng thái `ACTIVE` vào ngày đó. **`SUSPENDED` không tính phí (R2-12a, quyết định 2026-10-16)**; `PRE_HIRE`, `CANCELLED` hay `TERMINATED` có `end_date` trước ngày cuối tháng cũng không. Một người có một employment `ACTIVE` và một employment `SUSPENDED` trong cùng pháp nhân được tính phí một lần cho pháp nhân đó. Job usage hằng tháng đếm `DISTINCT (legal_entity_id, person_id)` có `is_billable` vào ngày đó, nên các phân công đồng thời trong một pháp nhân chỉ tính một lần, và một người làm việc cho hai pháp nhân của tenant được tính hai lần (D-10 giữ nguyên; R2-12b chưa được trả lời, nhật ký quyết định §7.2). Kết quả được ghi vào `saas.usage_record` (chỉ số `BILLABLE_PERSON`, theo tenant × pháp nhân × tháng) và được đóng băng khi hóa đơn đã phát hành; các trường hợp tuyển dụng/chấm dứt lùi ngày sau đó sẽ điều chỉnh vào hóa đơn kế tiếp, không bao giờ điều chỉnh hóa đơn đã phát hành.
 
 ---
 
-## 12. Schema migration tooling (ADR-0031)
+## 12. Công cụ migration schema (ADR-0031)
 
-* **Flyway Community** (SQL-first; Community licence accepted 2026-10-16, closes D-08), run by the CI/CD pipeline as `yhrm_migrator` with `initSql = SET ROLE yhrm_owner`. Liquibase was considered (see the ADR); SQL-first suits a PostgreSQL-only product with heavy use of RLS, partitioning, exclusion constraints and functions.
-* Layout: `backend/<module>/src/main/resources/db/migration/<schema>/V<yyyymmddHHMM>__<desc>.sql` plus `R__<object>.sql` (repeatable migrations for views, functions and policies). There is **one Flyway history table per schema** (`<schema>.flyway_schema_history`), so modules migrate independently. Order: `sys` → `saas` → `core`/`audit` → `hr` → `att` → `pay` → `rec`. The files in `database/postgresql/ddl/` are the design baseline and become the `V1__baseline.sql` of each module.
-* **Forward-only:** no down migrations. Rollback = deploy the previous app version, which works because of expand/contract.
-* **Expand/contract** (NFR-SAAS-014): release N adds (nullable column, new table, dual write); a backfill job runs in batches per tenant with `set_config`; release N+1 switches reads; release N+2 drops the old structure. Lint rules (enforced by a CI SQL linter, `squawk`): `SET lock_timeout = '3s'` and `statement_timeout` in each migration; `CREATE INDEX CONCURRENTLY` (with `executeInTransaction=false`); `ADD CONSTRAINT … NOT VALID` then `VALIDATE CONSTRAINT`; no `ALTER COLUMN TYPE` on large tables; no column renames (add + copy + drop instead); `NOT NULL` via `CHECK (… IS NOT NULL) NOT VALID` + validate.
-* **Fleet:** the migration orchestrator applies the same artifact to the shared pools and to every dedicated DB in rings (internal → pilot → shared → dedicated). A database refuses app versions whose required schema version is higher than the applied one (startup check against Flyway history).
-* **Per-tenant seeding is data, not schema.** Provisioning (BR-SAAS-003, ≤ 10 min) calls module seed APIs to create tenant code-list overrides, default roles, the workflow template, leave types, the component catalogue template, and the holiday calendar copied from the national template. Global reference data is shipped by the **release job** (`core.MasterDataReleased`, legal packs). It is never in Flyway, except the initial structural codes needed by constraints.
-* Testing: Testcontainers PostgreSQL 16 runs every migration from zero, plus an upgrade from the last release snapshot. The **RLS test suite** creates two tenants and asserts that each app role sees zero cross-tenant rows on every table (NFR-CORE-001). A catalogue check fails the build when any table in a module schema lacks `tenant_id` + RLS (unless allow-listed). The **X-02 grant guard** `sys.cross_schema_grant_violations()` must return 0 rows after every migration run (§2.3).
+* **Flyway Community** (SQL-first; giấy phép Community được chấp nhận 2026-10-16, đóng D-08), do CI/CD pipeline chạy dưới `yhrm_migrator` với `initSql = SET ROLE yhrm_owner`. Liquibase đã được cân nhắc (xem ADR); SQL-first phù hợp với một sản phẩm chỉ dùng PostgreSQL và sử dụng nhiều RLS, partitioning, exclusion constraint và function.
+* Bố cục: `backend/<module>/src/main/resources/db/migration/<schema>/V<yyyymmddHHMM>__<desc>.sql` cộng với `R__<object>.sql` (repeatable migration cho view, function và policy). Có **một bảng lịch sử Flyway cho mỗi schema** (`<schema>.flyway_schema_history`), nên các module migrate độc lập với nhau. Thứ tự: `sys` → `saas` → `core`/`audit` → `hr` → `att` → `pay` → `rec`. Các file trong `database/postgresql/ddl/` là baseline thiết kế và trở thành `V1__baseline.sql` của từng module.
+* **Forward-only:** không có down migration. Rollback = deploy phiên bản ứng dụng trước đó, điều này khả thi nhờ expand/contract.
+* **Expand/contract** (NFR-SAAS-014): release N thêm mới (cột nullable, bảng mới, ghi kép); một backfill job chạy theo batch cho từng tenant với `set_config`; release N+1 chuyển luồng đọc; release N+2 drop cấu trúc cũ. Các rule lint (được thực thi bởi một SQL linter trong CI, `squawk`): `SET lock_timeout = '3s'` và `statement_timeout` trong mỗi migration; `CREATE INDEX CONCURRENTLY` (với `executeInTransaction=false`); `ADD CONSTRAINT … NOT VALID` rồi `VALIDATE CONSTRAINT`; không `ALTER COLUMN TYPE` trên bảng lớn; không đổi tên cột (thay vào đó: thêm + sao chép + drop); `NOT NULL` qua `CHECK (… IS NOT NULL) NOT VALID` + validate.
+* **Fleet:** migration orchestrator áp dụng cùng một artifact cho các shared pool và cho mọi DB dedicated theo từng vòng (nội bộ → pilot → shared → dedicated). Database từ chối các phiên bản ứng dụng yêu cầu phiên bản schema cao hơn phiên bản đã áp dụng (kiểm tra khi khởi động dựa trên lịch sử Flyway).
+* **Seed dữ liệu theo tenant là dữ liệu, không phải schema.** Provisioning (BR-SAAS-003, ≤ 10 phút) gọi các seed API của module để tạo các override danh mục mã của tenant, role mặc định, template workflow, loại nghỉ phép, template danh mục thành phần lương, và lịch ngày lễ sao chép từ template quốc gia. Dữ liệu tham chiếu toàn cục được phát hành bởi **release job** (`core.MasterDataReleased`, legal pack). Nó không bao giờ nằm trong Flyway, ngoại trừ các mã cấu trúc ban đầu mà constraint cần.
+* Kiểm thử: Testcontainers PostgreSQL 16 chạy mọi migration từ đầu, cộng với nâng cấp từ snapshot của bản release gần nhất. **Bộ test RLS** tạo hai tenant và khẳng định rằng mỗi app role thấy 0 dòng chéo tenant trên mọi bảng (NFR-CORE-001). Một kiểm tra catalogue làm build thất bại khi bất kỳ bảng nào trong schema module thiếu `tenant_id` + RLS (trừ khi nằm trong allow-list). **Guard grant X-02** `sys.cross_schema_grant_violations()` phải trả về 0 dòng sau mỗi lần chạy migration (§2.3).
 
 ---
 
-## 13. Opening-balance import (ADR-0037; replaces the Oracle migration, D-09)
+## 13. Import số dư đầu kỳ (ADR-0037; thay thế việc migrate từ Oracle, D-09)
 
-There is **no Oracle migration** (D-09): YourHRM is built as a new system and no legacy history is moved. The v0.1 design (migration database, `stg_raw`/`stg_clean`/`mig` schemas, legacy key and code maps, SCN-consistent extracts, parallel run) is withdrawn; ADR-0033 is superseded by ADR-0037. What a mid-year go-live still needs is a correct **starting position**, loaded by a generic, source-agnostic import that every new tenant uses.
+**Không migrate từ Oracle** (D-09): YourHRM được xây dựng như một hệ thống mới và không chuyển lịch sử nào từ hệ thống cũ. Thiết kế v0.1 (migration database, các schema `stg_raw`/`stg_clean`/`mig`, bảng ánh xạ khóa và mã cũ, trích xuất nhất quán theo SCN, chạy song song) bị rút lại; ADR-0033 được thay thế bởi ADR-0037. Điều mà một lần go-live giữa năm vẫn cần là một **vị thế khởi đầu** chính xác, được nạp bằng một luồng import tổng quát, không phụ thuộc nguồn, mà mọi tenant mới đều dùng.
 
-Owner: Core import engine (GAP-005, BR-CORE-114) in mode `OPENING_BALANCE`; each template is owned, validated and committed by the module that owns the data. Customer files stay in VN (object storage, tenant prefix); nothing is extracted from customer systems by the vendor.
+Chủ sở hữu: import engine của Core (GAP-005, BR-CORE-114) ở chế độ `OPENING_BALANCE`; mỗi template do module sở hữu dữ liệu chịu trách nhiệm, kiểm tra và commit. File của khách hàng lưu tại VN (object storage, prefix của tenant); nhà cung cấp không trích xuất gì từ hệ thống của khách hàng.
 
-### 13.1 Pipeline and staging
+### 13.1 Pipeline và staging
 
 ```mermaid
 flowchart LR
@@ -1104,129 +1104,129 @@ flowchart LR
   C --> P[Post-commit check<br/>committed vs control]
 ```
 
-| Table (DDL `002_core.sql`) | Purpose | Key rules |
+| Bảng (DDL `002_core.sql`) | Mục đích | Quy tắc chính |
 |---|---|---|
-| `core.import_job` | One upload of one template | `mode` (`STANDARD`/`OPENING_BALANCE`), `owner_module`, `template_version`, `as_of_date` (required for opening balances), `tax_year`, `control_totals jsonb` (customer-declared), `wrapped_dek` (per-job DEK), `depends_on_job_id` (employee master first), sign-off columns. CHECK: an `OPENING_BALANCE` job cannot reach `SIGNED_OFF`/`COMMITTING`/`COMMITTED` without `signed_off_at` |
-| `core.import_row` | Staging, one row per sheet row | The whole parsed row is encrypted (`payload_enc`, AES-256-GCM, job DEK) because it can hold CCCD, tax codes or bank numbers; `preview jsonb` holds non-sensitive fields only; `business_key` (employee_no, + month / leave type / loan no.) drives idempotent upserts; duplicates in a file are validation errors, not constraint failures; `target_entity`/`target_id` after commit |
-| `core.import_reconciliation` | Reconciliation report | One row per check × grain: `control_value`, `staged_value`, `committed_value`, `tolerance`, `status` (`MATCHED`/`MISMATCH`/`WAIVED`; a waiver needs reason and user) |
+| `core.import_job` | Một lần upload của một template | `mode` (`STANDARD`/`OPENING_BALANCE`), `owner_module`, `template_version`, `as_of_date` (bắt buộc với số dư đầu kỳ), `tax_year`, `control_totals jsonb` (do khách hàng khai báo), `wrapped_dek` (DEK theo job), `depends_on_job_id` (master nhân viên trước), các cột ký xác nhận. CHECK: một job `OPENING_BALANCE` không thể sang `SIGNED_OFF`/`COMMITTING`/`COMMITTED` khi chưa có `signed_off_at` |
+| `core.import_row` | Staging, mỗi dòng trong sheet một dòng | Toàn bộ dòng đã parse được mã hóa (`payload_enc`, AES-256-GCM, DEK của job) vì nó có thể chứa CCCD, MST hoặc số tài khoản ngân hàng; `preview jsonb` chỉ chứa các trường không nhạy cảm; `business_key` (employee_no, + tháng / loại nghỉ phép / số khoản vay) điều khiển upsert idempotent; các dòng trùng trong một file là lỗi kiểm tra dữ liệu, không phải lỗi constraint; `target_entity`/`target_id` sau khi commit |
+| `core.import_reconciliation` | Báo cáo đối soát | Mỗi phép kiểm tra × mức chi tiết một dòng: `control_value`, `staged_value`, `committed_value`, `tolerance`, `status` (`MATCHED`/`MISMATCH`/`WAIVED`; miễn trừ cần có lý do và người thực hiện) |
 
-Module boundaries: Core never reads `hr`/`att`/`pay`. The owner module reads staged rows through Core's in-process import API, computes staged and committed values in its own schema (`ReconciliationProvider` SPI) and returns them. No cross-schema grant is added (§2.3).
+Ranh giới module: Core không bao giờ đọc `hr`/`att`/`pay`. Module sở hữu đọc các dòng staging qua import API in-process của Core, tính giá trị staging và giá trị đã commit trong schema của chính nó (SPI `ReconciliationProvider`) rồi trả về. Không thêm grant giữa các schema nào (§2.3).
 
-Retention: staging rows are deleted and the job DEK destroyed 30 days after commit (`purge_due_at`); job headers and reconciliation reports are kept as go-live evidence for the payroll retention period **[verify-legal]**.
+Lưu trữ: các dòng staging bị xóa và DEK của job bị hủy 30 ngày sau khi commit (`purge_due_at`); header của job và báo cáo đối soát được giữ làm bằng chứng go-live trong suốt thời hạn lưu trữ dữ liệu lương **[verify-legal]**.
 
-### 13.2 Templates and targets
+### 13.2 Template và đích
 
-| Import type | Owner | Content | Target rows |
+| Loại import | Chủ sở hữu | Nội dung | Dòng đích |
 |---|---|---|---|
-| `OB_EMPLOYEE_MASTER` | People | Person (incl. CCCD, tax code, SI number), employment, current assignment, current salary record (GROSS/NET), current contract, dependants, bank accounts | `hr.*` with `source = 'OPENING_LOAD'` |
-| `OB_YTD_PAYROLL` | Payroll | Per employee × month of the current tax year before G: gross, taxable income, PIT withheld, EE/ER SI, family deductions used, net | `pay.ytd_balance` (`source = 'OPENING'`) |
-| `OB_SI_HISTORY` | Payroll | Per employee × month: SI basis, scheme, EE/ER amounts, contribution status (SI book / VSS C12) | `pay.si_contribution` (`status = 'OPENING'`) |
-| `OB_LEAVE_BALANCE` | T&A | Per employee × leave type × year: entitlement, taken, carried forward, closing | `att.leave_balance_ledger` (`txn_type = 'OPENING'`) |
-| `OB_LOAN` | Payroll | Per employee × loan/advance: principal, outstanding, remaining instalments | `pay.loan`, `pay.loan_schedule` |
+| `OB_EMPLOYEE_MASTER` | People | Person (gồm CCCD, MST, số sổ BHXH), employment, phân công hiện tại, hồ sơ lương hiện tại (GROSS/NET), hợp đồng hiện tại, người phụ thuộc, tài khoản ngân hàng | `hr.*` với `source = 'OPENING_LOAD'` |
+| `OB_YTD_PAYROLL` | Payroll | Theo nhân viên × tháng của năm tính thuế hiện tại trước G: tổng thu nhập, thu nhập chịu thuế, thuế TNCN đã khấu trừ, BHXH phần NLĐ/NSDLĐ, giảm trừ gia cảnh đã dùng, thực nhận | `pay.ytd_balance` (`source = 'OPENING'`) |
+| `OB_SI_HISTORY` | Payroll | Theo nhân viên × tháng: mức đóng BHXH, chế độ, số tiền phần NLĐ/NSDLĐ, trạng thái đóng (sổ BHXH / VSS C12) | `pay.si_contribution` (`status = 'OPENING'`) |
+| `OB_LEAVE_BALANCE` | T&A | Theo nhân viên × loại nghỉ phép × năm: số ngày được hưởng, đã nghỉ, chuyển sang, số dư cuối | `att.leave_balance_ledger` (`txn_type = 'OPENING'`) |
+| `OB_LOAN` | Payroll | Theo nhân viên × khoản vay/tạm ứng: gốc, dư nợ, số kỳ trả còn lại | `pay.loan`, `pay.loan_schedule` |
 
-Order: `OB_EMPLOYEE_MASTER` must be committed first; the other templates reference employees by `employee_no` and legal entities by code (validation fails otherwise). Addresses supplied in the pre-2025 three-level format are mapped through `core.admin_unit_mapping`.
+Thứ tự: `OB_EMPLOYEE_MASTER` phải được commit trước; các template khác tham chiếu nhân viên theo `employee_no` và pháp nhân theo mã (nếu không thì kiểm tra dữ liệu thất bại). Địa chỉ cung cấp theo định dạng ba cấp trước năm 2025 được ánh xạ qua `core.admin_unit_mapping`.
 
-### 13.3 "Opening balance as of the go-live date" (replaces the migrated-history "known date")
+### 13.3 "Số dư đầu kỳ tại ngày go-live" (thay thế "ngày đã biết" của lịch sử được migrate)
 
-* Every opening-balance job carries `as_of_date` = go-live date **G**.
-* Master data is loaded as **the version valid at G**. `valid_from` is the real start date from the template when the customer knows it (hire date, current salary effective date), otherwise G. Earlier versions are not loaded.
-* Bi-temporal rows (`hr.assignment`, `hr.salary_record`) get `recorded_at` = load time and `source = 'OPENING_LOAD'`. "As of X, as known on Y" for Y before the load returns the opening view; this is a documented limitation.
-* YTD and SI history before G are trusted monthly inputs: never recalculated, never the subject of retro. Errors found later are corrected as manual adjustments in a regular run (audited).
-* The first payroll period after G uses `pay.ytd_balance` (`OPENING`) + its own results for PIT, so the 05/QTT year-end finalisation and the Tết/13th-month calculation see the whole tax year.
-* A committed job can be rolled back by its undo log until the tenant's first payroll run is calculated; afterwards only adjustments are possible.
-* Events from the commit carry `initial_load = true` (consumers skip invitations, notifications and retro detection; projections are re-synced); audit runs in `BATCH` mode with actor `IMPORT`.
-* Rehearsal: the full pipeline runs first in a **sandbox tenant** with the same files and template versions.
+* Mọi job số dư đầu kỳ mang `as_of_date` = ngày go-live **G**.
+* Master data được nạp dưới dạng **phiên bản có hiệu lực tại G**. `valid_from` là ngày bắt đầu thực tế từ template khi khách hàng biết (ngày vào làm, ngày hiệu lực của mức lương hiện tại), nếu không thì là G. Các phiên bản trước đó không được nạp.
+* Các dòng bi-temporal (`hr.assignment`, `hr.salary_record`) có `recorded_at` = thời điểm nạp và `source = 'OPENING_LOAD'`. "Tại X, theo hiểu biết vào ngày Y" với Y trước thời điểm nạp sẽ trả về góc nhìn đầu kỳ; đây là một hạn chế được ghi nhận bằng văn bản.
+* Lịch sử YTD và BHXH trước G là các đầu vào hằng tháng được tin cậy: không bao giờ tính lại, không bao giờ là đối tượng của retro. Lỗi phát hiện về sau được sửa bằng các điều chỉnh thủ công trong một lần chạy thường kỳ (có audit).
+* Kỳ lương đầu tiên sau G dùng `pay.ytd_balance` (`OPENING`) + kết quả của chính nó cho thuế TNCN, nên quyết toán cuối năm 05/QTT và phép tính lương tháng 13/thưởng Tết thấy được toàn bộ năm tính thuế.
+* Một job đã commit có thể được rollback bằng undo log của nó cho đến khi lần chạy lương đầu tiên của tenant được tính; sau đó chỉ có thể điều chỉnh.
+* Event từ bước commit mang `initial_load = true` (consumer bỏ qua lời mời, thông báo và phát hiện retro; projection được re-sync); audit chạy ở chế độ `BATCH` với actor `IMPORT`.
+* Diễn tập: toàn bộ pipeline chạy trước trong một **sandbox tenant** với cùng các file và phiên bản template.
 
-### 13.4 Validation rules (examples; blocking unless waived)
+### 13.4 Quy tắc kiểm tra dữ liệu (ví dụ; chặn trừ khi được miễn trừ)
 
-Duplicate persons in the file or the tenant (same CCCD blind index, or same name + DOB + phone); missing or invalid CCCD (12 digits) or tax code (10/12 digits, or the CCCD used as tax code from 2025 `[verify-legal]`); hire date after termination date; overlapping contracts; salary below the regional minimum wage at G; SI basis above the cap for the month; dependants claimed by two employees; bank code not in `core.bank`; unmapped admin unit; leave closing below −N days; monthly YTD rows for months on or after G; YTD SI EE amounts different from the sum of `OB_SI_HISTORY` EE amounts for the same months (cross-template check); loan outstanding greater than principal.
+Trùng người trong file hoặc trong tenant (cùng blind index CCCD, hoặc cùng họ tên + ngày sinh + điện thoại); thiếu hoặc sai CCCD (12 chữ số) hay MST (10/12 chữ số, hoặc CCCD dùng làm MST từ 2025 `[verify-legal]`); ngày vào làm sau ngày chấm dứt; hợp đồng chồng lấn; lương thấp hơn mức lương tối thiểu vùng tại G; mức đóng BHXH vượt trần của tháng; người phụ thuộc được hai nhân viên đăng ký; mã ngân hàng không có trong `core.bank`; đơn vị hành chính chưa được ánh xạ; số dư phép cuối kỳ thấp hơn −N ngày; dòng YTD hằng tháng cho các tháng từ G trở đi; số tiền BHXH phần NLĐ trong YTD khác với tổng số tiền phần NLĐ trong `OB_SI_HISTORY` cho cùng các tháng (kiểm tra chéo giữa các template); dư nợ khoản vay lớn hơn gốc.
 
-### 13.5 Reconciliation checks (gate before commit; re-run after commit)
+### 13.5 Kiểm tra đối soát (cổng chặn trước khi commit; chạy lại sau khi commit)
 
-| Check | Grain | Tolerance |
+| Kiểm tra | Mức chi tiết | Dung sai |
 |---|---|---|
-| Headcount | LE × status × employee category, as of G | exact |
-| Row counts | per template and sheet (rows = committed + rejected + waived) | exact |
-| YTD payroll | employee × month: gross, taxable income, PIT withheld, net; and LE totals vs the control sheet | 0 VND |
-| PIT | employee × tax year: taxable income, family deductions (dependants × months), tax withheld | 0 VND |
-| SI history | employee × month: basis, EE/ER per scheme; cumulative months of contribution | exact |
-| Leave balances | employee × leave type × year: entitlement, taken, carried, closing | 0.0 days |
-| Loans/advances | employee × loan: outstanding principal | 0 VND |
+| Headcount | Pháp nhân × trạng thái × loại nhân viên, tại G | chính xác |
+| Số dòng | theo template và sheet (số dòng = đã commit + bị từ chối + được miễn trừ) | chính xác |
+| Lương YTD | nhân viên × tháng: tổng thu nhập, thu nhập chịu thuế, thuế TNCN đã khấu trừ, thực nhận; và tổng theo pháp nhân so với sheet kiểm soát | 0 VND |
+| Thuế TNCN | nhân viên × năm tính thuế: thu nhập chịu thuế, giảm trừ gia cảnh (người phụ thuộc × số tháng), thuế đã khấu trừ | 0 VND |
+| Lịch sử BHXH | nhân viên × tháng: mức đóng, phần NLĐ/NSDLĐ theo chế độ; số tháng đóng lũy kế | chính xác |
+| Số dư nghỉ phép | nhân viên × loại nghỉ phép × năm: được hưởng, đã nghỉ, chuyển sang, số dư cuối | 0.0 ngày |
+| Khoản vay/tạm ứng | nhân viên × khoản vay: dư nợ gốc | 0 VND |
 
-Results are written to `core.import_reconciliation`; the customer signs off in the import UI (`import_job.signed_off_by/at`). After commit the owner module recomputes `committed_value` from its target tables; any difference blocks the first payroll run of the tenant until resolved.
-
----
-
-## 14. Backup, PITR, operations
-
-* CloudNativePG with Barman Cloud (SA ADR-0017): daily base backup + continuous WAL archive to DC2 object storage (`archive_timeout` 5 min), plus a CNPG replica cluster in DC2 with seconds of lag, so RPO ≤ 15 min. Backups are encrypted and kept 35 days. A restore test runs every quarter (NFR-SAAS-006). The dedicated tier uses the same tooling with its own repository.
-* HA: 1 synchronous standby in the same DC (`synchronous_commit = remote_write` for the pool hosting payroll), plus 1 asynchronous standby in the DR DC.
-* Extensions required: `btree_gist`, `pgcrypto`, `pg_trgm`, `unaccent`, `ltree`, `pg_stat_statements`, `pgaudit`, and optionally `pg_partman`. **[spike: confirm availability on the selected VN cloud provider's managed PostgreSQL, or self-managed on VMs/Kubernetes with CloudNativePG]**.
-* Monitoring per tenant: `pg_stat_statements` with the `app.tenant_id` comment tag (`/* tenant=… */` prefix added by the JDBC interceptor) for noisy-tenant detection.
+Kết quả được ghi vào `core.import_reconciliation`; khách hàng ký xác nhận trong UI import (`import_job.signed_off_by/at`). Sau khi commit, module sở hữu tính lại `committed_value` từ các bảng đích của nó; mọi chênh lệch sẽ chặn lần chạy lương đầu tiên của tenant cho đến khi được giải quyết.
 
 ---
 
-## 15. Decisions, open questions and risks
+## 14. Backup, PITR, vận hành
 
-### 15.1 Data-architecture decisions (status 2026-10-16)
+* CloudNativePG với Barman Cloud (SA ADR-0017): base backup hằng ngày + lưu trữ WAL liên tục tới object storage của DC2 (`archive_timeout` 5 phút), cộng với một CNPG replica cluster ở DC2 có độ trễ vài giây, nên RPO ≤ 15 phút. Backup được mã hóa và giữ 35 ngày. Kiểm thử khôi phục chạy hằng quý (NFR-SAAS-006). Dedicated tier dùng cùng bộ công cụ với repository riêng.
+* HA: 1 synchronous standby trong cùng DC (`synchronous_commit = remote_write` cho pool chứa payroll), cộng 1 asynchronous standby ở DC dự phòng (DR).
+* Extension bắt buộc: `btree_gist`, `pgcrypto`, `pg_trgm`, `unaccent`, `ltree`, `pg_stat_statements`, `pgaudit`, và tùy chọn `pg_partman`. **[spike: xác nhận khả dụng trên dịch vụ managed PostgreSQL của nhà cung cấp cloud VN được chọn, hoặc tự quản lý trên VM/Kubernetes với CloudNativePG]**.
+* Giám sát theo tenant: `pg_stat_statements` với comment tag `app.tenant_id` (prefix `/* tenant=… */` do JDBC interceptor thêm vào) để phát hiện tenant gây ồn (noisy tenant).
 
-| # | Question | Decision | Status |
+---
+
+## 15. Quyết định, câu hỏi mở và rủi ro
+
+### 15.1 Các quyết định kiến trúc dữ liệu (trạng thái 2026-10-16)
+
+| # | Câu hỏi | Quyết định | Trạng thái |
 |---|---|---|---|
-| D-01 | Cost of **no cross-schema FKs** (eventual integrity across modules, reconciliation jobs) | Accepted: no cross-schema FKs (ADR-0022) | **Decided** (D-01) |
-| D-02 | Encryption scope: P3 only, or also salary amounts | P3 only; amounts plaintext with compensating controls (§9.3, ADR-0026) | **Decided** (X-01) |
-| D-03 | Hot-retention windows (punches 25 months, timesheets 37, result lines 36), archive, restore within ~2 working days | Accepted (ADR-0030) | **Decided** (D-03) |
-| D-04 | Legal retention periods per data category (10 years payroll; attendance "10 years after employment ends") | VN legal consultant to confirm `[verify-legal]` | Open — legal (decision-log §3) |
-| D-05 | Backups contain plaintext P2 data for ≤ 35 days after a DSR erasure | Accept and document; DPO statement under PDPL 2025 | Open — DPO (decision-log §3) |
-| D-06 | Reporting store engine (PostgreSQL vs columnar) | PostgreSQL first; SP-6 | Open — Sprint 3 |
-| D-07 | Managed PostgreSQL in VN vs self-managed (extensions, logical replication, pg_partman, KMS) | Decided together with the provider after the 2-week SP-7 evaluation | Open — follows OD-1 |
-| D-08 | Flyway licence edition | **Flyway Community** (ADR-0031) | **Decided** (decision-log "Flyway") |
-| D-09 | v0.1: migrated Oracle history and its "known" date | **No Oracle migration.** Replaced by the generic opening-balance import; history before go-live is the opening view as of the go-live date (§13, ADR-0037) | **Decided** (D-09); ADR-0033 superseded |
-| D-10 | Billable employee definition | Active person at month end **per legal entity**; a person in two legal entities counts twice; `SUSPENDED` is not billable (§11) | **Decided** (D-10; R2-12a) |
-| D-11 | SA/DA conflict on salary-amount encryption | Resolved: the SA overview v0.2 no longer lists salary amounts as encrypted | **Closed** (X-01) |
-| D-12 | Module roles reading Core global reference tables | Accepted read-only exception, explicit list and DB/ArchUnit guards (§2.3, ADR-0021) | **Decided** (X-02); full list incl. override rows and plumbing grants accepted (R2-11) |
-| D-13 | Concurrent employment across legal entities: primary flag model | Effective-dated `hr.primary_employment` per purpose (PIT family deduction, SI), at most one per person per purpose per period; replaces `hr.employment.is_primary` (§7.3) | **Decided** (R2-16, basic support in Phase 1); SI multiple-contract rule `[verify-legal]` |
-| D-14 | Event transport in Phase 1 | No Kafka in Phase 1: outbox + polling relay + delivery jobs on `saas.job` with ordered lanes (§9.1); Kafka added in Phase 2 behind the same outbox (SA ADR-0004 rev. 2) | Proposed (SA decision, R2-01) |
-| D-15 | Reporting-store feed in Phase 1 | Native logical replication with column lists instead of Debezium → Kafka (§11; ADR-0012 amendment, ADR-0032) | Proposed (R2-01); SP-6 confirms standby decoding on the chosen provider |
-| D-16 | Payslip PDF password storage | Employee-set password, P3, encrypted with the subject DEK, write-only (§7.5) | **Decided** (R2-17) |
+| D-01 | Cái giá của việc **không có FK giữa các schema** (toàn vẹn eventual giữa các module, job đối soát) | Chấp nhận: không có FK giữa các schema (ADR-0022) | **Đã quyết định** (D-01) |
+| D-02 | Phạm vi mã hóa: chỉ P3, hay cả số tiền lương | Chỉ P3; số tiền ở dạng plaintext kèm biện pháp kiểm soát bù trừ (§9.3, ADR-0026) | **Đã quyết định** (X-01) |
+| D-03 | Cửa sổ lưu hot (lượt chấm công 25 tháng, bảng công 37, dòng kết quả 36), lưu trữ, khôi phục trong ~2 ngày làm việc | Chấp nhận (ADR-0030) | **Đã quyết định** (D-03) |
+| D-04 | Thời hạn lưu trữ theo luật cho từng loại dữ liệu (10 năm cho dữ liệu lương; chấm công "10 năm sau khi chấm dứt employment") | Tư vấn pháp lý VN xác nhận `[verify-legal]` | Mở — pháp lý (nhật ký quyết định §3) |
+| D-05 | Backup chứa dữ liệu P2 dạng plaintext trong ≤ 35 ngày sau khi xóa theo DSR | Chấp nhận và ghi nhận bằng văn bản; tuyên bố của DPO theo PDPL 2025 | Mở — DPO (nhật ký quyết định §3) |
+| D-06 | Engine của reporting store (PostgreSQL hay columnar) | PostgreSQL trước; SP-6 | Mở — Sprint 3 |
+| D-07 | Managed PostgreSQL tại VN hay tự quản lý (extension, logical replication, pg_partman, KMS) | Quyết định cùng với nhà cung cấp sau đợt đánh giá SP-7 kéo dài 2 tuần | Mở — theo sau OD-1 |
+| D-08 | Phiên bản giấy phép Flyway | **Flyway Community** (ADR-0031) | **Đã quyết định** (nhật ký quyết định "Flyway") |
+| D-09 | v0.1: lịch sử migrate từ Oracle và "ngày đã biết" của nó | **Không migrate từ Oracle.** Thay bằng import số dư đầu kỳ tổng quát; lịch sử trước go-live là góc nhìn đầu kỳ tại ngày go-live (§13, ADR-0037) | **Đã quyết định** (D-09); ADR-0033 bị thay thế |
+| D-10 | Định nghĩa nhân viên tính phí | Người đang làm việc vào cuối tháng **theo từng pháp nhân**; một người ở hai pháp nhân được tính hai lần; `SUSPENDED` không tính phí (§11) | **Đã quyết định** (D-10; R2-12a) |
+| D-11 | Xung đột SA/DA về mã hóa số tiền lương | Đã giải quyết: SA overview v0.2 không còn liệt kê số tiền lương là dữ liệu được mã hóa | **Đã đóng** (X-01) |
+| D-12 | Role module đọc các bảng tham chiếu toàn cục của Core | Chấp nhận ngoại lệ chỉ-đọc, danh sách tường minh và guard DB/ArchUnit (§2.3, ADR-0021) | **Đã quyết định** (X-02); toàn bộ danh sách gồm các dòng override và grant hạ tầng được chấp nhận (R2-11) |
+| D-13 | Làm việc đồng thời tại nhiều pháp nhân: mô hình cờ employment chính | `hr.primary_employment` theo ngày hiệu lực cho từng mục đích (giảm trừ gia cảnh thuế TNCN, BHXH), mỗi người tối đa một cho mỗi mục đích trong mỗi khoảng thời gian; thay thế `hr.employment.is_primary` (§7.3) | **Đã quyết định** (R2-16, hỗ trợ cơ bản ở Phase 1); quy tắc nhiều hợp đồng về BHXH `[verify-legal]` |
+| D-14 | Cơ chế truyền event ở Phase 1 | Không có Kafka ở Phase 1: outbox + polling relay + delivery job trên `saas.job` với ordered lanes (§9.1); Kafka được bổ sung ở Phase 2 phía sau cùng outbox đó (SA ADR-0004 rev. 2) | Đề xuất (quyết định của SA, R2-01) |
+| D-15 | Nguồn cấp dữ liệu cho reporting store ở Phase 1 | Native logical replication với column list thay cho Debezium → Kafka (§11; sửa đổi ADR-0012, ADR-0032) | Đề xuất (R2-01); SP-6 xác nhận standby decoding trên nhà cung cấp được chọn |
+| D-16 | Lưu trữ mật khẩu PDF phiếu lương | Mật khẩu do nhân viên đặt, P3, mã hóa bằng subject DEK, chỉ-ghi (§7.5) | **Đã quyết định** (R2-17) |
 
-Related decisions taken elsewhere: X-03 close hold (§7.4, `att.attendance_result_hold`), X-05 punch capacity (§10.1), X-07 `saas` schema, OD-9 no mobile punches in Phase 1 (§7.4), OD-10 software key root for the MVP (§9.3).
+Các quyết định liên quan được đưa ra ở nơi khác: X-03 close hold (§7.4, `att.attendance_result_hold`), X-05 năng lực tiếp nhận chấm công (§10.1), X-07 schema `saas`, OD-9 không chấm công qua mobile ở Phase 1 (§7.4), OD-10 key root bằng phần mềm cho MVP (§9.3).
 
-### 15.2 Risks
+### 15.2 Rủi ro
 
-| Risk | Impact | Mitigation |
+| Rủi ro | Tác động | Giảm thiểu |
 |---|---|---|
-| A missing `set_config` in some code path (batch job, async listener) | Empty results or failed writes (fail-closed), confusing bugs | ArchUnit rule, `sys.assert_tenant()` call in the transaction template, integration tests per job |
-| RLS plan regressions on big partitioned tables | Slow queries at peak | InitPlan form of the policy, `tenant_id` leading every index, `EXPLAIN` gates in perf tests |
-| Bi-temporal complexity in services | Data corruption in salary/assignment history | `temporal-kit` library only, guard trigger, property-based tests |
-| Event-fed projections drifting from owners | Wrong payroll inputs | Version and watermark per projection, nightly checksum compare, re-sync job, gate at INPUT_CUTOFF |
-| KMS outage | No decryption, so bank files, declarations and ESS profile pages fail | Tenant KEK cache with a TTL (e.g. 1 h) in memory only, KMS HA in VN, degraded mode that masks |
-| Volume beyond one primary (> 1M employees or heavy tenants) | Performance | Pool sharding by tenant cohort plus the dedicated tier; routing is already in place |
-| Opening-balance data quality (customer Excel files) | Wrong PIT finalisation, SI eligibility or leave; go-live delay | Blocking validation rules, cross-template checks, reconciliation gate with sign-off, sandbox rehearsal (§13) |
-| Salary amounts in plaintext (X-01; SA AR-13) | Exposure through DB credentials or break-glass | **Accepted with mitigations (R2-15, 2026-10-16), recorded in the DPIA by the DPO:** (1) secrets vault — OpenBao dynamic PostgreSQL credentials, short TTL, rotation ≤ 90 days, nothing in repo or images; (2) **no human access to application credentials** — module login roles are issued only to workloads via Kubernetes auth, no operator or developer can obtain them, humans use `yhrm_breakglass` only (two-person approval, ≤ 4 h); (3) **DB access audit** — pgaudit on every human session and break-glass, connection logging for all roles, alerts on any login of a module role from outside the app pods; plus module roles only for `hr`/`pay`, masking views fail closed, sensitive-read audit |
-| DB-backed bus throughput (D-14) | Relay lag or `saas.job` bloat if event volume grows faster than planned | Batch claims, partial indexes, `fillfactor 80`, finished jobs purged daily; SLO relay lag p95 < 5 s; Kafka (Phase 2) when lag or volume thresholds are hit (SA ADR-0004 rev. 2) |
-| X-02 allow-list creep | Module boundaries erode through "just one more" grant | `sys.cross_schema_grant_violations()` in CI, ArchUnit rule, ADR amendment required |
+| Thiếu `set_config` ở một luồng code nào đó (batch job, async listener) | Kết quả rỗng hoặc ghi thất bại (fail-closed), lỗi khó hiểu | Rule ArchUnit, gọi `sys.assert_tenant()` trong transaction template, integration test cho từng job |
+| Plan RLS bị suy giảm trên các bảng partition lớn | Truy vấn chậm vào giờ cao điểm | Dạng InitPlan của policy, `tenant_id` đứng đầu mọi index, cổng `EXPLAIN` trong perf test |
+| Độ phức tạp bi-temporal trong service | Hỏng dữ liệu trong lịch sử lương/phân công | Chỉ dùng thư viện `temporal-kit`, guard trigger, property-based test |
+| Projection được cấp qua event bị lệch so với module sở hữu | Đầu vào tính lương sai | Phiên bản và watermark cho mỗi projection, so sánh checksum hằng đêm, job re-sync, cổng chặn tại INPUT_CUTOFF |
+| KMS gặp sự cố | Không giải mã được, nên file ngân hàng, tờ khai và trang hồ sơ ESS bị lỗi | Cache KEK của tenant với TTL (ví dụ 1 h) chỉ trong bộ nhớ, KMS HA tại VN, chế độ suy giảm có che dữ liệu |
+| Khối lượng vượt quá một primary (> 1M nhân viên hoặc tenant lớn) | Hiệu năng | Sharding pool theo nhóm tenant cộng với dedicated tier; cơ chế định tuyến đã có sẵn |
+| Chất lượng dữ liệu số dư đầu kỳ (file Excel của khách hàng) | Sai quyết toán thuế TNCN, điều kiện hưởng BHXH hoặc phép; chậm go-live | Quy tắc kiểm tra chặn, kiểm tra chéo giữa các template, cổng đối soát có ký xác nhận, diễn tập trên sandbox (§13) |
+| Số tiền lương ở dạng plaintext (X-01; SA AR-13) | Bị lộ qua DB credential hoặc break-glass | **Chấp nhận kèm biện pháp giảm thiểu (R2-15, 2026-10-16), được DPO ghi nhận trong DPIA:** (1) secrets vault — credential PostgreSQL động của OpenBao, TTL ngắn, xoay vòng ≤ 90 ngày, không có gì trong repo hay image; (2) **không ai có quyền truy cập thủ công vào credential của ứng dụng** — login role của module chỉ được cấp cho workload qua Kubernetes auth, không operator hay developer nào lấy được, con người chỉ dùng `yhrm_breakglass` (hai người phê duyệt, ≤ 4 h); (3) **audit truy cập DB** — pgaudit trên mọi session của con người và break-glass, ghi log kết nối cho mọi role, cảnh báo khi role module đăng nhập từ bên ngoài các app pod; cộng với role module chỉ cho `hr`/`pay`, masking view fail closed, audit đọc nhạy cảm |
+| Thông lượng của bus dựa trên DB (D-14) | Relay bị trễ hoặc `saas.job` bị phình nếu khối lượng event tăng nhanh hơn kế hoạch | Claim theo batch, partial index, `fillfactor 80`, job đã xong được purge hằng ngày; SLO độ trễ relay p95 < 5 s; chuyển sang Kafka (Phase 2) khi chạm ngưỡng độ trễ hoặc khối lượng (SA ADR-0004 rev. 2) |
+| Allow-list X-02 phình dần | Ranh giới module bị bào mòn qua các grant kiểu "chỉ thêm một cái nữa thôi" | `sys.cross_schema_grant_violations()` trong CI, rule ArchUnit, bắt buộc sửa đổi ADR |
 
 ---
 
-## 16. ADR index (data architecture)
+## 16. Danh mục ADR (kiến trúc dữ liệu)
 
-| ADR | Title | Status |
+| ADR | Tiêu đề | Trạng thái |
 |---|---|---|
-| [0020](../../docs/02-architecture/adr/0020-shared-schema-rls-tenancy.md) | Shared-schema multi-tenancy with RLS and transaction-local tenant context | Accepted (2026-10-16, brief baseline 4; X-07) |
-| [0021](../../docs/02-architecture/adr/0021-database-roles-and-privileges.md) | Database roles and privilege model | Accepted (2026-10-16, X-02; exception list accepted R2-11; relay grant on `saas.enqueue_event_delivery()` added, Proposed) |
-| [0022](../../docs/02-architecture/adr/0022-schema-per-module-no-cross-schema-fk.md) | Schema per module; no cross-schema foreign keys; projections | Accepted (2026-10-16, D-01) |
-| [0023](../../docs/02-architecture/adr/0023-primary-key-strategy-uuidv7.md) | Primary key strategy: UUIDv7 and composite tenant keys | Proposed |
-| [0024](../../docs/02-architecture/adr/0024-effective-dating-and-bitemporality.md) | Effective dating and partial bi-temporality | Proposed |
-| [0025](../../docs/02-architecture/adr/0025-legal-parameter-pack-model.md) | Legal parameter pack data model and version stamping | Proposed |
-| [0026](../../docs/02-architecture/adr/0026-pii-encryption-crypto-shredding.md) | PII classification, envelope encryption, crypto-shredding | Accepted (2026-10-16, X-01) |
-| [0027](../../docs/02-architecture/adr/0027-tamper-evident-audit-log.md) | Tamper-evident audit log with asynchronous hash-chain sealing | Proposed |
-| [0028](../../docs/02-architecture/adr/0028-outbox-inbox-tables.md) | Transactional outbox and inbox tables per module (Phase-1 delivery jobs) | Proposed (rev. 2026-10-16, R2-01) |
-| [0029](../../docs/02-architecture/adr/0029-payroll-result-storage.md) | Payroll snapshots, immutable results and 10-year retention | Proposed |
-| [0030](../../docs/02-architecture/adr/0030-partitioning-and-archiving.md) | Partitioning, data lifecycle and archiving | Accepted (2026-10-16, D-03) |
-| [0031](../../docs/02-architecture/adr/0031-schema-migration-flyway.md) | Schema migration tooling: Flyway, forward-only expand/contract | Accepted (2026-10-16, Flyway Community) |
-| [0032](../../docs/02-architecture/adr/0032-reporting-store-data-model.md) | Reporting store: replication-fed star schema with tenant isolation | Proposed (rev. 2026-10-16, R2-01: native logical replication in Phase 1) |
-| [0033](../../docs/02-architecture/adr/0033-oracle-migration-staging-reconciliation.md) | Oracle legacy migration: staging, key maps, reconciliation | Superseded by ADR-0037 (D-09) |
-| [0034](../../docs/02-architecture/adr/0034-money-time-conventions.md) | Money, rounding, dates and time-zone conventions | Proposed |
-| [0035](../../docs/02-architecture/adr/0035-global-vs-tenant-reference-data.md) | Global vs tenant-overridable reference data | Accepted (2026-10-16, X-02) |
-| [0036](../../docs/02-architecture/adr/0036-dedicated-database-tier.md) | Platform cluster, pool clusters and dedicated tier with an identical schema (placement classes, job queue) | Proposed |
-| [0037](../../docs/02-architecture/adr/0037-opening-balance-import.md) | Opening-balance import: Excel templates, staging, validation, reconciliation, commit | Accepted (2026-10-16, D-09) |
+| [0020](../../docs/02-architecture/adr/0020-shared-schema-rls-tenancy.md) | Multi-tenancy dùng chung schema với RLS và tenant context cục bộ theo transaction | Đã chấp nhận (2026-10-16, brief baseline 4; X-07) |
+| [0021](../../docs/02-architecture/adr/0021-database-roles-and-privileges.md) | Database role và mô hình phân quyền | Đã chấp nhận (2026-10-16, X-02; danh sách ngoại lệ được chấp nhận tại R2-11; bổ sung grant cho relay trên `saas.enqueue_event_delivery()`, Đề xuất) |
+| [0022](../../docs/02-architecture/adr/0022-schema-per-module-no-cross-schema-fk.md) | Mỗi module một schema; không có foreign key giữa các schema; projection | Đã chấp nhận (2026-10-16, D-01) |
+| [0023](../../docs/02-architecture/adr/0023-primary-key-strategy-uuidv7.md) | Chiến lược khóa chính: UUIDv7 và khóa tenant ghép | Đề xuất |
+| [0024](../../docs/02-architecture/adr/0024-effective-dating-and-bitemporality.md) | Ngày hiệu lực và bi-temporality một phần | Đề xuất |
+| [0025](../../docs/02-architecture/adr/0025-legal-parameter-pack-model.md) | Mô hình dữ liệu legal parameter pack và đóng dấu phiên bản | Đề xuất |
+| [0026](../../docs/02-architecture/adr/0026-pii-encryption-crypto-shredding.md) | Phân loại PII, envelope encryption, crypto-shredding | Đã chấp nhận (2026-10-16, X-01) |
+| [0027](../../docs/02-architecture/adr/0027-tamper-evident-audit-log.md) | Audit log chống giả mạo với cơ chế seal hash chain bất đồng bộ | Đề xuất |
+| [0028](../../docs/02-architecture/adr/0028-outbox-inbox-tables.md) | Bảng transactional outbox và inbox theo từng module (delivery job ở Phase 1) | Đề xuất (rev. 2026-10-16, R2-01) |
+| [0029](../../docs/02-architecture/adr/0029-payroll-result-storage.md) | Snapshot tính lương, kết quả bất biến và lưu trữ 10 năm | Đề xuất |
+| [0030](../../docs/02-architecture/adr/0030-partitioning-and-archiving.md) | Partitioning, vòng đời dữ liệu và lưu trữ | Đã chấp nhận (2026-10-16, D-03) |
+| [0031](../../docs/02-architecture/adr/0031-schema-migration-flyway.md) | Công cụ migration schema: Flyway, expand/contract chỉ tiến | Đã chấp nhận (2026-10-16, Flyway Community) |
+| [0032](../../docs/02-architecture/adr/0032-reporting-store-data-model.md) | Reporting store: star schema được cấp dữ liệu qua replication với cô lập tenant | Đề xuất (rev. 2026-10-16, R2-01: native logical replication ở Phase 1) |
+| [0033](../../docs/02-architecture/adr/0033-oracle-migration-staging-reconciliation.md) | Migrate từ hệ thống Oracle cũ: staging, bảng ánh xạ khóa, đối soát | Bị thay thế bởi ADR-0037 (D-09) |
+| [0034](../../docs/02-architecture/adr/0034-money-time-conventions.md) | Quy ước về tiền, làm tròn, ngày và múi giờ | Đề xuất |
+| [0035](../../docs/02-architecture/adr/0035-global-vs-tenant-reference-data.md) | Dữ liệu tham chiếu toàn cục so với dữ liệu tenant override được | Đã chấp nhận (2026-10-16, X-02) |
+| [0036](../../docs/02-architecture/adr/0036-dedicated-database-tier.md) | Platform cluster, pool cluster và dedicated tier với schema giống hệt nhau (placement class, job queue) | Đề xuất |
+| [0037](../../docs/02-architecture/adr/0037-opening-balance-import.md) | Import số dư đầu kỳ: template Excel, staging, kiểm tra dữ liệu, đối soát, commit | Đã chấp nhận (2026-10-16, D-09) |

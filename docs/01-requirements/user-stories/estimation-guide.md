@@ -1,57 +1,57 @@
-# Estimation Guide: Phase 1 Backlog (v0.1, 2026-10-16)
+# Hướng dẫn ước lượng: Backlog Giai đoạn 1 (v0.1, 2026-10-16)
 
-The guide every estimator follows, so that story points mean the same thing in every module.
+Hướng dẫn mà mọi người ước lượng đều tuân theo, để story point mang cùng một ý nghĩa ở mọi module.
 
-## 1. Scope
-- Input: every requirement rated **P1** in [mvp-scope.md](../brd/mvp-scope.md) §9 (260 BRs + 58 NFRs), taken from the module BRDs in [../brd/modules/](../brd/modules/).
-- Read [decision-log.md](../../00-project-management/decision-log.md) for decisions affecting scope: no mobile, no live integrations, no SSO, file exports + e-mail only, Excel and device-export-file attendance import, password-protected PDF payslips, opening-balance import (no migration), multi-contract insurance as a legal parameter.
-- Architecture: [architecture-overview.md](../../02-architecture/architecture-overview.md) v0.3, [DESIGN.md](../../../database/postgresql/DESIGN.md) v0.3.
+## 1. Phạm vi
+- Đầu vào: mọi yêu cầu được xếp hạng **P1** trong [mvp-scope.md](../brd/mvp-scope.md) §9 (260 BR + 58 NFR), lấy từ BRD của các module trong [../brd/modules/](../brd/modules/).
+- Đọc [decision-log.md](../../00-project-management/decision-log.md) để nắm các quyết định ảnh hưởng đến phạm vi: không có mobile, không có tích hợp trực tiếp (live), không có SSO, chỉ xuất file + e-mail, nhập dữ liệu chấm công từ Excel và từ file xuất của thiết bị, phiếu lương PDF có mật khẩu, nhập số dư đầu kỳ (không migration), BHXH nhiều hợp đồng là một tham số pháp lý.
+- Kiến trúc: [architecture-overview.md](../../02-architecture/architecture-overview.md) v0.3, [DESIGN.md](../../../database/postgresql/DESIGN.md) v0.3.
 
-## 2. Backlog files
-| File | Owner | Contents |
+## 2. Các file backlog
+| File | Người phụ trách | Nội dung |
 |---|---|---|
-| `core-backlog.md` | Core BA | P1 BR-CORE |
-| `people-backlog.md` | People BA | P1 BR-PPL |
-| `time-attendance-backlog.md` | T&A BA | P1 BR-ATT |
-| `payroll-backlog.md` | Payroll BA | P1 BR-PAY |
-| `saas-platform-backlog.md` | SaaS BA | P1 BR-SAAS |
-| `technical-enablers-backlog.md` | Solution architect | Cross-cutting technical work and P1 NFRs: walking skeleton, tenancy/RLS, outbox/event bus, Keycloak, job queue runtime, (the formula engine and payroll run orchestration are in `payroll-backlog.md`; the Legal Parameter Service is in `saas-platform-backlog.md` — corrected 2026-10-16) CI/CD, environments, observability, security, performance tests, spikes SP-0/1/2/4/5/6/7/8/9 |
+| `core-backlog.md` | BA Core | BR-CORE P1 |
+| `people-backlog.md` | BA People | BR-PPL P1 |
+| `time-attendance-backlog.md` | BA T&A | BR-ATT P1 |
+| `payroll-backlog.md` | BA Payroll | BR-PAY P1 |
+| `saas-platform-backlog.md` | BA SaaS | BR-SAAS P1 |
+| `technical-enablers-backlog.md` | Solution architect | Công việc kỹ thuật xuyên suốt và các NFR P1: walking skeleton, tenancy/RLS, outbox/event bus, Keycloak, runtime job queue, (formula engine và điều phối kỳ chạy lương nằm trong `payroll-backlog.md`; Legal Parameter Service nằm trong `saas-platform-backlog.md` — đã điều chỉnh 2026-10-16) CI/CD, môi trường, observability, bảo mật, kiểm thử hiệu năng, spike SP-0/1/2/4/5/6/7/8/9 |
 
-## 3. Story format
-Each file has:
-1. **Epic table:** Epic ID (`EP-<MOD>-NN`), name, goal, number of stories, story points (SP).
-2. **Story table:** `ID | Epic | Story | BR/NFR refs | SP | Depends on | Notes`
+## 3. Định dạng story
+Mỗi file gồm:
+1. **Bảng epic:** Epic ID (`EP-<MOD>-NN`), tên, mục tiêu, số story, story point (SP).
+2. **Bảng story:** `ID | Epic | Story | BR/NFR refs | SP | Depends on | Notes`
    - ID: `US-<MOD>-NNN` (MOD = CORE, PPL, ATT, PAY, SAAS, TECH).
-   - Story: "As a <persona>, I want <capability> so that <benefit>." One line, followed by 1–3 short acceptance criteria separated by `;`.
-   - BR/NFR refs: every P1 requirement it delivers. One story may cover several BRs; a large BR is split across several stories.
-   - Depends on: story or enabler IDs from any backlog, including `US-TECH-…`.
-3. **Coverage check:** a list of every P1 BR/NFR of the module with the story IDs covering it. Every P1 ID must appear; anything uncovered is stated with a reason.
-4. **Totals:** SP per epic and in total, plus **risk notes** (stories with high uncertainty, marked `[high-uncertainty]`).
+   - Story: "Là <persona>, tôi muốn <năng lực> để <lợi ích>." Một dòng, tiếp theo là 1–3 tiêu chí chấp nhận ngắn, phân tách bằng `;`.
+   - BR/NFR refs: mọi yêu cầu P1 mà story đáp ứng. Một story có thể bao phủ nhiều BR; một BR lớn được tách thành nhiều story.
+   - Depends on: ID story hoặc enabler thuộc bất kỳ backlog nào, kể cả `US-TECH-…`.
+3. **Kiểm tra độ bao phủ:** danh sách mọi BR/NFR P1 của module cùng các ID story bao phủ chúng. Mọi ID P1 đều phải xuất hiện; mục nào chưa được bao phủ phải nêu rõ lý do.
+4. **Tổng cộng:** SP theo từng epic và tổng, kèm **ghi chú rủi ro** (các story có độ bất định cao, đánh dấu `[high-uncertainty]`).
 
-## 4. Story point scale (Fibonacci, relative)
-A point covers the whole story for one developer pair of skills: backend API and logic, database migration, frontend screen, unit and integration tests, and developer-level testing. It does not cover BA, QA system testing, PM or DevOps (those are in the overhead factor, §6).
+## 4. Thang story point (Fibonacci, tương đối)
+Một point bao gồm toàn bộ story cho một developer có đủ kỹ năng: API và logic backend, database migration, màn hình frontend, unit test và integration test, cùng kiểm thử ở mức developer. Không bao gồm BA, kiểm thử hệ thống của QA, PM hay DevOps (các phần này nằm trong hệ số overhead, §6).
 
-| SP | Reference | Example |
+| SP | Mốc tham chiếu | Ví dụ |
 |---|---|---|
-| **1** | Configuration or a field added to an existing screen and API | Add "ethnicity" to the person profile |
-| **2** | Simple read-only list or lookup, small validation rule | Bank master list with search |
-| **3** | One CRUD entity: list + form + API + validation + tests | Cost centres |
-| **5** | Entity with effective-dated history **or** an approval workflow **or** an Excel import template | Job assignment history; leave request with approval |
-| **8** | Complex business rule or calculation with many cases, or a statutory file export | OT categorisation into 6 classes; VSS D02-LT export |
-| **13** | Very complex: engine-level logic, many legal edge cases | PIT monthly calculation incl. residency & concurrent employment |
-| **>13** | Not allowed: split the story | |
+| **1** | Cấu hình hoặc thêm một trường vào màn hình và API có sẵn | Thêm "dân tộc" vào hồ sơ cá nhân |
+| **2** | Danh sách hoặc tra cứu chỉ đọc đơn giản, quy tắc kiểm tra hợp lệ nhỏ | Danh mục ngân hàng có tìm kiếm |
+| **3** | Một thực thể CRUD: danh sách + form + API + kiểm tra hợp lệ + test | Trung tâm chi phí |
+| **5** | Thực thể có lịch sử theo ngày hiệu lực **hoặc** một luồng phê duyệt **hoặc** một mẫu nhập Excel | Lịch sử phân công công việc; đơn nghỉ phép có phê duyệt |
+| **8** | Quy tắc nghiệp vụ hoặc phép tính phức tạp với nhiều trường hợp, hoặc một file xuất theo quy định pháp luật | Phân loại OT thành 6 loại; xuất file VSS D02-LT |
+| **13** | Rất phức tạp: logic ở mức engine, nhiều trường hợp biên về pháp lý | Tính thuế TNCN hằng tháng gồm cả cư trú & làm việc đồng thời nhiều nơi |
+| **>13** | Không được phép: tách story | |
 
-Rules:
-- Estimate against the **reference examples**, not hours.
-- Shared engines (workflow, import engine, document/PDF, notifications, audit, legal parameters, formula engine) are built **once** in their owner backlog. Other modules' stories only *use* them: count just the registration and configuration work.
-- Statutory logic with `[verify-legal]` gets +1 Fibonacci step if the rule is still unclear; mark it `[high-uncertainty]`.
-- Opening-balance templates are estimated in the owning module (People: employee master; Payroll: YTD/SI history/loans; T&A: leave balances and YTD OT).
+Quy tắc:
+- Ước lượng so với **các ví dụ tham chiếu**, không theo giờ.
+- Các engine dùng chung (workflow, import engine, tài liệu/PDF, thông báo, audit, tham số pháp lý, formula engine) chỉ được xây dựng **một lần** trong backlog của module sở hữu. Story của các module khác chỉ *sử dụng* chúng: chỉ tính công việc đăng ký và cấu hình.
+- Logic theo quy định pháp luật có `[verify-legal]` được cộng thêm 1 bậc Fibonacci nếu quy định vẫn chưa rõ; đánh dấu `[high-uncertainty]`.
+- Mẫu số dư đầu kỳ được ước lượng trong module sở hữu (People: hồ sơ nhân viên; Payroll: lũy kế từ đầu năm (YTD)/lịch sử BHXH/khoản vay; T&A: số dư phép và OT lũy kế từ đầu năm).
 
-## 5. Done means
-Code merged with tests passing, tenant isolation tested, audit and permissions applied, vi/en labels, API documented, reviewed by the BA on the test environment.
+## 5. Định nghĩa hoàn thành
+Code đã được merge với test đạt, đã kiểm thử cách ly tenant, đã áp dụng audit và phân quyền, có nhãn vi/en, API được tài liệu hóa, BA đã review trên môi trường test.
 
-## 6. Converting points to time (PM consolidation)
-- Assumed **1 SP ≈ 1 developer-day** of a mid-level full-stack developer. This is a planning assumption, to be recalibrated after sprint 2.
-- Delivery overhead on top of developer effort: QA system testing, BA support, UX, DevOps, PM ≈ **+40%**.
-- 16-week plan: **12 weeks of build** (6 two-week sprints) + 4 weeks of system integration test, UAT, pilot cut-over and stabilisation.
-- Focus factor 0.7 (meetings, reviews, bugs): one developer delivers ≈ 0.7 × 10 = **7 SP per sprint**.
+## 6. Quy đổi point sang thời gian (PM tổng hợp)
+- Giả định **1 SP ≈ 1 ngày công developer** của một full-stack developer trình độ trung bình. Đây là giả định lập kế hoạch, sẽ hiệu chỉnh lại sau sprint 2.
+- Overhead triển khai cộng thêm vào công sức developer: kiểm thử hệ thống của QA, hỗ trợ BA, UX, DevOps, PM ≈ **+40%**.
+- Kế hoạch 16 tuần: **12 tuần xây dựng** (6 sprint hai tuần) + 4 tuần kiểm thử tích hợp hệ thống, UAT, chuyển đổi pilot và ổn định.
+- Hệ số tập trung 0.7 (họp, review, sửa lỗi): một developer hoàn thành ≈ 0.7 × 10 = **7 SP mỗi sprint**.

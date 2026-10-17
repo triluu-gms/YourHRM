@@ -1,36 +1,36 @@
-# ADR-0032: Reporting store data model — replication-fed star schema with tenant isolation
+# ADR-0032: Mô hình dữ liệu reporting store — star schema được cấp dữ liệu qua replication với cách ly tenant
 
-- **Status:** Proposed (rev. 2026-10-16, R2-01: the Phase-1 feed is native logical replication, ADR-0012 Amendment 1; the model is unchanged)
-- **Date:** 2026-10-16
-- **Deciders:** Data architect (model), Solution architect (ADR-0012 owns technology and pipeline)
-- **Related:** BR-SAAS-046/047, NFR-SAAS-003; gap-analysis §9 A-10; ADR-0006 (`report_scope`), ADR-0012, ADR-0026, ADR-0029; [DESIGN.md](../../../database/postgresql/DESIGN.md) §11
+- **Trạng thái:** Đề xuất (sửa đổi 2026-10-16, R2-01: luồng cấp dữ liệu Phase 1 là native logical replication, ADR-0012 Amendment 1; mô hình không đổi)
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect (mô hình), Solution architect (ADR-0012 sở hữu công nghệ và pipeline)
+- **Liên quan:** BR-SAAS-046/047, NFR-SAAS-003; gap-analysis §9 A-10; ADR-0006 (`report_scope`), ADR-0012, ADR-0026, ADR-0029; [DESIGN.md](../../../database/postgresql/DESIGN.md) §11
 
-## Context
+## Bối cảnh
 
-Analytics must not load OLTP during payroll and check-in peaks. Freshness must be ≤ 15 min, and RLS and data scope must be inherited. ADR-0012 chose a PostgreSQL 17 reporting store with a star schema, SCD2, and `tenant_id` + RLS. Its Amendment 1 (R2-01) feeds it in Phase 1 by native logical replication with column lists (no P3 columns published) instead of Debezium → Kafka; Debezium stays a Phase-2 option. The model below works with either feed. This ADR fixes the model and its isolation rules.
+Phân tích không được tạo tải lên OLTP vào giờ cao điểm tính lương và chấm công. Độ tươi dữ liệu phải ≤ 15 phút, và RLS cùng phạm vi dữ liệu phải được kế thừa. ADR-0012 đã chọn reporting store PostgreSQL 17 với star schema, SCD2, và `tenant_id` + RLS. Amendment 1 của nó (R2-01) cấp dữ liệu ở Phase 1 bằng native logical replication với column list (không phát hành cột P3) thay vì Debezium → Kafka; Debezium vẫn là tuỳ chọn Phase 2. Mô hình dưới đây hoạt động với cả hai luồng cấp dữ liệu. ADR này chốt mô hình và các quy tắc cách ly của nó.
 
-## Decision
+## Quyết định
 
-1. **Layers:**
-   * `rpt_raw`: replication landing, one table per published source table (Phase 1: logical-replication subscriber tables, no RLS, readable only by the transformation role; Phase-2 option: CDC append plus a merge view);
-   * `rpt`: the star schema, built by SQL models run by the scheduler (dbt-style).
-2. **Dimensions:** SCD2 for `dim_employee` (keyed by `employment_id`), `dim_org_unit` (with path), `dim_position`, `dim_legal_entity`; SCD1 for `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; plus `dim_date` and `dim_pay_run`. Surrogate keys are `bigint`; natural ids are kept.
-3. **Facts:** `fact_headcount_daily` (periodic snapshot, `is_billable`), `fact_movement`, `fact_payroll_line` (employee × run × component, 10 years), `fact_payroll_employee_month`, `fact_attendance_daily`, `fact_ot`, `fact_leave`, `fact_si_contribution`, and `fact_recruitment_funnel` (P2). Facts are monthly-partitioned.
-4. **Isolation:** `tenant_id` on every row, leading every index; the same RLS template and transaction-local context as OLTP. Data scope comes from `report_scope(tenant_id, user_account_id, employment_id)` joined on `employment_id`. Dedicated tenants get their own reporting DB.
-5. **Privacy:** no P3 in the store; names (P1) are kept; amounts (P2) are visible only through permission-checked subject areas. DSR anonymisation updates `dim_employee`; tenant purge deletes by `tenant_id`.
-6. Only approved payroll runs and locked or closed attendance periods enter the payroll and attendance facts. Provisional data is flagged and excluded by default.
+1. **Các lớp:**
+   * `rpt_raw`: vùng đáp dữ liệu replication, một bảng cho mỗi bảng nguồn được phát hành (Phase 1: bảng subscriber của logical replication, không RLS, chỉ role transformation đọc được; tuỳ chọn Phase 2: CDC append cộng một merge view);
+   * `rpt`: star schema, được dựng bởi các SQL model do scheduler chạy (kiểu dbt).
+2. **Dimension:** SCD2 cho `dim_employee` (khoá theo `employment_id`), `dim_org_unit` (có path), `dim_position`, `dim_legal_entity`; SCD1 cho `dim_pay_component`, `dim_att_code`, `dim_leave_type`, `dim_location`, `dim_cost_centre`; cộng `dim_date` và `dim_pay_run`. Surrogate key là `bigint`; natural id được giữ lại.
+3. **Fact:** `fact_headcount_daily` (periodic snapshot, `is_billable`), `fact_movement`, `fact_payroll_line` (nhân viên × kỳ chạy × thành phần, 10 năm), `fact_payroll_employee_month`, `fact_attendance_daily`, `fact_ot`, `fact_leave`, `fact_si_contribution`, và `fact_recruitment_funnel` (P2). Fact được partition hằng tháng.
+4. **Cách ly:** `tenant_id` trên mọi dòng, đứng đầu mọi index; cùng template RLS và context cục bộ theo transaction như OLTP. Phạm vi dữ liệu đến từ `report_scope(tenant_id, user_account_id, employment_id)` join theo `employment_id`. Tenant riêng có reporting DB riêng.
+5. **Quyền riêng tư:** không có P3 trong store; tên (P1) được giữ; số tiền (P2) chỉ hiển thị qua các subject area có kiểm tra quyền. Ẩn danh hoá theo DSR cập nhật `dim_employee`; purge tenant xoá theo `tenant_id`.
+6. Chỉ các kỳ chạy lương đã phê duyệt và các kỳ công đã khoá hoặc đã chốt mới được đưa vào fact bảng lương và chấm công. Dữ liệu tạm tính được gắn cờ và mặc định bị loại trừ.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Report from OLTP read replicas with materialised views | Cross-module joins are forbidden on OLTP (ADR-0022); MV refresh load lands on replicas used for failover. |
-| ClickHouse as the first store | Strong for scans, but RLS and SCD2 semantics are weaker and it is another engine to operate in VN. It remains the scale-out option if PostgreSQL misses NFR-SAAS-003 **[spike]**. |
-| Data vault | Over-engineered for the report catalogue in scope. |
+| Báo cáo từ read replica OLTP với materialised view | Join chéo module bị cấm trên OLTP (ADR-0022); tải refresh MV đè lên các replica dùng cho failover. |
+| ClickHouse làm store đầu tiên | Mạnh cho scan, nhưng ngữ nghĩa RLS và SCD2 yếu hơn và là thêm một engine phải vận hành tại VN. Vẫn là phương án scale-out nếu PostgreSQL không đạt NFR-SAAS-003 **[spike]**. |
+| Data vault | Thiết kế quá mức so với danh mục báo cáo trong phạm vi. |
 
-## Consequences
+## Hệ quả
 
-- \+ One governed model for standard reports, the designer (P2) and Superset.
-- \+ Isolation is the same as OLTP, with no new mechanism.
-- − Schema evolution of published tables must follow expand/contract (ADR-0031) with an `rpt_raw` migration step, because logical replication does not carry DDL; transformations must tolerate added columns.
-- − `report_scope` can be large (users × employees in scope). It is maintained incrementally, with role-level shortcuts for tenant-wide scopes **[spike]**.
+- \+ Một mô hình được quản trị duy nhất cho báo cáo chuẩn, trình thiết kế báo cáo (P2) và Superset.
+- \+ Cách ly giống như OLTP, không có cơ chế mới.
+- − Việc tiến hoá schema của các bảng được phát hành phải theo expand/contract (ADR-0031) với một bước migration `rpt_raw`, vì logical replication không mang DDL; các transformation phải chịu được cột được thêm vào.
+- − `report_scope` có thể lớn (số người dùng × số nhân viên trong phạm vi). Nó được duy trì tăng dần, với lối tắt ở mức role cho các phạm vi toàn tenant **[spike]**.

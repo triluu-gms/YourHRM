@@ -1,33 +1,33 @@
-# ADR-0034: Money, rounding, dates and time-zone conventions
+# ADR-0034: Quy ước về tiền, làm tròn, ngày tháng và múi giờ
 
-- **Status:** Proposed
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Payroll lead, Solution architect
-- **Related:** NFR-PAY-002 (fixed-point, VND-exact determinism), NFR-PAY-011, NFR-ATT-005, NFR-CORE-011/015, H-07 (USD contracts); ADR-0009; [DESIGN.md](../../../database/postgresql/DESIGN.md) §4.6–4.7; DDL domains `sys.money_amount`, `sys.rate`, `sys.quantity`, `sys.month_date`
+- **Trạng thái:** Đề xuất
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, trưởng nhóm Payroll, Solution architect
+- **Liên quan:** NFR-PAY-002 (số thực dấu chấm tĩnh, tính tất định chính xác tới VND), NFR-PAY-011, NFR-ATT-005, NFR-CORE-011/015, H-07 (hợp đồng USD); ADR-0009; [DESIGN.md](../../../database/postgresql/DESIGN.md) §4.6–4.7; DDL domain `sys.money_amount`, `sys.rate`, `sys.quantity`, `sys.month_date`
 
-## Context
+## Bối cảnh
 
-Payroll must be exact to the VND and deterministic. VND has no minor unit, but expat contracts may be in USD, and SI rates such as 8 % or 1.5 % and FX rates need exact decimals. Attendance spans midnight shifts and devices in several time zones, while work dates and effective dates are local business dates.
+Bảng lương phải chính xác tới từng VND và tất định. VND không có đơn vị lẻ, nhưng hợp đồng của người nước ngoài có thể bằng USD, và các tỷ lệ BHXH như 8 % hay 1,5 % cùng tỷ giá cần số thập phân chính xác. Chấm công trải qua các ca qua nửa đêm và thiết bị ở nhiều múi giờ, trong khi ngày công và ngày hiệu lực là ngày nghiệp vụ theo giờ địa phương.
 
-## Decision
+## Quyết định
 
-1. **Money:** `numeric(19,4)` (`sys.money_amount`) plus `currency_code char(3)` on the row or its header. Rates use `numeric(12,8)` (`sys.rate`); quantities (hours, days) use `numeric(12,4)`. Floating-point types are forbidden for business values.
-2. **Rounding is configuration:** each salary component has `rounding_mode` (`HALF_UP/DOWN/UP/HALF_EVEN`) and `rounding_unit` (1/10/100/1000). Statutory defaults come from the legal pack (`ROUNDING.*`) `[verify-legal]`. Payable and declared values are stored **rounded**; result lines also keep `amount_unrounded numeric(24,8)`.
-3. **Instants** are `timestamptz`, and sessions and servers run in UTC. **Business dates** are `date` in the local calendar of the location or LE. Year-months are the first day of the month (`sys.month_date`). Shift times are `time` plus `crosses_midnight`. Punches keep `punch_at` (UTC), the device `local_ts` and `tz_name`.
-4. **Ranges** are half-open `[from, to)` for effective dating (ADR-0024). Inclusive business end dates (contract end, termination date) are exposed as such and converted in generated ranges.
-5. Text is UTF-8 with an ICU default collation; an ICU `vi-VN` collation is used for sorting names. Accent-insensitive search uses `sys.search_key()` (`unaccent` + `đ→d`) with trigram indexes.
+1. **Tiền:** `numeric(19,4)` (`sys.money_amount`) cộng `currency_code char(3)` trên dòng hoặc header của nó. Tỷ lệ dùng `numeric(12,8)` (`sys.rate`); số lượng (giờ, ngày) dùng `numeric(12,4)`. Cấm dùng kiểu số thực dấu phẩy động cho giá trị nghiệp vụ.
+2. **Làm tròn là cấu hình:** mỗi thành phần lương có `rounding_mode` (`HALF_UP/DOWN/UP/HALF_EVEN`) và `rounding_unit` (1/10/100/1000). Mặc định theo luật định lấy từ legal pack (`ROUNDING.*`) `[verify-legal]`. Giá trị phải trả và giá trị kê khai được lưu **đã làm tròn**; dòng kết quả còn giữ `amount_unrounded numeric(24,8)`.
+3. **Thời điểm** là `timestamptz`, session và server chạy theo UTC. **Ngày nghiệp vụ** là `date` theo lịch địa phương của địa điểm hoặc pháp nhân. Năm-tháng là ngày đầu tiên của tháng (`sys.month_date`). Giờ ca là `time` cộng `crosses_midnight`. Dữ liệu chấm công giữ `punch_at` (UTC), `local_ts` của thiết bị và `tz_name`.
+4. **Khoảng** là nửa mở `[from, to)` cho ngày hiệu lực (ADR-0024). Ngày kết thúc nghiệp vụ dạng bao gồm (ngày kết thúc hợp đồng, ngày chấm dứt) được hiển thị đúng như vậy và được chuyển đổi trong các khoảng sinh tự động.
+5. Văn bản là UTF-8 với collation mặc định ICU; collation ICU `vi-VN` được dùng để sắp xếp tên. Tìm kiếm không phân biệt dấu dùng `sys.search_key()` (`unaccent` + `đ→d`) với trigram index.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| `bigint` VND amounts | Cannot represent USD cents or intermediate precision; a second representation would be needed for FX. |
-| PostgreSQL `money` type | Locale-dependent and a fixed 2-decimal scale; not portable to Java `BigDecimal`. |
-| `timestamp without time zone` for punches | Ambiguous across devices and DST-observing countries (expat travel); hard to normalise. |
-| Hard-coded rounding per component type | Rounding rules vary by tenant policy and statutory form; NFR-PAY-007 requires change without release. |
+| Số tiền VND kiểu `bigint` | Không biểu diễn được cent USD hay độ chính xác trung gian; sẽ cần biểu diễn thứ hai cho ngoại tệ. |
+| Kiểu `money` của PostgreSQL | Phụ thuộc locale và cố định 2 chữ số thập phân; không chuyển đổi được sang `BigDecimal` của Java. |
+| `timestamp without time zone` cho dữ liệu chấm công | Mơ hồ giữa các thiết bị và các quốc gia áp dụng giờ mùa hè (người nước ngoài đi công tác); khó chuẩn hoá. |
+| Làm tròn cố định theo loại thành phần | Quy tắc làm tròn khác nhau theo chính sách tenant và biểu mẫu luật định; NFR-PAY-007 yêu cầu thay đổi được mà không cần release. |
 
-## Consequences
+## Hệ quả
 
-- \+ Exact, portable arithmetic (`BigDecimal` ↔ `numeric`) and an explicit rounding audit trail.
-- − `numeric` arithmetic in SQL aggregates is slower than integers. This is negligible relative to I/O at our volumes.
-- − Developers must never derive business dates from `now()` without a zone; a lint rule and code review enforce this.
+- \+ Phép tính chính xác, chuyển đổi được (`BigDecimal` ↔ `numeric`) và có vết audit làm tròn tường minh.
+- − Phép tính `numeric` trong các hàm tổng hợp SQL chậm hơn số nguyên. Điều này không đáng kể so với I/O ở khối lượng của chúng ta.
+- − Developer không bao giờ được suy ra ngày nghiệp vụ từ `now()` mà không có múi giờ; lint rule và code review ép buộc điều này.

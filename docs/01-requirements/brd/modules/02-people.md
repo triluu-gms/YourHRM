@@ -1,556 +1,556 @@
-# YourHRM — Module BRD: People (`people`, schema `hr`)
+# YourHRM — BRD phân hệ: Nhân sự (`people`, schema `hr`)
 
-| Item | Value |
+| Mục | Giá trị |
 |---|---|
-| Document | `docs/01-requirements/brd/modules/02-people.md` |
-| Version | Draft v0.2 — 2026-10-16 (v0.1 minor edits 2026-10-16 for D-09: BR-PPL-010 note, IN-28, NFR-PPL-007, Q3, RK2) |
-| Change note | v0.2 (2026-10-16): applies the approved single-owner table ([gap-analysis](../gap-analysis.md) §5, decision **R2-02**): People owns agreed compensation incl. GROSS/NET and agreed net, under a `compensation` permission, changed only by decision/appendix, every view/change audited (BR-PPL-040/044, OUT-07; #24, GAP-047); business trips consumed from T&A (BR-PPL-113, OUT-30 removed; #6); 08/CK and PIT finalisation authorisation owned by Payroll (OUT-18 removed; #4); user provisioning driven by Core from People events (OUT-21 removed; #9); severance working time computed by Payroll (BR-PPL-074; #29); consent/DSR/retention in the SaaS registry (#27); legal parameters from the SaaS Legal Parameter Service (IN-10; #1); documents via the Core document service (IN-24/25; #15b); ESS pages in the SaaS shell (BR-PPL-120; #17). GAP-048: tax residency and 183-day inputs (BR-PPL-023, OUT-15). GAP-053: reorg mapping execution and `people.ReorgMappingCompleted` (BR-PPL-039, OUT-35). R2-16: concurrent employment across legal entities (BR-PPL-004). R2-18: People basics always on. Edits are marked "(changed 2026-10-16, R2-02 §5 #n)" or with the decision/gap ID. Priority columns unchanged (PM syncs). |
-| Owner | BA – People |
-| Requirement prefix | `BR-PPL-NNN`, `NFR-PPL-NNN` |
-| Related | Project charter §4–§6; BRDs 01-core, 03-time-attendance, 04-payroll, 05-recruitment, 06-saas-platform |
-| Status | For review by PM / integration analyst (gap analysis) |
+| Tài liệu | `docs/01-requirements/brd/modules/02-people.md` |
+| Phiên bản | Bản nháp v0.2 — 2026-10-16 (v0.1 chỉnh sửa nhỏ ngày 2026-10-16 cho D-09: ghi chú BR-PPL-010, IN-28, NFR-PPL-007, Q3, RK2) |
+| Ghi chú thay đổi | v0.2 (2026-10-16): áp dụng bảng chủ sở hữu duy nhất đã được phê duyệt ([gap-analysis](../gap-analysis.md) §5, quyết định **R2-02**): People sở hữu mức đãi ngộ đã thỏa thuận bao gồm GROSS/NET và lương net thỏa thuận, dưới quyền `compensation`, chỉ được thay đổi qua quyết định/phụ lục, mọi lượt xem/thay đổi đều được ghi audit (BR-PPL-040/044, OUT-07; #24, GAP-047); công tác được lấy từ T&A (BR-PPL-113, bỏ OUT-30; #6); cam kết 08/CK và ủy quyền quyết toán thuế TNCN do Payroll sở hữu (bỏ OUT-18; #4); việc cấp tài khoản người dùng do Core thực hiện dựa trên sự kiện của People (bỏ OUT-21; #9); thời gian làm việc tính trợ cấp thôi việc do Payroll tính (BR-PPL-074; #29); consent/DSR/lưu trữ nằm trong registry của SaaS (#27); tham số pháp lý lấy từ Legal Parameter Service của SaaS (IN-10; #1); tài liệu qua dịch vụ tài liệu của Core (IN-24/25; #15b); các trang ESS nằm trong shell của SaaS (BR-PPL-120; #17). GAP-048: cư trú thuế và dữ liệu đầu vào cho phép thử 183 ngày (BR-PPL-023, OUT-15). GAP-053: thực thi ánh xạ tái cơ cấu và `people.ReorgMappingCompleted` (BR-PPL-039, OUT-35). R2-16: làm việc đồng thời tại nhiều pháp nhân (BR-PPL-004). R2-18: các chức năng cơ bản của People luôn bật. Các chỉnh sửa được đánh dấu "(changed 2026-10-16, R2-02 §5 #n)" hoặc bằng mã quyết định/gap. Các cột ưu tiên không đổi (PM đồng bộ). |
+| Chủ sở hữu | BA – People |
+| Tiền tố yêu cầu | `BR-PPL-NNN`, `NFR-PPL-NNN` |
+| Liên quan | Điều lệ dự án §4–§6; BRD 01-core, 03-time-attendance, 04-payroll, 05-recruitment, 06-saas-platform |
+| Trạng thái | Chờ PM / chuyên viên phân tích tích hợp review (gap analysis) |
 
-> **Phase:** the delivery phase of every requirement is set only in [mvp-scope.md](../mvp-scope.md) §9; MoSCoW here is business priority. (2026-10-16)
+> **Giai đoạn:** giai đoạn triển khai của mọi yêu cầu chỉ được xác định trong [mvp-scope.md](../mvp-scope.md) §9; MoSCoW ở đây là mức ưu tiên nghiệp vụ. (2026-10-16)
 
-> All legal values (durations, percentages, amounts, deadlines) quoted here are examples. They are stored as **effective-dated, tenant-overridable parameters**, never hard-coded, and are marked `[verify-legal]` until a Vietnam labour/tax consultant confirms them.
+> Mọi giá trị pháp lý (thời hạn, tỷ lệ phần trăm, số tiền, hạn chót) nêu ở đây chỉ là ví dụ. Chúng được lưu dưới dạng **tham số có hiệu lực theo ngày, tenant có thể ghi đè**, không bao giờ hard-code, và được đánh dấu `[verify-legal]` cho đến khi chuyên gia tư vấn lao động/thuế Việt Nam xác nhận.
 
 ---
 
-## 1. Purpose & scope
+## 1. Mục đích & phạm vi
 
-### 1.1 Purpose
-The People module is the **system of record for every person who works, has worked, or is about to work** for a tenant: who they are (person), how they are engaged (employment, contract), where they sit and what they are paid at grade level (assignment, salary history), and everything that happens to them over the employment lifecycle (onboarding → changes → appraisal / training / discipline → separation). It publishes authoritative HR events that Time & Attendance, Payroll, Recruitment and Core consume.
+### 1.1 Mục đích
+Phân hệ People là **hệ thống gốc (system of record) cho mọi người đang làm việc, đã từng làm việc hoặc sắp làm việc** cho một tenant: họ là ai (person), họ được tuyển dụng theo hình thức nào (employment, hợp đồng), họ ở vị trí nào và được trả lương ở mức ngạch/bậc nào (phân công, lịch sử lương), và mọi việc xảy ra với họ trong suốt vòng đời lao động (tiếp nhận → thay đổi → đánh giá / đào tạo / kỷ luật → nghỉ việc). Phân hệ phát hành các sự kiện nhân sự chính thức mà Chấm công (Time & Attendance), Tính lương (Payroll), Tuyển dụng (Recruitment) và Core tiêu thụ.
 
-### 1.2 In scope
-1. **Person vs employee**: one Person per real human per tenant; one or more Employments (rehire, concurrent employment in several legal entities of the same tenant).
-2. **Personal information**: identity (CCCD / căn cước, VNeID level-2 verification, passport for foreigners), personal tax code (MST cá nhân), SI book number (số sổ BHXH / mã số BHXH), bank accounts, addresses, family members & PIT dependants, emergency contacts, education, certificates/licences, work permits (foreigners).
-3. **Effective-dated job assignments**: hire, transfer, promotion, demotion, secondment, temporary transfer (Art. 29), concurrent positions (kiêm nhiệm), reporting line changes.
-4. **Agreed compensation (system of record)**: salary records incl. GROSS/NET basis and agreed net, salary history / grade changes (diễn biến lương) as HR events feeding payroll (changed 2026-10-16, R2-02 §5 #24).
-5. **Labour contracts** per Labour Code 2019: probation, definite-term (≤36 months), indefinite-term, conversion rules, appendices, suspension, e-labour contracts.
-6. **Onboarding / offboarding checklists**.
-7. **Resignation & termination**: notice periods, severance / job-loss allowance eligibility, final-settlement trigger, handover.
-8. **Discipline & rewards** (kỷ luật / khen thưởng) including statutory disciplinary procedure.
-9. **Appraisal / performance**: KPI and OKR cycles, ratings, calibration.
-10. **Training**: courses, sessions, attendance, certificates, training bonds.
-11. **Expense claims & cash advances** (tạm ứng công tác / hoàn ứng — Phase 2 unless the pilot needs them); salary advances (tạm ứng lương) and loans are Payroll's (changed 2026-10-16, R2-02 §5 #21/#21b).
-12. **ESS and MSS pages** for People features (profile, home, requests), hosted in the saas-platform ESS/MSS shell (changed 2026-10-16, R2-02 §5 #17).
-13. **Documents & HR letters**: decisions (quyết định), contracts, confirmations, templated letters, e-signature.
-14. **Employee timeline**: single chronological view of all HR events.
-15. **VN statutory outputs**: labour management book (sổ quản lý lao động), semi-annual labour-usage report (Decree 145/2020), monthly labour-change notice to the Employment Service Centre.
-16. **Personal data protection**: sensitive-data controls per PDPL 2025 / Decree 13/2023; People registers its fields in the saas-platform PD inventory and holds references to the saas-platform consent registry, DSR orchestration and retention scheduler (changed 2026-10-16, R2-02 §5 #27).
+### 1.2 Trong phạm vi
+1. **Person và nhân viên**: mỗi người thật có một Person trên mỗi tenant; một hoặc nhiều Employment (tái tuyển dụng, làm việc đồng thời tại nhiều pháp nhân của cùng tenant).
+2. **Thông tin cá nhân**: định danh (CCCD / căn cước, xác thực VNeID mức 2, hộ chiếu cho người nước ngoài), mã số thuế cá nhân (MST cá nhân), số sổ BHXH (số sổ BHXH / mã số BHXH), tài khoản ngân hàng, địa chỉ, thành viên gia đình & người phụ thuộc giảm trừ thuế TNCN, người liên hệ khẩn cấp, học vấn, chứng chỉ/giấy phép hành nghề, giấy phép lao động (người nước ngoài).
+3. **Phân công công việc có hiệu lực theo ngày**: tuyển mới, điều chuyển, thăng chức, giáng chức, biệt phái, tạm thời chuyển người lao động làm công việc khác (Điều 29), kiêm nhiệm, thay đổi tuyến báo cáo.
+4. **Mức đãi ngộ đã thỏa thuận (system of record)**: bản ghi lương bao gồm cơ sở GROSS/NET và lương net thỏa thuận, lịch sử lương / thay đổi ngạch bậc (diễn biến lương) dưới dạng sự kiện nhân sự cấp cho bảng lương (changed 2026-10-16, R2-02 §5 #24).
+5. **Hợp đồng lao động** theo Bộ luật Lao động 2019: thử việc, xác định thời hạn (≤36 tháng), không xác định thời hạn, quy tắc chuyển đổi, phụ lục, tạm hoãn, hợp đồng lao động điện tử.
+6. **Danh mục công việc tiếp nhận / nghỉ việc (onboarding / offboarding checklist)**.
+7. **Thôi việc & chấm dứt hợp đồng**: thời hạn báo trước, điều kiện hưởng trợ cấp thôi việc / trợ cấp mất việc làm, kích hoạt quyết toán cuối cùng, bàn giao.
+8. **Kỷ luật & khen thưởng** (kỷ luật / khen thưởng) bao gồm trình tự xử lý kỷ luật theo luật định.
+9. **Đánh giá / hiệu suất**: chu kỳ KPI và OKR, xếp loại, hiệu chỉnh (calibration).
+10. **Đào tạo**: khóa học, buổi học, điểm danh, chứng chỉ, cam kết đào tạo.
+11. **Đề nghị thanh toán chi phí & tạm ứng** (tạm ứng công tác / hoàn ứng — Phase 2 trừ khi pilot cần); tạm ứng lương và khoản vay thuộc Payroll (changed 2026-10-16, R2-02 §5 #21/#21b).
+12. **Các trang ESS và MSS** cho các tính năng People (hồ sơ, trang chủ, yêu cầu), được host trong shell ESS/MSS của saas-platform (changed 2026-10-16, R2-02 §5 #17).
+13. **Tài liệu & văn bản nhân sự**: quyết định, hợp đồng, giấy xác nhận, văn bản theo mẫu, chữ ký điện tử.
+14. **Dòng thời gian nhân viên**: một chế độ xem theo trình tự thời gian cho tất cả sự kiện nhân sự.
+15. **Báo cáo theo luật định của Việt Nam**: sổ quản lý lao động, báo cáo tình hình sử dụng lao động 6 tháng (Nghị định 145/2020), thông báo biến động lao động hằng tháng gửi Trung tâm Dịch vụ việc làm.
+16. **Bảo vệ dữ liệu cá nhân**: kiểm soát dữ liệu nhạy cảm theo Luật BVDLCN 2025 / Nghị định 13/2023; People đăng ký các trường của mình vào danh mục dữ liệu cá nhân (PD inventory) của saas-platform và lưu tham chiếu tới consent registry, điều phối DSR và bộ lập lịch lưu trữ của saas-platform (changed 2026-10-16, R2-02 §5 #27).
 
-**Baseline (R2-18):** the People basics — person, employment, assignment, contract, salary record, dependants, bank accounts, tax/SI profile — are always on, whatever modules the tenant subscribes to, because Payroll and T&A depend on them (changed 2026-10-16, R2-18).
+**Nền tảng cơ bản (R2-18):** các chức năng cơ bản của People — person, employment, phân công, hợp đồng, bản ghi lương, người phụ thuộc, tài khoản ngân hàng, hồ sơ thuế/BHXH — luôn được bật, bất kể tenant đăng ký những phân hệ nào, vì Payroll và T&A phụ thuộc vào chúng (changed 2026-10-16, R2-18).
 
-### 1.3 Out of scope (owned elsewhere)
-| Topic | Owner module |
+### 1.3 Ngoài phạm vi (thuộc phân hệ khác)
+| Chủ đề | Phân hệ sở hữu |
 |---|---|
-| Legal entities, org tree, positions, job catalogue, tenant user accounts and their provisioning, roles, workflow engine, notifications, audit store, document service (incl. e-signature orchestration), import engine | `core` (changed 2026-10-16, R2-02 §5 #9, #12, #15b) |
-| Shifts, rosters, check-ins, overtime, leave types/balances, holidays, **work schedule assignment**, **business-trip requests** | `time-attendance` (changed 2026-10-16, R2-02 §5 #6, #26) |
-| Pay components, pay scales (thang bảng lương) and bands, **pay group assignment**, SI/HI/UI contributions & declarations (D02-LT etc.) and **SI contribution history**, PIT calculation & finalization, **08/CK-TNCN commitments and PIT finalisation authorisation**, payslips, bank payment files, the money calculation of final settlement and **severance / job-loss working time** | `payroll` (changed 2026-10-16, R2-02 §5 #4, #20, #25, #29) |
-| Requisitions, candidates, interviews, offers | `recruitment` |
-| Tenant provisioning, plans/licensing, object storage, **Legal Parameter Service**, e-signature/e-contract and VNeID connectors, ESS/MSS shell, consent registry, PD inventory, DSR orchestration, retention scheduler, job scheduler, reporting store | `saas-platform` (changed 2026-10-16, R2-02 §5 #1, #15, #16, #17, #18, #27) |
-| General-ledger posting of expenses | External accounting (via payroll / export) |
+| Pháp nhân, cây tổ chức, vị trí, danh mục công việc, tài khoản người dùng của tenant và việc cấp tài khoản, vai trò, workflow engine, thông báo, kho audit, dịch vụ tài liệu (bao gồm điều phối chữ ký điện tử), import engine | `core` (changed 2026-10-16, R2-02 §5 #9, #12, #15b) |
+| Ca làm việc, xếp ca, chấm công vào/ra, làm thêm giờ, loại nghỉ/số dư phép, ngày lễ, **gán lịch làm việc**, **yêu cầu công tác** | `time-attendance` (changed 2026-10-16, R2-02 §5 #6, #26) |
+| Thành phần lương, thang bảng lương và khung lương, **gán nhóm trả lương (pay group)**, đóng & khai báo BHXH/BHYT/BHTN (D02-LT v.v.) và **lịch sử đóng BHXH**, tính & quyết toán thuế TNCN, **cam kết 08/CK-TNCN và ủy quyền quyết toán thuế TNCN**, phiếu lương, file thanh toán ngân hàng, việc tính tiền quyết toán cuối cùng và **thời gian làm việc tính trợ cấp thôi việc / mất việc làm** | `payroll` (changed 2026-10-16, R2-02 §5 #4, #20, #25, #29) |
+| Yêu cầu tuyển dụng, ứng viên, phỏng vấn, offer | `recruitment` |
+| Cấp tenant, gói/giấy phép, object storage, **Legal Parameter Service**, các connector chữ ký điện tử/hợp đồng điện tử và VNeID, shell ESS/MSS, consent registry, PD inventory, điều phối DSR, bộ lập lịch lưu trữ, job scheduler, kho báo cáo | `saas-platform` (changed 2026-10-16, R2-02 §5 #1, #15, #16, #17, #18, #27) |
+| Hạch toán chi phí vào sổ cái | Kế toán bên ngoài (qua payroll / export) |
 
 ---
 
-## 2. Actors & personas
+## 2. Tác nhân & persona
 
-| Actor | Description | Main interactions |
+| Tác nhân | Mô tả | Tương tác chính |
 |---|---|---|
-| HR Administrator (C&B / HR Ops) | Maintains employee records, contracts, decisions | Hire, change, terminate, generate documents, statutory reports |
-| HR Business Partner | Supports managers on changes, discipline, appraisal | Approves/initiates transfers, discipline cases, calibrations |
-| HR Manager / HR Director | Owns HR policy, signs decisions (or delegate) | Approves, signs, views analytics |
-| Line Manager (MSS) | Manages direct/indirect reports | Approves requests, initiates changes, appraises, approves expenses |
-| Employee (ESS) | Any active employee | Views/updates own data, dependants, payslip link, appraisal, expense claims, resignation |
-| Former employee | Separated, retains limited ESS access per policy | Download documents (e.g., work confirmation, PIT certificate), rehire |
-| Pre-hire (new joiner) | Accepted offer, not yet started | Completes onboarding forms, uploads documents, gives consent |
-| Legal representative / authorised signatory | Signs contracts and decisions on behalf of the legal entity | E-sign |
-| Finance / Accountant | Pays advances/expenses | Views approved claims, settles advances |
-| Trainer / L&D coordinator | Runs training | Courses, sessions, attendance, bonds |
-| Trade union representative (CĐCS) | Participates in disciplinary meetings | Recorded as attendee |
-| Data Protection Officer (DPO) | Oversees personal data processing | Consent register, DSAR, access logs |
-| System (integrations) | Other modules / scheduled jobs | Consume/produce events |
+| Quản trị viên nhân sự (C&B / HR Ops) | Duy trì hồ sơ nhân viên, hợp đồng, quyết định | Tuyển, thay đổi, chấm dứt, tạo tài liệu, báo cáo theo luật định |
+| HR Business Partner | Hỗ trợ quản lý về thay đổi, kỷ luật, đánh giá | Phê duyệt/khởi tạo điều chuyển, vụ việc kỷ luật, hiệu chỉnh |
+| Trưởng phòng / Giám đốc nhân sự | Sở hữu chính sách nhân sự, ký quyết định (hoặc người được ủy quyền) | Phê duyệt, ký, xem phân tích |
+| Quản lý trực tiếp (MSS) | Quản lý cấp dưới trực tiếp/gián tiếp | Phê duyệt yêu cầu, khởi tạo thay đổi, đánh giá, phê duyệt chi phí |
+| Nhân viên (ESS) | Bất kỳ nhân viên đang làm việc nào | Xem/cập nhật dữ liệu của mình, người phụ thuộc, liên kết phiếu lương, đánh giá, đề nghị thanh toán, xin nghỉ việc |
+| Nhân viên cũ | Đã nghỉ việc, giữ quyền truy cập ESS hạn chế theo chính sách | Tải tài liệu (ví dụ: xác nhận công tác, chứng từ khấu trừ thuế TNCN), tái tuyển dụng |
+| Người sắp nhận việc (pre-hire) | Đã nhận offer, chưa bắt đầu làm việc | Hoàn thành biểu mẫu tiếp nhận, tải lên tài liệu, đưa ra consent |
+| Người đại diện theo pháp luật / người ký được ủy quyền | Ký hợp đồng và quyết định thay mặt pháp nhân | Ký điện tử |
+| Tài chính / Kế toán | Chi tạm ứng/chi phí | Xem các đề nghị đã duyệt, quyết toán tạm ứng |
+| Giảng viên / Điều phối L&D | Tổ chức đào tạo | Khóa học, buổi học, điểm danh, cam kết đào tạo |
+| Đại diện công đoàn (CĐCS) | Tham gia cuộc họp xử lý kỷ luật | Được ghi nhận là người tham dự |
+| Cán bộ bảo vệ dữ liệu (DPO) | Giám sát việc xử lý dữ liệu cá nhân | Sổ consent, DSAR, nhật ký truy cập |
+| Hệ thống (tích hợp) | Các phân hệ khác / job định kỳ | Tiêu thụ/phát sự kiện |
 
 ---
 
-## 3. Business processes
+## 3. Quy trình nghiệp vụ
 
-### P1. Hire (new hire, from Recruitment or direct)
-1. Recruitment publishes `rec.CandidateHired` to People only (or HR creates a direct hire) (changed 2026-10-16, R2-02 §5 #5, #24).
-2. System matches an existing Person by CCCD / passport / tax code / SI number; if found → **rehire or concurrent hire** path (P2), else creates Person.
-3. HR completes Employment: legal entity, employee number, hire date, seniority date, employment type, worker category.
-4. HR creates first Assignment (position, org unit, job grade, manager, work location, cost centre, contractual working-time regime). The work schedule is assigned by T&A and the pay group by Payroll (changed 2026-10-16, R2-02 §5 #25, #26).
-5. HR creates Contract (probation agreement or labour contract) and the **Salary record** from offer terms, incl. pay basis GROSS/NET and agreed net; People is the system of record for it and Payroll learns it from `SalaryChanged` (changed 2026-10-16, R2-02 §5 #24; GAP-047).
-6. Pre-hire receives ESS invitation: fills personal data, bank account, dependants, uploads documents, gives PDPL consents.
-7. Onboarding checklist instantiated (P9).
-8. On approval and when effective date reached: Employment becomes `Active`; events `EmployeeHired`, `AssignmentChanged`, `SalaryChanged`, `ContractSigned` published.
-- **Exceptions**: duplicate person conflict → manual merge review; no-show before start → hire cancelled, event `HireCancelled`; missing mandatory data at start date → employment active but flagged "incomplete" and payroll warned.
+### P1. Tuyển dụng (tuyển mới, từ Recruitment hoặc trực tiếp)
+1. Recruitment phát `rec.CandidateHired` chỉ tới People (hoặc HR tạo tuyển trực tiếp) (changed 2026-10-16, R2-02 §5 #5, #24).
+2. Hệ thống đối chiếu Person hiện có theo CCCD / hộ chiếu / mã số thuế / số BHXH; nếu tìm thấy → luồng **tái tuyển dụng hoặc tuyển đồng thời** (P2), nếu không thì tạo Person.
+3. HR hoàn thiện Employment: pháp nhân, mã nhân viên, ngày vào làm, ngày tính thâm niên, loại hình làm việc, nhóm người lao động.
+4. HR tạo Assignment đầu tiên (vị trí, đơn vị tổ chức, ngạch/bậc công việc, quản lý, địa điểm làm việc, trung tâm chi phí, chế độ thời giờ làm việc theo hợp đồng). Lịch làm việc do T&A gán và pay group do Payroll gán (changed 2026-10-16, R2-02 §5 #25, #26).
+5. HR tạo Hợp đồng (hợp đồng thử việc hoặc hợp đồng lao động) và **Bản ghi lương** từ các điều khoản offer, bao gồm cơ sở trả lương GROSS/NET và lương net thỏa thuận; People là system of record cho dữ liệu này và Payroll nhận biết qua `SalaryChanged` (changed 2026-10-16, R2-02 §5 #24; GAP-047).
+6. Người sắp nhận việc nhận lời mời ESS: điền dữ liệu cá nhân, tài khoản ngân hàng, người phụ thuộc, tải tài liệu lên, đưa ra các consent theo Luật BVDLCN.
+7. Khởi tạo checklist tiếp nhận (P9).
+8. Khi được phê duyệt và đến ngày hiệu lực: Employment chuyển sang `Active`; phát các sự kiện `EmployeeHired`, `AssignmentChanged`, `SalaryChanged`, `ContractSigned`.
+- **Ngoại lệ**: xung đột trùng person → review gộp thủ công; không đến nhận việc trước ngày bắt đầu → hủy tuyển, sự kiện `HireCancelled`; thiếu dữ liệu bắt buộc tại ngày bắt đầu → employment vẫn active nhưng bị gắn cờ "chưa đầy đủ" và payroll được cảnh báo.
 
-### P2. Rehire / concurrent employment
-1. Matching Person found.
-2. If the person has an active Employment in the **same** legal entity → block (use assignment change instead).
-3. If active Employment in **another** legal entity of the same tenant → concurrent employment (Phase 1, R2-16); HR records the primary employment **per purpose** (PIT family deduction; social insurance), effective-dated, and the insurance participation per type (SI, HI, UI, OA-OD) for each employment (BR-PPL-004); each legal entity withholds PIT on its own payments (changed 2026-10-16, R2-16).
-4. If former employee → check rehire-eligibility flag; new Employment created with new hire date; prior service optionally recognised for seniority (tenant policy).
-- **Exception**: rehire within the period covered by a severance already paid → warn (service years for future severance exclude paid periods).
+### P2. Tái tuyển dụng / làm việc đồng thời
+1. Tìm thấy Person trùng khớp.
+2. Nếu người đó có Employment đang active trong **cùng** pháp nhân → chặn (dùng thay đổi phân công thay thế).
+3. Nếu có Employment active ở **pháp nhân khác** thuộc cùng tenant → làm việc đồng thời (Phase 1, R2-16); HR ghi nhận employment chính **theo từng mục đích** (giảm trừ gia cảnh thuế TNCN; bảo hiểm xã hội), có hiệu lực theo ngày, và việc tham gia bảo hiểm theo từng loại (BHXH, BHYT, BHTN, BHTNLĐ-BNN) cho mỗi employment (BR-PPL-004); mỗi pháp nhân tự khấu trừ thuế TNCN trên khoản chi trả của mình (changed 2026-10-16, R2-16).
+4. Nếu là nhân viên cũ → kiểm tra cờ đủ điều kiện tái tuyển; tạo Employment mới với ngày vào làm mới; thời gian làm việc trước đó có thể được công nhận để tính thâm niên (theo chính sách tenant).
+- **Ngoại lệ**: tái tuyển trong khoảng thời gian đã được chi trả trợ cấp thôi việc → cảnh báo (số năm làm việc tính trợ cấp thôi việc trong tương lai loại trừ các giai đoạn đã chi trả).
 
-### P3. Job change (transfer, promotion, demotion, secondment, temporary transfer, concurrent position)
-1. HR / manager initiates change request with effective date and reason code.
-2. Workflow routes to approvers (core workflow).
-3. On approval, a **Decision** (quyết định) is generated; contract appendix generated when contract terms change.
-4. New effective-dated Assignment row created; prior row end-dated (no overwrite).
-5. Events `AssignmentChanged` (+ `SalaryChanged` if pay changes) published.
-- **Exceptions**: retroactive effective date → flagged for payroll retro; temporary transfer exceeding statutory cumulative limit without consent → blocked; future-dated changes can be cancelled before effective date (`AssignmentChangeCancelled`).
+### P3. Thay đổi công việc (điều chuyển, thăng chức, giáng chức, biệt phái, tạm thời chuyển làm công việc khác, kiêm nhiệm)
+1. HR / quản lý khởi tạo yêu cầu thay đổi với ngày hiệu lực và mã lý do.
+2. Workflow chuyển tới người phê duyệt (core workflow).
+3. Khi được phê duyệt, một **Quyết định** được tạo; phụ lục hợp đồng được tạo khi điều khoản hợp đồng thay đổi.
+4. Tạo dòng Assignment mới có hiệu lực theo ngày; dòng trước được đóng ngày kết thúc (không ghi đè).
+5. Phát sự kiện `AssignmentChanged` (+ `SalaryChanged` nếu lương thay đổi).
+- **Ngoại lệ**: ngày hiệu lực hồi tố → gắn cờ để payroll truy lĩnh/truy thu; tạm thời chuyển làm công việc khác vượt giới hạn cộng dồn theo luật mà không có sự đồng ý → chặn; các thay đổi có ngày hiệu lực tương lai có thể bị hủy trước ngày hiệu lực (`AssignmentChangeCancelled`).
 
-### P4. Salary / grade change
-1. Triggered by promotion, annual review, appraisal result, probation pass, or ad hoc.
-2. A user with the `compensation` permission (C&B / authorised HR) records new grade/step, pay basis (GROSS/NET), base salary or agreed net, SI contribution salary, allowance entitlements, effective date, reason.
-3. Validate against payroll pay scales / bands and the regional minimum wage (legal pack) (changed 2026-10-16, R2-02 §5 #1, #7).
-4. Approval → decision or contract appendix → `SalaryChanged` event. A salary record is changed **only** through an approved decision or contract appendix; every view and change is audited. Payroll freezes the salary it used in each run (changed 2026-10-16, R2-02 §5 #24).
+### P4. Thay đổi lương / ngạch bậc
+1. Được kích hoạt bởi thăng chức, xét duyệt hằng năm, kết quả đánh giá, đạt thử việc, hoặc đột xuất.
+2. Người dùng có quyền `compensation` (C&B / HR được ủy quyền) ghi nhận ngạch/bậc mới, cơ sở trả lương (GROSS/NET), lương cơ bản hoặc lương net thỏa thuận, lương đóng BHXH, các khoản phụ cấp được hưởng, ngày hiệu lực, lý do.
+3. Kiểm tra đối chiếu với thang bảng lương / khung lương của payroll và mức lương tối thiểu vùng (gói pháp lý) (changed 2026-10-16, R2-02 §5 #1, #7).
+4. Phê duyệt → quyết định hoặc phụ lục hợp đồng → sự kiện `SalaryChanged`. Bản ghi lương **chỉ** được thay đổi thông qua quyết định hoặc phụ lục hợp đồng đã phê duyệt; mọi lượt xem và thay đổi đều được audit. Payroll đóng băng mức lương đã dùng trong mỗi kỳ chạy lương (changed 2026-10-16, R2-02 §5 #24).
 
-### P5. Contract lifecycle
-1. Probation agreement (or probation clause) → probation outcome recorded before end date → notify result.
-2. Pass → labour contract (definite or indefinite) generated; fail → separation (P8) without notice obligation.
-3. Expiry monitor alerts HR N days before definite contract end; HR chooses renew / convert / end.
-4. Conversion rule: after 2 consecutive definite contracts, the next must be indefinite (except statutory exceptions).
-5. Contract continued past expiry without new contract → system flags auto-conversion risk.
-6. Appendices for changes; suspension (tạm hoãn) for statutory reasons.
-7. E-contract: sent for e-signature via platform; signed PDF stored; status synced.
+### P5. Vòng đời hợp đồng
+1. Hợp đồng thử việc (hoặc điều khoản thử việc) → ghi nhận kết quả thử việc trước ngày kết thúc → thông báo kết quả.
+2. Đạt → tạo hợp đồng lao động (xác định hoặc không xác định thời hạn); không đạt → nghỉ việc (P8) không cần báo trước.
+3. Bộ giám sát hết hạn cảnh báo HR N ngày trước khi hợp đồng xác định thời hạn kết thúc; HR chọn gia hạn / chuyển đổi / chấm dứt.
+4. Quy tắc chuyển đổi: sau 2 hợp đồng xác định thời hạn liên tiếp, hợp đồng tiếp theo phải là không xác định thời hạn (trừ các ngoại lệ theo luật).
+5. Tiếp tục làm việc sau khi hết hạn mà không có hợp đồng mới → hệ thống gắn cờ rủi ro tự động chuyển đổi.
+6. Phụ lục cho các thay đổi; tạm hoãn vì các lý do theo luật định.
+7. Hợp đồng điện tử: gửi ký điện tử qua nền tảng; lưu file PDF đã ký; đồng bộ trạng thái.
 
-### P6. Appraisal cycle (KPI / OKR)
-1. HR configures cycle (period, population, template, rating scale, weights).
-2. Goal setting → manager approval → mid-year check-in → self-assessment → manager assessment → calibration → final rating → acknowledgement.
-3. Results published (`AppraisalFinalised`) for salary review / bonus.
+### P6. Chu kỳ đánh giá (KPI / OKR)
+1. HR cấu hình chu kỳ (kỳ, đối tượng, mẫu, thang xếp loại, trọng số).
+2. Đặt mục tiêu → quản lý phê duyệt → rà soát giữa năm → tự đánh giá → quản lý đánh giá → hiệu chỉnh → xếp loại cuối cùng → xác nhận.
+3. Công bố kết quả (`AppraisalFinalised`) để xét lương / thưởng.
 
-### P7. Discipline & rewards
-1. Violation recorded with date, evidence.
-2. System checks statute of limitation and protected-status rules.
-3. Invitation to disciplinary meeting (employee, union rep) → minutes recorded.
-4. Decision on discipline form issued; if material damage, compensation plan created.
-5. Rewards: proposal → approval → decision; monetary rewards sent to payroll.
+### P7. Kỷ luật & khen thưởng
+1. Ghi nhận vi phạm với ngày, bằng chứng.
+2. Hệ thống kiểm tra thời hiệu xử lý và các quy tắc về đối tượng được bảo vệ.
+3. Mời họp xử lý kỷ luật (nhân viên, đại diện công đoàn) → ghi biên bản.
+4. Ban hành quyết định về hình thức kỷ luật; nếu có thiệt hại vật chất, lập phương án bồi thường.
+5. Khen thưởng: đề xuất → phê duyệt → quyết định; khen thưởng bằng tiền được gửi sang payroll.
 
-### P8. Separation (resignation, termination, contract expiry, retirement, death, dismissal, probation fail, mutual agreement)
-1. Initiation: employee resignation via ESS, or HR/manager initiates termination.
-2. System computes required notice period by contract type and reason; validates notice given; flags protected employees.
-3. Approval workflow; termination decision generated.
-4. Offboarding checklist (P9): handover, asset return, access revocation date.
-5. Last working day recorded; `TerminationScheduled` event; on the date `EmployeeTerminated`.
-6. Final-settlement trigger to payroll with severance / job-loss eligibility, legal ground, employment periods and already-compensated periods (Payroll computes the severance working time and amount), unused leave payout flag, cash advances and training-bond repayment outstanding (changed 2026-10-16, R2-02 §5 #29).
-7. Return of documents: SI book closing request, work confirmation, PIT certificate request.
-- **Exceptions**: resignation withdrawn before effective date (with employer consent) → `TerminationCancelled`; termination of protected employee → blocked unless lawful exception documented.
+### P8. Nghỉ việc (thôi việc, chấm dứt, hết hạn hợp đồng, nghỉ hưu, tử vong, sa thải, không đạt thử việc, thỏa thuận chấm dứt)
+1. Khởi tạo: nhân viên nộp đơn nghỉ việc qua ESS, hoặc HR/quản lý khởi tạo chấm dứt.
+2. Hệ thống tính thời hạn báo trước bắt buộc theo loại hợp đồng và lý do; kiểm tra việc báo trước; gắn cờ nhân viên thuộc đối tượng được bảo vệ.
+3. Workflow phê duyệt; tạo quyết định chấm dứt.
+4. Checklist nghỉ việc (P9): bàn giao, trả tài sản, ngày thu hồi quyền truy cập.
+5. Ghi nhận ngày làm việc cuối cùng; sự kiện `TerminationScheduled`; vào ngày đó phát `EmployeeTerminated`.
+6. Kích hoạt quyết toán cuối cùng sang payroll kèm điều kiện hưởng trợ cấp thôi việc / mất việc làm, căn cứ pháp lý, các giai đoạn làm việc và các giai đoạn đã được chi trả (Payroll tính thời gian làm việc và số tiền trợ cấp thôi việc), cờ thanh toán phép chưa nghỉ, tạm ứng và khoản hoàn trả cam kết đào tạo còn tồn (changed 2026-10-16, R2-02 §5 #29).
+7. Trả lại giấy tờ: yêu cầu chốt sổ BHXH, xác nhận công tác, yêu cầu chứng từ khấu trừ thuế TNCN.
+- **Ngoại lệ**: rút đơn nghỉ việc trước ngày hiệu lực (có sự đồng ý của người sử dụng lao động) → `TerminationCancelled`; chấm dứt với nhân viên được bảo vệ → chặn trừ khi có ngoại lệ hợp pháp được lập hồ sơ.
 
-### P9. Onboarding / offboarding checklists
-1. Template per legal entity / employee category, with tasks, owners (HR, IT, manager, employee), due offsets.
-2. Instantiated on hire/termination; tasks tracked; overdue reminders; completion recorded.
+### P9. Checklist tiếp nhận / nghỉ việc
+1. Mẫu theo pháp nhân / nhóm nhân viên, gồm các đầu việc, người phụ trách (HR, IT, quản lý, nhân viên), số ngày đến hạn.
+2. Khởi tạo khi tuyển/chấm dứt; theo dõi đầu việc; nhắc việc quá hạn; ghi nhận hoàn thành.
 
-### P10. Expense claims & advances
-1. Employee requests advance (purpose, amount, expected settle date) → approval → Finance pays.
-2. Employee submits claim with receipts (e-invoice data) → links to advance → approval by manager / Finance.
-3. Net payable reimbursed (via payroll or Finance); unsettled advance past due → deduction request to payroll (with employee consent).
+### P10. Đề nghị thanh toán chi phí & tạm ứng
+1. Nhân viên đề nghị tạm ứng (mục đích, số tiền, ngày dự kiến quyết toán) → phê duyệt → Tài chính chi.
+2. Nhân viên nộp đề nghị thanh toán kèm chứng từ (dữ liệu hóa đơn điện tử) → liên kết với tạm ứng → quản lý / Tài chính phê duyệt.
+3. Số tiền thực trả được hoàn (qua payroll hoặc Tài chính); tạm ứng chưa quyết toán quá hạn → yêu cầu khấu trừ gửi payroll (có sự đồng ý của nhân viên).
 
-### P11. Statutory labour reporting
-1. Monthly: compile labour changes (hires/terminations) for the Employment Service Centre notice.
-2. Semi-annual: compile labour-usage report (Decree 145/2020) per legal entity → HR review → export in prescribed form → submission log.
+### P11. Báo cáo lao động theo luật định
+1. Hằng tháng: tổng hợp biến động lao động (tuyển mới/chấm dứt) cho thông báo gửi Trung tâm Dịch vụ việc làm.
+2. 6 tháng: tổng hợp báo cáo tình hình sử dụng lao động (Nghị định 145/2020) theo từng pháp nhân → HR review → xuất theo mẫu quy định → ghi nhật ký nộp.
 
-### P12. Personal data requests
-1. Employee requests access/correction/withdrawal of consent via ESS.
-2. DPO/HR reviews; correction via approval; withdrawal applies to optional processing only, with consequences shown.
+### P12. Yêu cầu về dữ liệu cá nhân
+1. Nhân viên yêu cầu truy cập/chỉnh sửa/rút lại consent qua ESS.
+2. DPO/HR xem xét; chỉnh sửa qua phê duyệt; việc rút consent chỉ áp dụng cho xử lý không bắt buộc, có hiển thị hệ quả.
 
 ---
 
-## 4. Business requirements
+## 4. Yêu cầu nghiệp vụ
 
 ### 4.1 Person & employment
-| ID | Requirement | Pri | Notes |
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-001 | The system shall hold exactly one Person record per real individual per tenant, uniquely identified by national ID (CCCD 12-digit personal identification number) or, for foreigners, passport number + nationality. | M | Duplicate check on create/import; merge function with audit. |
-| BR-PPL-002 | A Person may have multiple Employments over time (rehire) and concurrently in different legal entities of the same tenant; at most one active Employment per legal entity at any date. | M | |
-| BR-PPL-003 | Each Employment shall have: legal entity, employee number (unique per tenant, configurable pattern per legal entity), hire date, original hire date, seniority date, employment status (Pre-hire, Active, Suspended, Notice, Terminated), worker category (Vietnamese / foreign / expatriate on assignment), employment type (full-time, part-time, seasonal, intern, collaborator-service contract). | M | Collaborators (hợp đồng dịch vụ) are not employees under labour law but need payroll PIT handling. |
-| BR-PPL-004 | For concurrent employments in two or more legal entities of the same tenant (basic support in Phase 1, R2-16), a person has **at most one live employment per legal entity** (BR-PPL-002). HR shall designate the **primary employment per purpose**, effective-dated (valid_from / valid_to): purpose `PIT_FAMILY_DEDUCTION` (personal and dependant deductions) and purpose `SOCIAL_INSURANCE`. At any date there is exactly one primary employment per person per purpose; the two purposes may point to different employments. Other employments are paid and taxed by their own legal entity without family deduction. In addition, **insurance participation shall be expressible per insurance type (SI, HI, UI, OA-OD) per employment**, effective-dated, derived from the legal parameter `insurance.multi_contract_rule` per insurance type (SI, HI, UI, OA-OD), with values `FIRST_CONTRACT` or `HIGHEST_SALARY` or `EACH_EMPLOYER` (Legal Parameter Service, 06 PR-06). Defaults: SI, UI and HI = `FIRST_CONTRACT` (sponsor decision R3-03), OA-OD = `EACH_EMPLOYER`; all `[verify-legal]` pending the labour consultant (changed 2026-10-16, R3-03). The system shall prevent dependants or the personal deduction being claimed via two employments simultaneously, and shall publish **`people.PrimaryEmploymentChanged`** (OUT-36) whenever a primary employment is set or changed for a purpose. (changed 2026-10-16, R2-16; architecture round-2 v0.3, DESIGN.md §7.3) | M | Payroll consumes the per-purpose primary and the per-type participation (BR-PAY-081). Insurance rules for several contracts per SI Law 2024 / HI Law `[verify-legal]` (lead BA). Cross-entity annual OT cap is Phase 2 (R2-08). Billing counts the person once per legal entity (D-10). |
-| BR-PPL-005 | On rehire, the system shall show prior employment history, termination reason and rehire-eligibility flag, and allow HR to choose whether prior service counts toward seniority (policy-driven). | M | |
-| BR-PPL-006 | The system shall maintain an immutable employee timeline listing all HR events (hire, assignment, salary, contract, discipline, reward, appraisal, training, leave of absence/suspension, separation) with effective date, entry date, actor and source document. | M | Read model built from events. |
+| BR-PPL-001 | Hệ thống phải lưu đúng một bản ghi Person cho mỗi cá nhân thực trên mỗi tenant, được định danh duy nhất bằng số định danh quốc gia (số định danh cá nhân 12 chữ số trên CCCD) hoặc, với người nước ngoài, số hộ chiếu + quốc tịch. | M | Kiểm tra trùng khi tạo/import; chức năng gộp có audit. |
+| BR-PPL-002 | Một Person có thể có nhiều Employment theo thời gian (tái tuyển dụng) và đồng thời tại các pháp nhân khác nhau của cùng tenant; tối đa một Employment active trên mỗi pháp nhân tại bất kỳ ngày nào. | M | |
+| BR-PPL-003 | Mỗi Employment phải có: pháp nhân, mã nhân viên (duy nhất trong tenant, mẫu cấu hình được theo pháp nhân), ngày vào làm, ngày vào làm ban đầu, ngày tính thâm niên, trạng thái lao động (Pre-hire, Active, Suspended, Notice, Terminated), nhóm người lao động (người Việt Nam / người nước ngoài / chuyên gia biệt phái), loại hình làm việc (toàn thời gian, bán thời gian, thời vụ, thực tập, cộng tác viên - hợp đồng dịch vụ). | M | Cộng tác viên (hợp đồng dịch vụ) không phải là người lao động theo luật lao động nhưng cần được payroll xử lý thuế TNCN. |
+| BR-PPL-004 | Với việc làm việc đồng thời tại hai hoặc nhiều pháp nhân của cùng tenant (hỗ trợ cơ bản trong Phase 1, R2-16), một người có **tối đa một employment đang hiệu lực trên mỗi pháp nhân** (BR-PPL-002). HR phải chỉ định **employment chính theo từng mục đích**, có hiệu lực theo ngày (valid_from / valid_to): mục đích `PIT_FAMILY_DEDUCTION` (giảm trừ bản thân và người phụ thuộc) và mục đích `SOCIAL_INSURANCE`. Tại bất kỳ ngày nào cũng có đúng một employment chính cho mỗi người theo mỗi mục đích; hai mục đích có thể trỏ tới các employment khác nhau. Các employment khác được pháp nhân tương ứng trả lương và khấu trừ thuế mà không có giảm trừ gia cảnh. Ngoài ra, **việc tham gia bảo hiểm phải biểu diễn được theo từng loại bảo hiểm (BHXH, BHYT, BHTN, BHTNLĐ-BNN) trên từng employment**, có hiệu lực theo ngày, được suy ra từ tham số pháp lý `insurance.multi_contract_rule` theo từng loại bảo hiểm (BHXH, BHYT, BHTN, BHTNLĐ-BNN), với các giá trị `FIRST_CONTRACT` hoặc `HIGHEST_SALARY` hoặc `EACH_EMPLOYER` (Legal Parameter Service, 06 PR-06). Mặc định: BHXH, BHTN và BHYT = `FIRST_CONTRACT` (quyết định của nhà tài trợ R3-03), BHTNLĐ-BNN = `EACH_EMPLOYER`; tất cả đều `[verify-legal]` chờ chuyên gia tư vấn lao động (changed 2026-10-16, R3-03). Hệ thống phải ngăn việc người phụ thuộc hoặc giảm trừ bản thân được kê khai qua hai employment cùng lúc, và phải phát **`people.PrimaryEmploymentChanged`** (OUT-36) mỗi khi employment chính được thiết lập hoặc thay đổi cho một mục đích. (changed 2026-10-16, R2-16; architecture round-2 v0.3, DESIGN.md §7.3) | M | Payroll tiêu thụ employment chính theo mục đích và việc tham gia theo loại (BR-PAY-081). Quy tắc bảo hiểm cho nhiều hợp đồng theo Luật BHXH 2024 / Luật BHYT `[verify-legal]` (BA trưởng). Giới hạn làm thêm giờ hằng năm liên pháp nhân là Phase 2 (R2-08). Tính phí đếm mỗi người một lần trên mỗi pháp nhân (D-10). |
+| BR-PPL-005 | Khi tái tuyển dụng, hệ thống phải hiển thị lịch sử làm việc trước đó, lý do nghỉ việc và cờ đủ điều kiện tái tuyển, đồng thời cho phép HR chọn có tính thời gian làm việc trước đó vào thâm niên hay không (theo chính sách). | M | |
+| BR-PPL-006 | Hệ thống phải duy trì dòng thời gian nhân viên bất biến liệt kê mọi sự kiện nhân sự (tuyển dụng, phân công, lương, hợp đồng, kỷ luật, khen thưởng, đánh giá, đào tạo, nghỉ không lương dài hạn/tạm hoãn, nghỉ việc) với ngày hiệu lực, ngày nhập, người thực hiện và tài liệu nguồn. | M | Read model được xây dựng từ sự kiện. |
 
-### 4.2 Personal information
-| ID | Requirement | Pri | Notes |
+### 4.2 Thông tin cá nhân
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-010 | Capture identity: full name (Vietnamese with diacritics + unaccented form), date of birth, gender, nationality, ethnicity, religion (optional, sensitive), place of origin, permanent & current residence addresses using the post-2025 two-level administrative units (province / commune). | M | Admin unit list from core reference data; legacy 3-level addresses kept for opening-balance imports and old documents (changed 2026-10-16, D-09). `[verify-legal]` |
-| BR-PPL-011 | Capture identity documents with type (CCCD/căn cước, passport, work permit, temporary residence card), number, issue date, issue place, expiry, scanned images; alert before expiry (configurable days). | M | |
-| BR-PPL-012 | Support VNeID-based identity verification (level-2 e-ID QR / NFC chip read) when the platform connector is enabled; record verification status, method and timestamp. | S | Connector from saas-platform. |
-| BR-PPL-013 | Capture personal tax code; default it to the 12-digit personal identification number where law treats them as equivalent, keep legacy 10-digit MST for history. | M | Circular 86/2024/TT-BTC `[verify-legal]` |
-| BR-PPL-014 | Capture SI book number / SI code (mã số BHXH), HI card number and registered initial health-care facility; record SI book custody status (held by employer / returned). | M | |
-| BR-PPL-015 | Capture one or more bank accounts (bank, branch, account number, account holder name) with effective dates and payment split (amount or %); exactly one default salary account; account holder name must match employee name (warning). | M | Bank list from core reference data. |
-| BR-PPL-016 | Capture family members (relationship, name, DOB, ID number, tax code, occupation, contact) and flag those registered as **PIT dependants** with deduction start month, end month and supporting document; validate per dependant-eligibility rules (e.g., child under 18, or 18+ studying/disabled without income; parents/spouse without income above threshold). | M | Threshold parameters `[verify-legal]` |
-| BR-PPL-017 | Dependant registration and changes shall be approved by HR and produce a `DependantChanged` event; the system shall generate the dependant registration form/list for tax authority submission. | M | Form 07/ĐK-NPT-TNCN or current `[verify-legal]` |
-| BR-PPL-018 | Capture emergency contacts (min. 1 for active employees, configurable). | M | |
-| BR-PPL-019 | Capture education (level, institution, major, graduation year, degree scan), certificates & licences (type, issuer, number, issue/expiry date) with expiry alerts; occupational-safety training certificates flagged where required by job. | M | |
-| BR-PPL-020 | Capture foreign-worker data: work permit / exemption certificate number, validity, job title on permit, legal entity; block assignment end-date beyond permit validity without renewal; alert 45/60 days before expiry (configurable). | M | Decree 219/2025/NĐ-CP (replacing 152/2020) `[verify-legal]` |
-| BR-PPL-021 | Capture special-status attributes that drive downstream rules: pregnancy/child-under-12-months status (with dates), disability, minor (under 18), elderly worker, union membership, party/youth union membership (optional), heavy/hazardous job classification. | M | Feeds T&A (reduced hours) and protections. |
-| BR-PPL-022 | Employees may request changes to their personal data via ESS; configured fields update directly, others require HR approval with evidence attachment; prior values retained effective-dated. | M | |
-| BR-PPL-023 | **Tax residency.** HR shall maintain, per person, an effective-dated **tax residency status** (resident / non-resident) with basis (≥ 183 days in a calendar year or 12 consecutive months, permanent residence, rented home ≥ 183 days), **arrival date(s) and departure date(s)** in Vietnam, and an optional days-in-VN figure per year. Changes are HR-approved and published in `PersonalDataChanged` (OUT-15). People does not compute the 183-day test: Payroll runs a 183-day check report and proposes changes back to HR, who approves them here (BR-PAY-065). (new 2026-10-16, GAP-048) | M | PIT Law; Circular 111/2013 `[verify-legal]`. Mainly expatriates and foreign workers. |
+| BR-PPL-010 | Ghi nhận định danh: họ tên (tiếng Việt có dấu + dạng không dấu), ngày sinh, giới tính, quốc tịch, dân tộc, tôn giáo (không bắt buộc, nhạy cảm), quê quán, địa chỉ thường trú & nơi ở hiện tại theo đơn vị hành chính hai cấp sau năm 2025 (tỉnh / xã). | M | Danh mục đơn vị hành chính lấy từ dữ liệu tham chiếu của core; địa chỉ 3 cấp cũ được giữ cho import số dư đầu kỳ và tài liệu cũ (changed 2026-10-16, D-09). `[verify-legal]` |
+| BR-PPL-011 | Ghi nhận giấy tờ tùy thân với loại (CCCD/căn cước, hộ chiếu, giấy phép lao động, thẻ tạm trú), số, ngày cấp, nơi cấp, ngày hết hạn, ảnh scan; cảnh báo trước khi hết hạn (số ngày cấu hình được). | M | |
+| BR-PPL-012 | Hỗ trợ xác thực danh tính dựa trên VNeID (đọc mã QR định danh điện tử mức 2 / chip NFC) khi connector của nền tảng được bật; ghi nhận trạng thái, phương thức và thời điểm xác thực. | S | Connector từ saas-platform. |
+| BR-PPL-013 | Ghi nhận mã số thuế cá nhân; mặc định bằng số định danh cá nhân 12 chữ số khi pháp luật coi hai mã này là tương đương, giữ MST 10 chữ số cũ cho lịch sử. | M | Thông tư 86/2024/TT-BTC `[verify-legal]` |
+| BR-PPL-014 | Ghi nhận số sổ BHXH / mã số BHXH, số thẻ BHYT và nơi đăng ký khám chữa bệnh ban đầu; ghi nhận trạng thái lưu giữ sổ BHXH (người sử dụng lao động giữ / đã trả). | M | |
+| BR-PPL-015 | Ghi nhận một hoặc nhiều tài khoản ngân hàng (ngân hàng, chi nhánh, số tài khoản, tên chủ tài khoản) với ngày hiệu lực và cách chia lương (số tiền hoặc %); có đúng một tài khoản nhận lương mặc định; tên chủ tài khoản phải khớp với tên nhân viên (cảnh báo). | M | Danh mục ngân hàng lấy từ dữ liệu tham chiếu của core. |
+| BR-PPL-016 | Ghi nhận thành viên gia đình (quan hệ, họ tên, ngày sinh, số định danh, mã số thuế, nghề nghiệp, liên hệ) và gắn cờ những người đăng ký là **người phụ thuộc giảm trừ thuế TNCN** với tháng bắt đầu giảm trừ, tháng kết thúc và hồ sơ chứng minh; kiểm tra theo quy tắc điều kiện người phụ thuộc (ví dụ: con dưới 18 tuổi, hoặc từ 18 tuổi trở lên đang đi học/khuyết tật không có thu nhập; cha mẹ/vợ chồng không có thu nhập vượt ngưỡng). | M | Tham số ngưỡng `[verify-legal]` |
+| BR-PPL-017 | Việc đăng ký và thay đổi người phụ thuộc phải được HR phê duyệt và tạo sự kiện `DependantChanged`; hệ thống phải tạo mẫu/danh sách đăng ký người phụ thuộc để nộp cơ quan thuế. | M | Mẫu 07/ĐK-NPT-TNCN hoặc mẫu hiện hành `[verify-legal]` |
+| BR-PPL-018 | Ghi nhận người liên hệ khẩn cấp (tối thiểu 1 người cho nhân viên đang làm việc, cấu hình được). | M | |
+| BR-PPL-019 | Ghi nhận học vấn (trình độ, cơ sở đào tạo, chuyên ngành, năm tốt nghiệp, bản scan bằng cấp), chứng chỉ & giấy phép hành nghề (loại, đơn vị cấp, số, ngày cấp/hết hạn) có cảnh báo hết hạn; chứng chỉ huấn luyện an toàn lao động được gắn cờ khi công việc yêu cầu. | M | |
+| BR-PPL-020 | Ghi nhận dữ liệu người lao động nước ngoài: số giấy phép lao động / giấy xác nhận miễn giấy phép, thời hạn, chức danh trên giấy phép, pháp nhân; chặn ngày kết thúc phân công vượt thời hạn giấy phép nếu không gia hạn; cảnh báo 45/60 ngày trước khi hết hạn (cấu hình được). | M | Nghị định 219/2025/NĐ-CP (thay thế 152/2020) `[verify-legal]` |
+| BR-PPL-021 | Ghi nhận các thuộc tính về tình trạng đặc biệt làm căn cứ cho các quy tắc ở hạ nguồn: đang mang thai/nuôi con dưới 12 tháng tuổi (kèm ngày), khuyết tật, chưa thành niên (dưới 18 tuổi), người lao động cao tuổi, đoàn viên công đoàn, đảng viên/đoàn viên (không bắt buộc), phân loại nghề nặng nhọc/độc hại. | M | Cấp cho T&A (giảm giờ làm) và các chế độ bảo vệ. |
+| BR-PPL-022 | Nhân viên có thể yêu cầu thay đổi dữ liệu cá nhân qua ESS; các trường được cấu hình sẽ cập nhật trực tiếp, các trường khác cần HR phê duyệt kèm tệp minh chứng; giá trị trước đó được giữ lại theo ngày hiệu lực. | M | |
+| BR-PPL-023 | **Cư trú thuế.** HR phải duy trì, cho mỗi người, **tình trạng cư trú thuế** có hiệu lực theo ngày (cư trú / không cư trú) với căn cứ (≥ 183 ngày trong một năm dương lịch hoặc 12 tháng liên tục, có nơi ở thường xuyên, thuê nhà ≥ 183 ngày), **(các) ngày nhập cảnh và (các) ngày xuất cảnh** Việt Nam, và số ngày có mặt tại Việt Nam theo năm (không bắt buộc). Các thay đổi do HR phê duyệt và được phát trong `PersonalDataChanged` (OUT-15). People không tính phép thử 183 ngày: Payroll chạy báo cáo kiểm tra 183 ngày và đề xuất thay đổi ngược lại cho HR, HR phê duyệt tại đây (BR-PAY-065). (new 2026-10-16, GAP-048) | M | Luật Thuế TNCN; Thông tư 111/2013 `[verify-legal]`. Chủ yếu cho chuyên gia nước ngoài và người lao động nước ngoài. |
 
-### 4.3 Assignments & organisation placement
-| ID | Requirement | Pri | Notes |
+### 4.3 Phân công & bố trí trong tổ chức
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-030 | Assignments shall be effective-dated (from/to) with full history; no in-place overwrite of historical rows; corrections recorded as corrections with reason. | M | |
-| BR-PPL-031 | Each assignment holds: legal entity, org unit, position (from core), job, job grade/level, line manager (employee or position-based), work location, cost centre (with optional % split), **contractual** working-time regime (full/part-time, hours per week — used in the contract and BR-PPL-035), FTE %, assignment type (primary, concurrent, secondment, temporary transfer). The assignment has **no pay group** (Payroll assigns it, `pay.PayGroupAssigned`) and **no work schedule** (T&A schedule assignment) (changed 2026-10-16, R2-02 §5 #25, #26). | M | |
-| BR-PPL-032 | Support change reasons catalogue: transfer, promotion, demotion, secondment, temporary transfer, reorganisation, position title change, manager change, location change, cost-centre change; reason drives required approvals and documents. | M | |
-| BR-PPL-033 | Support **concurrent positions** (kiêm nhiệm) within the same employment, each with its own manager, FTE and optional concurrent allowance; one assignment flagged primary. | M | |
-| BR-PPL-034 | Support **secondment** to another legal entity (home vs host entity, paying entity, cost recharge flag, start/end), without terminating home employment. | S | |
-| BR-PPL-035 | Enforce temporary-transfer rule (Art. 29): cumulative days in a calendar year beyond the statutory limit require employee written consent; notice of transfer at least N working days before; salary protection rule flagged to payroll. | M | 60 working days/year, 3 working days notice, ≥85% and ≥ regional minimum wage, 30 working days old-salary protection `[verify-legal]` |
-| BR-PPL-036 | Support mass changes (reorganisation): select employees, apply same change with one effective date, generate individual decisions in bulk. | S | The reorg-mapping use of this engine is BR-PPL-039 (M) (changed 2026-10-16, GAP-053). |
-| BR-PPL-037 | Future-dated and retroactive changes allowed; retroactive changes affecting a closed payroll period produce a retro flag on the published event. | M | |
-| BR-PPL-038 | Position incumbency: the system shall maintain which employee occupies which position and expose vacancy/over-fill against position headcount from core. | M | |
-| BR-PPL-039 | **Reorg mapping execution.** On `core.ReorgActivated` the system shall apply the package's mapping table to every affected employee with the package effective date: create the new effective-dated assignment rows (org unit, position, manager, cost centre), generate the individual decisions in bulk, and publish `AssignmentChanged` per employee (`reorg` reason, package id). It shall then publish **`people.ReorgMappingCompleted{package_id, moved, failed, fix list}`** to Core (OUT-35). Failed rows (e.g. target position full under strict position control, missing mapping) go to a per-employee fix list; after a fix-and-retry the system publishes the event again. Idempotent per package and employee. (new 2026-10-16, GAP-053) | M | Uses the mass-change engine of BR-PPL-036. Core then publishes `core.ReorgPackageStatusChanged` (Core C-12). Handles 5,000 employees per NFR-PPL-004. |
+| BR-PPL-030 | Phân công phải có hiệu lực theo ngày (từ/đến) với đầy đủ lịch sử; không ghi đè tại chỗ các dòng lịch sử; việc đính chính được ghi nhận là đính chính kèm lý do. | M | |
+| BR-PPL-031 | Mỗi phân công gồm: pháp nhân, đơn vị tổ chức, vị trí (từ core), công việc, ngạch/cấp bậc công việc, quản lý trực tiếp (theo nhân viên hoặc theo vị trí), địa điểm làm việc, trung tâm chi phí (có thể chia %), chế độ thời giờ làm việc **theo hợp đồng** (toàn/bán thời gian, số giờ mỗi tuần — dùng trong hợp đồng và BR-PPL-035), FTE %, loại phân công (chính, kiêm nhiệm, biệt phái, tạm thời chuyển làm công việc khác). Phân công **không có pay group** (Payroll gán, `pay.PayGroupAssigned`) và **không có lịch làm việc** (gán lịch của T&A) (changed 2026-10-16, R2-02 §5 #25, #26). | M | |
+| BR-PPL-032 | Hỗ trợ danh mục lý do thay đổi: điều chuyển, thăng chức, giáng chức, biệt phái, tạm thời chuyển làm công việc khác, tái cơ cấu, đổi chức danh vị trí, đổi quản lý, đổi địa điểm, đổi trung tâm chi phí; lý do quyết định các bước phê duyệt và tài liệu bắt buộc. | M | |
+| BR-PPL-033 | Hỗ trợ **kiêm nhiệm** trong cùng một employment, mỗi vị trí có quản lý, FTE và phụ cấp kiêm nhiệm (không bắt buộc) riêng; một phân công được gắn cờ là chính. | M | |
+| BR-PPL-034 | Hỗ trợ **biệt phái** sang pháp nhân khác (pháp nhân gốc và pháp nhân tiếp nhận, pháp nhân chi trả, cờ phân bổ lại chi phí, ngày bắt đầu/kết thúc), không chấm dứt employment tại pháp nhân gốc. | S | |
+| BR-PPL-035 | Áp dụng quy tắc tạm thời chuyển người lao động làm công việc khác (Điều 29): số ngày cộng dồn trong một năm dương lịch vượt giới hạn luật định cần có văn bản đồng ý của người lao động; báo trước ít nhất N ngày làm việc; quy tắc bảo vệ tiền lương được gắn cờ gửi payroll. | M | 60 ngày làm việc/năm, báo trước 3 ngày làm việc, ≥85% và ≥ mức lương tối thiểu vùng, giữ nguyên lương cũ 30 ngày làm việc `[verify-legal]` |
+| BR-PPL-036 | Hỗ trợ thay đổi hàng loạt (tái cơ cấu): chọn nhân viên, áp dụng cùng một thay đổi với một ngày hiệu lực, tạo hàng loạt quyết định cá nhân. | S | Việc dùng engine này cho ánh xạ tái cơ cấu là BR-PPL-039 (M) (changed 2026-10-16, GAP-053). |
+| BR-PPL-037 | Cho phép thay đổi có hiệu lực tương lai và hồi tố; thay đổi hồi tố ảnh hưởng tới kỳ lương đã đóng sẽ gắn cờ retro trên sự kiện được phát. | M | |
+| BR-PPL-038 | Người đảm nhiệm vị trí: hệ thống phải duy trì thông tin nhân viên nào đang giữ vị trí nào và thể hiện tình trạng trống/vượt định biên so với định biên vị trí từ core. | M | |
+| BR-PPL-039 | **Thực thi ánh xạ tái cơ cấu.** Khi nhận `core.ReorgActivated`, hệ thống phải áp dụng bảng ánh xạ của gói cho mọi nhân viên bị ảnh hưởng với ngày hiệu lực của gói: tạo các dòng phân công mới có hiệu lực theo ngày (đơn vị tổ chức, vị trí, quản lý, trung tâm chi phí), tạo hàng loạt quyết định cá nhân, và phát `AssignmentChanged` cho từng nhân viên (lý do `reorg`, package id). Sau đó hệ thống phải phát **`people.ReorgMappingCompleted{package_id, moved, failed, fix list}`** tới Core (OUT-35). Các dòng lỗi (ví dụ vị trí đích đã đủ người khi kiểm soát vị trí chặt chẽ, thiếu ánh xạ) được đưa vào danh sách cần sửa theo từng nhân viên; sau khi sửa và chạy lại, hệ thống phát lại sự kiện. Idempotent theo gói và nhân viên. (new 2026-10-16, GAP-053) | M | Dùng engine thay đổi hàng loạt của BR-PPL-036. Sau đó Core phát `core.ReorgPackageStatusChanged` (Core C-12). Xử lý 5.000 nhân viên theo NFR-PPL-004. |
 
-### 4.4 Salary history
-| ID | Requirement | Pri | Notes |
+### 4.4 Lịch sử lương
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-040 | People is the **system of record for agreed compensation** (R2-02 §5 #24). Maintain effective-dated salary records per employment: pay scale / grade / step (bậc), **pay basis (GROSS / NET)**, base (contract) salary, **agreed net amount** (mandatory when the basis is NET) and the **net-guaranteed component scope** (which components are guaranteed net, e.g. base + fixed allowances, vs gross, e.g. bonus, OT), SI contribution salary, salary allowances agreed in the contract (payroll component codes), currency, pay frequency, probation salary %, reason, linked decision/appendix. A salary record can be created or changed **only** through an approved decision or contract appendix (workflow); direct edits are not possible. Each approved record publishes `SalaryChanged` (OUT-07). (changed 2026-10-16, R2-02 §5 #24; GAP-047) | M | Pay scale definitions and component catalogue owned by payroll. Payroll freezes the salary record version used per run (BR-PAY-072). |
-| BR-PPL-041 | Validate salary against the payroll pay scale / band min/max for the grade (IF-PAY-P-02) and against the applicable regional minimum wage (legal pack, by work location region) at the effective date; block below minimum, warn outside range. For NET records the check uses the grossed-up amount from the payroll simulator (changed 2026-10-16, R2-02 §5 #1, #7). | M | Regional minimum wage parameter `[verify-legal]` |
-| BR-PPL-042 | Support step progression (nâng bậc) schedules: compute next eligible step date from grade rules and disciplinary deferrals; produce a due list for HR. | S | Discipline "extension of salary increase" defers date. |
-| BR-PPL-043 | Support salary review campaigns: budget per org unit, proposals by managers using appraisal results, approval, bulk publication of `SalaryChanged`. | C | Phase 2. |
-| BR-PPL-044 | Salary data visibility restricted by role and data scope: viewing or changing salary records requires the **`compensation`** permission (registered in the Core permission catalogue), granted to C&B and authorised HR; managers see salary only if granted. **Every view and every change** of a salary record is written to the Core audit log (who, when, which record, purpose) (changed 2026-10-16, R2-02 §5 #24). | M | |
+| BR-PPL-040 | People là **system of record cho mức đãi ngộ đã thỏa thuận** (R2-02 §5 #24). Duy trì các bản ghi lương có hiệu lực theo ngày cho mỗi employment: thang lương / ngạch / bậc, **cơ sở trả lương (GROSS / NET)**, lương cơ bản (theo hợp đồng), **số tiền net thỏa thuận** (bắt buộc khi cơ sở là NET) và **phạm vi thành phần được đảm bảo net** (những thành phần được đảm bảo net, ví dụ lương cơ bản + phụ cấp cố định, so với gross, ví dụ thưởng, làm thêm giờ), lương đóng BHXH, các khoản phụ cấp lương thỏa thuận trong hợp đồng (mã thành phần payroll), tiền tệ, tần suất trả lương, % lương thử việc, lý do, quyết định/phụ lục liên kết. Bản ghi lương **chỉ** được tạo hoặc thay đổi thông qua quyết định hoặc phụ lục hợp đồng đã phê duyệt (workflow); không thể chỉnh sửa trực tiếp. Mỗi bản ghi được phê duyệt phát `SalaryChanged` (OUT-07). (changed 2026-10-16, R2-02 §5 #24; GAP-047) | M | Định nghĩa thang lương và danh mục thành phần do payroll sở hữu. Payroll đóng băng phiên bản bản ghi lương được dùng cho mỗi kỳ chạy (BR-PAY-072). |
+| BR-PPL-041 | Kiểm tra mức lương so với min/max của thang lương / khung lương payroll cho ngạch (IF-PAY-P-02) và so với mức lương tối thiểu vùng áp dụng (gói pháp lý, theo vùng của địa điểm làm việc) tại ngày hiệu lực; chặn nếu dưới mức tối thiểu, cảnh báo nếu ngoài khung. Với bản ghi NET, việc kiểm tra dùng số tiền gross quy đổi từ trình mô phỏng payroll (changed 2026-10-16, R2-02 §5 #1, #7). | M | Tham số mức lương tối thiểu vùng `[verify-legal]` |
+| BR-PPL-042 | Hỗ trợ lịch nâng bậc: tính ngày đủ điều kiện nâng bậc tiếp theo từ quy tắc ngạch và việc kéo dài do kỷ luật; tạo danh sách đến hạn cho HR. | S | Hình thức kỷ luật "kéo dài thời hạn nâng lương" làm lùi ngày. |
+| BR-PPL-043 | Hỗ trợ đợt xét duyệt lương: ngân sách theo đơn vị tổ chức, quản lý đề xuất dựa trên kết quả đánh giá, phê duyệt, phát hàng loạt `SalaryChanged`. | C | Phase 2. |
+| BR-PPL-044 | Quyền xem dữ liệu lương bị giới hạn theo vai trò và phạm vi dữ liệu: xem hoặc thay đổi bản ghi lương cần quyền **`compensation`** (được đăng ký trong danh mục quyền của Core), cấp cho C&B và HR được ủy quyền; quản lý chỉ xem được lương nếu được cấp quyền. **Mọi lượt xem và mọi thay đổi** bản ghi lương đều được ghi vào audit log của Core (ai, khi nào, bản ghi nào, mục đích) (changed 2026-10-16, R2-02 §5 #24). | M | |
 
-### 4.5 Labour contracts
-| ID | Requirement | Pri | Notes |
+### 4.5 Hợp đồng lao động
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-050 | Support contract types: probation agreement, definite-term (≤36 months), indefinite-term, seasonal/short (<1 month, where applicable), apprenticeship, internship, service/collaborator contract (non-labour), and contract appendices. | M | Labour Code 2019 Art. 20, 24 `[verify-legal]` |
-| BR-PPL-051 | Probation: maximum duration validated by job level (e.g., ≤180 days enterprise manager; ≤60 days college+; ≤30 days intermediate/technical; ≤6 working days other); only one probation per job; no probation for contracts < 1 month; probation salary ≥ 85% of the job's salary. | M | Art. 24–27 `[verify-legal]` |
-| BR-PPL-052 | Probation outcome (pass/fail) must be recorded and notified to the employee before probation end; system alerts HR/manager N days before; on pass, generate the labour contract (or confirm continuation if probation clause in contract). | M | Art. 27 `[verify-legal]` |
-| BR-PPL-053 | Definite-term contract duration shall not exceed 36 months; system counts consecutive definite contracts per employment and **requires indefinite type** for the next contract after two definite ones, except statutory exceptions (elderly workers, foreign workers, state-enterprise managers, union officials' term-based contracts etc.). | M | Art. 20.2, 149, 151 `[verify-legal]` |
-| BR-PPL-054 | Expiry monitoring: alert HR and manager at configurable offsets (e.g., 45/30/15 days) before contract end; employer notice of non-renewal; if the employee keeps working beyond 30 days after expiry without a new contract, flag auto-conversion (definite → indefinite). | M | Art. 20.2 `[verify-legal]` |
-| BR-PPL-055 | Contract appendices record term changes (salary, position, workplace, working time) with effective date; appendix must not change contract term/duration (validation). | M | Art. 22 `[verify-legal]` |
-| BR-PPL-056 | Contract suspension (tạm hoãn) for statutory reasons (military service, detention, maternity beyond statutory leave by agreement, election to office, other agreed) with start/end; employment status `Suspended`; event `ContractSuspended` / `ContractResumed`. | M | Art. 30–31 `[verify-legal]` |
-| BR-PPL-057 | Contract documents generated from tenant templates (VN/EN bilingual), numbered per legal entity sequence, signed by authorised signatory per delegation matrix. | M | |
-| BR-PPL-058 | Electronic labour contracts: send for e-signature via platform e-sign/e-contract provider, track status (draft, sent, signed by employee, signed by employer, completed, rejected, expired), store signed file + certificate evidence; support submission/registration to the national e-labour-contract platform when required. | S→M | Labour Code Art. 14; Decree on e-labour contracts (e.g., 337/2025/NĐ-CP) `[verify-legal]` — becomes M if mandated for tenant size. |
-| BR-PPL-059 | Collective labour agreement (TƯLĐTT) reference per legal entity: store document and effective period; contract templates may reference it. | C | |
+| BR-PPL-050 | Hỗ trợ các loại hợp đồng: hợp đồng thử việc, xác định thời hạn (≤36 tháng), không xác định thời hạn, thời vụ/ngắn hạn (<1 tháng, nếu áp dụng), học nghề, thực tập, hợp đồng dịch vụ/cộng tác viên (không phải hợp đồng lao động), và phụ lục hợp đồng. | M | Bộ luật Lao động 2019 Điều 20, 24 `[verify-legal]` |
+| BR-PPL-051 | Thử việc: thời gian tối đa được kiểm tra theo cấp bậc công việc (ví dụ: ≤180 ngày với người quản lý doanh nghiệp; ≤60 ngày với trình độ cao đẳng trở lên; ≤30 ngày với trình độ trung cấp/công nhân kỹ thuật; ≤6 ngày làm việc với công việc khác); chỉ thử việc một lần cho một công việc; không thử việc với hợp đồng < 1 tháng; lương thử việc ≥ 85% mức lương của công việc. | M | Điều 24–27 `[verify-legal]` |
+| BR-PPL-052 | Kết quả thử việc (đạt/không đạt) phải được ghi nhận và thông báo cho nhân viên trước khi kết thúc thử việc; hệ thống cảnh báo HR/quản lý N ngày trước đó; nếu đạt, tạo hợp đồng lao động (hoặc xác nhận tiếp tục nếu điều khoản thử việc nằm trong hợp đồng). | M | Điều 27 `[verify-legal]` |
+| BR-PPL-053 | Thời hạn hợp đồng xác định thời hạn không được vượt quá 36 tháng; hệ thống đếm số hợp đồng xác định thời hạn liên tiếp trên mỗi employment và **bắt buộc loại không xác định thời hạn** cho hợp đồng tiếp theo sau hai hợp đồng xác định thời hạn, trừ các ngoại lệ theo luật (người lao động cao tuổi, người lao động nước ngoài, người quản lý doanh nghiệp nhà nước, hợp đồng theo nhiệm kỳ của cán bộ công đoàn v.v.). | M | Điều 20.2, 149, 151 `[verify-legal]` |
+| BR-PPL-054 | Giám sát hết hạn: cảnh báo HR và quản lý tại các mốc cấu hình được (ví dụ 45/30/15 ngày) trước khi hợp đồng kết thúc; người sử dụng lao động thông báo không gia hạn; nếu nhân viên tiếp tục làm việc quá 30 ngày sau khi hết hạn mà không có hợp đồng mới, gắn cờ tự động chuyển đổi (xác định → không xác định thời hạn). | M | Điều 20.2 `[verify-legal]` |
+| BR-PPL-055 | Phụ lục hợp đồng ghi nhận thay đổi điều khoản (lương, vị trí, nơi làm việc, thời giờ làm việc) với ngày hiệu lực; phụ lục không được thay đổi thời hạn hợp đồng (kiểm tra). | M | Điều 22 `[verify-legal]` |
+| BR-PPL-056 | Tạm hoãn hợp đồng vì các lý do luật định (nghĩa vụ quân sự, bị tạm giữ/tạm giam, nghỉ thai sản quá thời gian luật định theo thỏa thuận, được bầu vào cơ quan dân cử, lý do khác theo thỏa thuận) với ngày bắt đầu/kết thúc; trạng thái lao động `Suspended`; sự kiện `ContractSuspended` / `ContractResumed`. | M | Điều 30–31 `[verify-legal]` |
+| BR-PPL-057 | Văn bản hợp đồng được tạo từ mẫu của tenant (song ngữ Việt/Anh), đánh số theo dãy số của pháp nhân, do người ký được ủy quyền ký theo ma trận ủy quyền. | M | |
+| BR-PPL-058 | Hợp đồng lao động điện tử: gửi ký điện tử qua nhà cung cấp chữ ký điện tử/hợp đồng điện tử của nền tảng, theo dõi trạng thái (nháp, đã gửi, nhân viên đã ký, người sử dụng lao động đã ký, hoàn tất, bị từ chối, hết hạn), lưu file đã ký + bằng chứng chứng thư số; hỗ trợ nộp/đăng ký lên nền tảng hợp đồng lao động điện tử quốc gia khi được yêu cầu. | S→M | Bộ luật Lao động Điều 14; Nghị định về hợp đồng lao động điện tử (ví dụ 337/2025/NĐ-CP) `[verify-legal]` — trở thành M nếu bắt buộc theo quy mô tenant. |
+| BR-PPL-059 | Tham chiếu thỏa ước lao động tập thể (TƯLĐTT) theo pháp nhân: lưu văn bản và thời hạn hiệu lực; mẫu hợp đồng có thể tham chiếu tới thỏa ước. | C | |
 
-### 4.6 Onboarding & offboarding
-| ID | Requirement | Pri | Notes |
+### 4.6 Tiếp nhận & nghỉ việc
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-060 | Configurable checklist templates by legal entity, employee category, and event (onboarding, offboarding, transfer); tasks with owner role, due offset, mandatory flag, attachment requirement. | M | |
-| BR-PPL-061 | Pre-hire portal: invited pre-hires complete personal data, upload documents (CCCD, degrees, health certificate, photos, SI book), sign consents before day 1. | M | |
-| BR-PPL-062 | Offboarding includes handover note, asset return list, access-revocation date, exit interview (optional survey), clearance sign-off from configured departments (IT, Finance, Admin). | M | |
-| BR-PPL-063 | Checklist progress and overdue tasks visible to HR and manager dashboards; reminders via core notifications. | M | |
+| BR-PPL-060 | Mẫu checklist cấu hình được theo pháp nhân, nhóm nhân viên và sự kiện (tiếp nhận, nghỉ việc, điều chuyển); đầu việc có vai trò phụ trách, số ngày đến hạn, cờ bắt buộc, yêu cầu tệp đính kèm. | M | |
+| BR-PPL-061 | Cổng thông tin cho người sắp nhận việc: những người được mời hoàn thiện dữ liệu cá nhân, tải tài liệu lên (CCCD, bằng cấp, giấy khám sức khỏe, ảnh, sổ BHXH), ký các consent trước ngày làm việc đầu tiên. | M | |
+| BR-PPL-062 | Nghỉ việc bao gồm biên bản bàn giao, danh sách tài sản cần trả, ngày thu hồi quyền truy cập, phỏng vấn nghỉ việc (khảo sát không bắt buộc), xác nhận hoàn tất thủ tục từ các bộ phận được cấu hình (IT, Tài chính, Hành chính). | M | |
+| BR-PPL-063 | Tiến độ checklist và các đầu việc quá hạn hiển thị trên dashboard của HR và quản lý; nhắc việc qua thông báo của core. | M | |
 
-### 4.7 Separation
-| ID | Requirement | Pri | Notes |
+### 4.7 Nghỉ việc
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-070 | Support separation reasons mapped to legal grounds: contract expiry, mutual agreement, employee unilateral resignation, employer unilateral termination (Art. 36), redundancy due to restructuring/economic reasons (Art. 42–43), dismissal (disciplinary), probation fail, retirement, death, missing/court declaration, business closure. Each reason carries a statutory code for SI/UI and reports. | M | |
-| BR-PPL-071 | Compute required notice by contract type and reason: e.g., indefinite 45 days, definite 12–36 months 30 days, definite < 12 months 3 working days; special occupations per Decree 145/2020; no-notice cases for employee (Art. 35.2) and employer (Art. 36.2). Show shortfall and the compensation consequence when notice is not respected. | M | `[verify-legal]` |
-| BR-PPL-072 | ESS resignation request: employee proposes last working day, reason, comments; manager and HR approve; withdrawal allowed before approval / with consent afterwards. | M | |
-| BR-PPL-073 | Protected-status check: block employer unilateral termination / dismissal for employees who are pregnant, on maternity leave, raising a child under 12 months, on sick leave under treatment within statutory period, etc., unless a lawful exception is documented. | M | Art. 37, 122.4, 137 `[verify-legal]` |
-| BR-PPL-074 | Determine **severance allowance** eligibility (trợ cấp thôi việc) or **job-loss allowance** eligibility (trợ cấp mất việc làm) from the legal ground, and supply to payroll: the employment periods with this employer (incl. recognised prior service), the periods already compensated (severance / job-loss paid earlier), the legal ground and the eligibility (OUT-13). **Payroll computes** the severance working time (excluding UI-contributed months from its own SI history), the 6-month average base and the amount; People shows Payroll's result on the separation case (IN-19) and does not recompute it (changed 2026-10-16, R2-02 §5 #29). | M | Art. 46–47, Decree 145 Art. 8 `[verify-legal]` |
-| BR-PPL-075 | On approval publish `TerminationScheduled`; on last working day+1 publish `EmployeeTerminated` with final-settlement trigger; settlement deadline (e.g., 14 working days, extendable to 30 days) tracked with alerts. | M | Art. 48 `[verify-legal]` |
-| BR-PPL-076 | Post-separation obligations tracked: SI book closing & return, return of original documents, work confirmation letter, PIT withholding certificate request, rehire-eligibility flag, ESS read-only access period. | M | |
-| BR-PPL-077 | Mass layoff (Art. 42–44) support: labour-use plan record, union consultation evidence, notification to provincial labour authority before termination. | C | |
+| BR-PPL-070 | Hỗ trợ các lý do nghỉ việc được ánh xạ tới căn cứ pháp lý: hết hạn hợp đồng, thỏa thuận chấm dứt, người lao động đơn phương chấm dứt, người sử dụng lao động đơn phương chấm dứt (Điều 36), cho thôi việc do thay đổi cơ cấu/lý do kinh tế (Điều 42–43), sa thải (kỷ luật), không đạt thử việc, nghỉ hưu, tử vong, mất tích/tuyên bố của Tòa án, chấm dứt hoạt động. Mỗi lý do mang một mã luật định dùng cho BHXH/BHTN và báo cáo. | M | |
+| BR-PPL-071 | Tính thời hạn báo trước bắt buộc theo loại hợp đồng và lý do: ví dụ không xác định thời hạn 45 ngày, xác định thời hạn 12–36 tháng 30 ngày, xác định thời hạn < 12 tháng 3 ngày làm việc; ngành nghề đặc thù theo Nghị định 145/2020; các trường hợp không cần báo trước của người lao động (Điều 35.2) và người sử dụng lao động (Điều 36.2). Hiển thị số ngày thiếu và hệ quả bồi thường khi không tuân thủ thời hạn báo trước. | M | `[verify-legal]` |
+| BR-PPL-072 | Đơn xin nghỉ việc qua ESS: nhân viên đề xuất ngày làm việc cuối cùng, lý do, nhận xét; quản lý và HR phê duyệt; cho phép rút đơn trước khi được duyệt / sau khi duyệt nếu có sự đồng ý. | M | |
+| BR-PPL-073 | Kiểm tra đối tượng được bảo vệ: chặn việc người sử dụng lao động đơn phương chấm dứt / sa thải đối với nhân viên đang mang thai, nghỉ thai sản, nuôi con dưới 12 tháng tuổi, đang nghỉ ốm điều trị trong thời hạn luật định, v.v., trừ khi có ngoại lệ hợp pháp được lập hồ sơ. | M | Điều 37, 122.4, 137 `[verify-legal]` |
+| BR-PPL-074 | Xác định điều kiện hưởng **trợ cấp thôi việc** hoặc **trợ cấp mất việc làm** từ căn cứ pháp lý, và cung cấp cho payroll: các giai đoạn làm việc với người sử dụng lao động này (bao gồm thời gian làm việc trước đó được công nhận), các giai đoạn đã được chi trả (trợ cấp thôi việc / mất việc làm đã trả trước đó), căn cứ pháp lý và điều kiện hưởng (OUT-13). **Payroll tính** thời gian làm việc tính trợ cấp thôi việc (loại trừ các tháng đã đóng BHTN từ lịch sử BHXH của Payroll), lương bình quân 6 tháng và số tiền; People hiển thị kết quả của Payroll trên hồ sơ nghỉ việc (IN-19) và không tính lại (changed 2026-10-16, R2-02 §5 #29). | M | Điều 46–47, Nghị định 145 Điều 8 `[verify-legal]` |
+| BR-PPL-075 | Khi được phê duyệt, phát `TerminationScheduled`; vào ngày làm việc cuối cùng+1 phát `EmployeeTerminated` kèm kích hoạt quyết toán cuối cùng; hạn quyết toán (ví dụ 14 ngày làm việc, có thể kéo dài đến 30 ngày) được theo dõi kèm cảnh báo. | M | Điều 48 `[verify-legal]` |
+| BR-PPL-076 | Theo dõi các nghĩa vụ sau nghỉ việc: chốt & trả sổ BHXH, trả lại giấy tờ gốc, giấy xác nhận công tác, yêu cầu chứng từ khấu trừ thuế TNCN, cờ đủ điều kiện tái tuyển, thời hạn truy cập ESS chỉ đọc. | M | |
+| BR-PPL-077 | Hỗ trợ cho thôi việc hàng loạt (Điều 42–44): hồ sơ phương án sử dụng lao động, bằng chứng trao đổi với công đoàn, thông báo cho cơ quan quản lý lao động cấp tỉnh trước khi chấm dứt. | C | |
 
-### 4.8 Discipline & rewards
-| ID | Requirement | Pri | Notes |
+### 4.8 Kỷ luật & khen thưởng
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-080 | Discipline case record: violation date, internal-labour-regulation clause breached, evidence, meeting invitation, attendees (incl. union rep), minutes, decision, form (reprimand, extension of salary-increase period ≤ 6 months, demotion, dismissal), effective period, expungement date. | M | Art. 122–125 `[verify-legal]` |
-| BR-PPL-081 | Validate statute of limitation (e.g., 6 months; 12 months for finance/asset/confidentiality violations) and prohibit monetary fines/salary deduction as discipline form. | M | Art. 123, 127 `[verify-legal]` |
-| BR-PPL-082 | Temporary suspension from work (tạm đình chỉ) pending investigation, with max days (e.g., 15, up to 90 in special cases) and salary advance (e.g., 50%) passed to payroll. | S | Art. 128 `[verify-legal]` |
-| BR-PPL-083 | Material liability (bồi thường thiệt hại): compensation amount and instalment plan; monthly deduction capped (e.g., ≤ 30% of net monthly salary) sent to payroll. | S | Art. 129, 102 `[verify-legal]` |
-| BR-PPL-084 | Auto-expunge discipline after the statutory period without repeat violation; keep record but mark expunged. | S | Art. 126 `[verify-legal]` |
-| BR-PPL-085 | Rewards (khen thưởng): type (monetary, certificate, title), level (company, state), amount, tax-treatment flag, decision; approved monetary rewards published to payroll for the target pay period. | M | |
+| BR-PPL-080 | Hồ sơ vụ việc kỷ luật: ngày vi phạm, điều khoản nội quy lao động bị vi phạm, bằng chứng, thư mời họp, người tham dự (bao gồm đại diện công đoàn), biên bản, quyết định, hình thức (khiển trách, kéo dài thời hạn nâng lương ≤ 6 tháng, cách chức, sa thải), thời gian áp dụng, ngày xóa kỷ luật. | M | Điều 122–125 `[verify-legal]` |
+| BR-PPL-081 | Kiểm tra thời hiệu xử lý (ví dụ 6 tháng; 12 tháng đối với vi phạm liên quan đến tài chính/tài sản/bí mật) và cấm hình thức phạt tiền/cắt lương thay cho xử lý kỷ luật. | M | Điều 123, 127 `[verify-legal]` |
+| BR-PPL-082 | Tạm đình chỉ công việc trong thời gian điều tra, với số ngày tối đa (ví dụ 15, đến 90 trong trường hợp đặc biệt) và khoản tạm ứng lương (ví dụ 50%) chuyển sang payroll. | S | Điều 128 `[verify-legal]` |
+| BR-PPL-083 | Trách nhiệm vật chất (bồi thường thiệt hại): số tiền bồi thường và kế hoạch trả góp; khoản khấu trừ hằng tháng có giới hạn (ví dụ ≤ 30% tiền lương thực trả hằng tháng) gửi sang payroll. | S | Điều 129, 102 `[verify-legal]` |
+| BR-PPL-084 | Tự động xóa kỷ luật sau thời hạn luật định nếu không tái phạm; giữ hồ sơ nhưng đánh dấu đã xóa kỷ luật. | S | Điều 126 `[verify-legal]` |
+| BR-PPL-085 | Khen thưởng: loại (tiền, giấy khen, danh hiệu), cấp (công ty, nhà nước), số tiền, cờ xử lý thuế, quyết định; khen thưởng bằng tiền đã duyệt được phát sang payroll cho kỳ lương mục tiêu. | M | |
 
-### 4.9 Appraisal / performance
-| ID | Requirement | Pri | Notes |
+### 4.9 Đánh giá / hiệu suất
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-090 | Configure appraisal cycles (annual, semi-annual, quarterly, probation) with population filters, template (KPI, OKR, competency, mixed), weights, rating scale, and phase deadlines. | S | Phase 2 except probation appraisal (M). |
-| BR-PPL-091 | KPI library and goal cascading (company → unit → individual); OKR with key-result progress check-ins. | S | |
-| BR-PPL-092 | Self, manager, optional 360/peer reviews; calibration session with distribution guidance; final rating locked after acknowledgement. | S | |
-| BR-PPL-093 | Publish `AppraisalFinalised` (rating, score, period) for payroll (performance bonus / KPI-based pay component) and salary review. | S | Monthly KPI score for KPI-linked pay is M if a tenant uses it — see open question Q4. |
-| BR-PPL-094 | Probation appraisal form linked to probation outcome (BR-PPL-052). | M | |
+| BR-PPL-090 | Cấu hình chu kỳ đánh giá (năm, 6 tháng, quý, thử việc) với bộ lọc đối tượng, mẫu (KPI, OKR, năng lực, kết hợp), trọng số, thang xếp loại và hạn chót từng giai đoạn. | S | Phase 2 trừ đánh giá thử việc (M). |
+| BR-PPL-091 | Thư viện KPI và phân rã mục tiêu (công ty → đơn vị → cá nhân); OKR với rà soát tiến độ key result. | S | |
+| BR-PPL-092 | Tự đánh giá, quản lý đánh giá, đánh giá 360/đồng nghiệp (không bắt buộc); phiên hiệu chỉnh với hướng dẫn phân bổ; xếp loại cuối cùng bị khóa sau khi xác nhận. | S | |
+| BR-PPL-093 | Phát `AppraisalFinalised` (xếp loại, điểm, kỳ) cho payroll (thưởng hiệu suất / thành phần lương theo KPI) và xét lương. | S | Điểm KPI hằng tháng cho lương gắn KPI là M nếu tenant sử dụng — xem câu hỏi mở Q4. |
+| BR-PPL-094 | Biểu mẫu đánh giá thử việc liên kết với kết quả thử việc (BR-PPL-052). | M | |
 
-### 4.10 Training
-| ID | Requirement | Pri | Notes |
+### 4.10 Đào tạo
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-100 | Course catalogue, sessions (internal/external, cost, trainer, schedule), enrolment (nomination / self-request with approval), attendance and result, certificate issuance updating BR-PPL-019. | S | |
-| BR-PPL-101 | Training bond / training contract (hợp đồng đào tạo): cost, commitment period; on early separation compute pro-rata repayment and send to final settlement. | S | Art. 62 `[verify-legal]` |
-| BR-PPL-102 | Mandatory training tracking (e.g., occupational safety & health groups) with expiry and compliance report. | S | Decree 44/2016 `[verify-legal]` |
-| BR-PPL-103 | Training time on working days may be sent to T&A as paid training attendance. | C | |
+| BR-PPL-100 | Danh mục khóa học, buổi học (nội bộ/bên ngoài, chi phí, giảng viên, lịch), ghi danh (đề cử / tự đăng ký có phê duyệt), điểm danh và kết quả, cấp chứng chỉ cập nhật BR-PPL-019. | S | |
+| BR-PPL-101 | Cam kết đào tạo / hợp đồng đào tạo: chi phí, thời gian cam kết; khi nghỉ việc trước hạn, tính khoản hoàn trả theo tỷ lệ và gửi sang quyết toán cuối cùng. | S | Điều 62 `[verify-legal]` |
+| BR-PPL-102 | Theo dõi đào tạo bắt buộc (ví dụ các nhóm huấn luyện an toàn, vệ sinh lao động) với ngày hết hạn và báo cáo tuân thủ. | S | Nghị định 44/2016 `[verify-legal]` |
+| BR-PPL-103 | Thời gian đào tạo vào ngày làm việc có thể được gửi sang T&A dưới dạng thời gian đào tạo có hưởng lương. | C | |
 
-### 4.11 Expense claims & advances
-| ID | Requirement | Pri | Notes |
+### 4.11 Đề nghị thanh toán chi phí & tạm ứng
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-110 | Expense categories with policy limits (per item/day/trip/grade), required receipts, VAT e-invoice fields (invoice no., seller tax code, date). | S | |
-| BR-PPL-111 | Cash advance request → approval → paid status; claim settlement against advance; balance due to/from employee. | S | |
-| BR-PPL-112 | Approved reimbursements routed, per tenant **per expense category**, either to payroll (`ExpenseReimbursementApproved` → component, taxable/non-taxable per category flag) or to a finance accounting export (file export in Phase 1); unsettled overdue cash advances sent to payroll as deduction (`AdvanceDeductionRequested`, with consent record) (changed 2026-10-16, R2-02 §5 #21). | S | |
-| BR-PPL-113 | Business trips are **owned by T&A** (request, approval, attendance effect, BR-ATT-070). People's expense and per-diem features consume `att.BusinessTripApproved` (ATT-P-08, IN-16) to pre-fill and validate trip expense claims; People has no trip request of its own (changed 2026-10-16, R2-02 §5 #6). | S | |
+| BR-PPL-110 | Danh mục loại chi phí với hạn mức theo chính sách (theo khoản/ngày/chuyến/ngạch), chứng từ bắt buộc, các trường hóa đơn điện tử VAT (số hóa đơn, MST người bán, ngày). | S | |
+| BR-PPL-111 | Đề nghị tạm ứng → phê duyệt → trạng thái đã chi; quyết toán đề nghị thanh toán với tạm ứng; số dư phải trả cho/thu từ nhân viên. | S | |
+| BR-PPL-112 | Các khoản hoàn ứng đã duyệt được chuyển, theo tenant **theo từng loại chi phí**, hoặc sang payroll (`ExpenseReimbursementApproved` → thành phần lương, chịu thuế/không chịu thuế theo cờ của loại chi phí) hoặc sang file xuất kế toán tài chính (xuất file trong Phase 1); tạm ứng quá hạn chưa quyết toán được gửi sang payroll để khấu trừ (`AdvanceDeductionRequested`, kèm bản ghi đồng ý) (changed 2026-10-16, R2-02 §5 #21). | S | |
+| BR-PPL-113 | Công tác **thuộc sở hữu của T&A** (yêu cầu, phê duyệt, ảnh hưởng tới chấm công, BR-ATT-070). Các tính năng chi phí và công tác phí của People tiêu thụ `att.BusinessTripApproved` (ATT-P-08, IN-16) để điền sẵn và kiểm tra đề nghị thanh toán chi phí công tác; People không có yêu cầu công tác riêng (changed 2026-10-16, R2-02 §5 #6). | S | |
 
 ### 4.12 ESS / MSS
-| ID | Requirement | Pri | Notes |
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-120 | People ESS pages: view profile, assignments, contracts, salary history (if policy allows), documents, timeline; edit personal data (BR-PPL-022); manage dependants (request); bank account change (with step-up auth); resignation; expense claims; appraisal; training enrolment; HR letter requests. The pages plug into the **saas-platform ESS/MSS shell** (navigation, auth, step-up; responsive web in Phase 1); leave/attendance pages belong to T&A, payslips, PIT certificates, 08/CK-TNCN and finalisation authorisation pages to Payroll, the approvals inbox to Core (changed 2026-10-16, R2-02 §5 #4, #17). | M | |
-| BR-PPL-121 | MSS: team roster & org chart, pending approvals, initiate changes (transfer, promotion, salary proposal within scope), probation outcomes, appraisal, discipline proposal, onboarding tasks. | M | |
-| BR-PPL-122 | Delegation of manager approvals during absence uses core delegation. | M | |
-| BR-PPL-123 | ESS/MSS available in Vietnamese and English, mobile-responsive. | M | |
+| BR-PPL-120 | Các trang ESS của People: xem hồ sơ, phân công, hợp đồng, lịch sử lương (nếu chính sách cho phép), tài liệu, dòng thời gian; sửa dữ liệu cá nhân (BR-PPL-022); quản lý người phụ thuộc (yêu cầu); thay đổi tài khoản ngân hàng (có xác thực step-up); xin nghỉ việc; đề nghị thanh toán chi phí; đánh giá; đăng ký đào tạo; yêu cầu văn bản nhân sự. Các trang này được gắn vào **shell ESS/MSS của saas-platform** (điều hướng, xác thực, step-up; responsive web trong Phase 1); các trang nghỉ phép/chấm công thuộc T&A, các trang phiếu lương, chứng từ khấu trừ thuế TNCN, 08/CK-TNCN và ủy quyền quyết toán thuộc Payroll, hộp thư phê duyệt thuộc Core (changed 2026-10-16, R2-02 §5 #4, #17). | M | |
+| BR-PPL-121 | MSS: danh sách nhóm & sơ đồ tổ chức, phê duyệt đang chờ, khởi tạo thay đổi (điều chuyển, thăng chức, đề xuất lương trong phạm vi), kết quả thử việc, đánh giá, đề xuất kỷ luật, đầu việc tiếp nhận. | M | |
+| BR-PPL-122 | Ủy quyền phê duyệt của quản lý trong thời gian vắng mặt dùng cơ chế ủy quyền của core. | M | |
+| BR-PPL-123 | ESS/MSS có tiếng Việt và tiếng Anh, responsive trên di động. | M | |
 
-### 4.13 Documents, decisions & HR letters
-| ID | Requirement | Pri | Notes |
+### 4.13 Tài liệu, quyết định & văn bản nhân sự
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-130 | Decision (quyết định) generation for: hire/appointment, probation result, transfer, promotion/demotion, concurrent position, secondment, salary change, reward, discipline, suspension, termination, retirement; each with decision number (per legal entity, per year sequence), date, signatory, effective date, legal basis text. | M | |
-| BR-PPL-131 | Template management: tenant-editable templates with merge fields, versioned, bilingual. | M | |
-| BR-PPL-132 | HR letters on request: employment confirmation, income confirmation (from payroll data), visa support, work-experience certificate; request via ESS with approval and auto-generation. | S | |
-| BR-PPL-133 | Employee document repository with categories, retention period per category, confidentiality level, and version history. | M | |
-| BR-PPL-134 | Digital signature of decisions/letters (organisation digital certificate) via platform e-sign. | S | |
+| BR-PPL-130 | Tạo quyết định cho: tuyển dụng/bổ nhiệm, kết quả thử việc, điều chuyển, thăng chức/giáng chức, kiêm nhiệm, biệt phái, thay đổi lương, khen thưởng, kỷ luật, tạm hoãn, chấm dứt, nghỉ hưu; mỗi quyết định có số quyết định (theo dãy số của pháp nhân, theo năm), ngày, người ký, ngày hiệu lực, văn bản căn cứ pháp lý. | M | |
+| BR-PPL-131 | Quản lý mẫu: mẫu tenant có thể chỉnh sửa với các trường trộn (merge field), có phiên bản, song ngữ. | M | |
+| BR-PPL-132 | Văn bản nhân sự theo yêu cầu: xác nhận công tác, xác nhận thu nhập (từ dữ liệu payroll), hỗ trợ xin visa, giấy xác nhận kinh nghiệm làm việc; yêu cầu qua ESS có phê duyệt và tự động tạo văn bản. | S | |
+| BR-PPL-133 | Kho tài liệu nhân viên với danh mục, thời hạn lưu trữ theo danh mục, mức độ bảo mật và lịch sử phiên bản. | M | |
+| BR-PPL-134 | Ký số quyết định/văn bản (chứng thư số của tổ chức) qua chữ ký điện tử của nền tảng. | S | |
 
-### 4.14 Statutory reporting & labour book
-| ID | Requirement | Pri | Notes |
+### 4.14 Báo cáo theo luật định & sổ quản lý lao động
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-140 | Maintain the **labour management book** (sổ quản lý lao động) electronically per legal entity with the prescribed data fields, available for inspection and exportable. | M | Decree 145/2020 Art. 3 `[verify-legal]` |
-| BR-PPL-141 | Generate the **semi-annual labour-usage change report** per legal entity in the prescribed form (e.g., Form 01/PLI), for periods ending June and December, with deadline alerts (e.g., before 5 June / 5 December), and log submission. | M | Decree 145/2020 Art. 4 `[verify-legal]` |
-| BR-PPL-142 | Generate the **monthly labour-fluctuation notice** to the local Employment Service Centre (UI purpose) listing hires/terminations, deadline alert. | M | Law on Employment 2025 + guiding decree `[verify-legal]` |
-| BR-PPL-143 | Foreign-worker reports (demand explanation, periodic usage report) as prescribed. | S | `[verify-legal]` |
-| BR-PPL-144 | Initial labour declaration within 30 days of a legal entity starting operation (template). | C | `[verify-legal]` |
+| BR-PPL-140 | Duy trì **sổ quản lý lao động** dạng điện tử theo từng pháp nhân với các trường dữ liệu theo quy định, sẵn sàng cho thanh tra và có thể xuất ra. | M | Nghị định 145/2020 Điều 3 `[verify-legal]` |
+| BR-PPL-141 | Tạo **báo cáo tình hình thay đổi về lao động 6 tháng** theo từng pháp nhân theo mẫu quy định (ví dụ Mẫu 01/PLI), cho các kỳ kết thúc tháng 6 và tháng 12, kèm cảnh báo hạn chót (ví dụ trước ngày 5 tháng 6 / 5 tháng 12), và ghi nhật ký nộp. | M | Nghị định 145/2020 Điều 4 `[verify-legal]` |
+| BR-PPL-142 | Tạo **thông báo biến động lao động hằng tháng** gửi Trung tâm Dịch vụ việc làm địa phương (phục vụ BHTN) liệt kê tuyển mới/chấm dứt, kèm cảnh báo hạn chót. | M | Luật Việc làm 2025 + nghị định hướng dẫn `[verify-legal]` |
+| BR-PPL-143 | Các báo cáo về người lao động nước ngoài (giải trình nhu cầu, báo cáo định kỳ tình hình sử dụng) theo quy định. | S | `[verify-legal]` |
+| BR-PPL-144 | Khai trình sử dụng lao động lần đầu trong vòng 30 ngày kể từ khi pháp nhân bắt đầu hoạt động (mẫu). | C | `[verify-legal]` |
 
-### 4.15 Personal data protection
-| ID | Requirement | Pri | Notes |
+### 4.15 Bảo vệ dữ liệu cá nhân
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-PPL-150 | Classify every personal field as basic or **sensitive** (e.g., health, biometrics, ethnicity, religion, political affiliation, criminal record, location, financial/bank, union membership) in a data dictionary. | M | Decree 13/2023 Art. 2; PDPL 2025 `[verify-legal]` |
-| BR-PPL-151 | Consent per purpose is recorded in the **saas-platform consent registry** (purpose, notice version, subject = person id, timestamp, channel, withdrawal); People holds only references and calls `hasConsent()` before processing optional sensitive data; lawful-basis processing (labour contract/legal obligation) recorded without consent where the law allows. Recruitment consents are re-purposed in the same registry at hire (changed 2026-10-16, R2-02 §5 #27). | M | |
-| BR-PPL-152 | Sensitive fields masked by default in UI and exports; reveal requires permission and is logged (who, when, which field, purpose). | M | |
-| BR-PPL-153 | Data-subject requests (access, correction, export, consent withdrawal, restriction, deletion where legally permitted) are opened and tracked by the **saas-platform DSR orchestration** (ESS entry point); People provides its export and anonymise handlers for People data (OUT-33) (changed 2026-10-16, R2-02 §5 #27). | M | `[verify-legal]` for response deadlines |
-| BR-PPL-154 | Retention rules: after separation, personal data retained per category retention schedule (e.g., labour-law/SI/tax retention) held in the **saas-platform retention scheduler** with legal floors; People registers its categories and executes the anonymise/purge callback, with legal-hold override (changed 2026-10-16, R2-02 §5 #27). | S | |
+| BR-PPL-150 | Phân loại mọi trường dữ liệu cá nhân là cơ bản hay **nhạy cảm** (ví dụ sức khỏe, sinh trắc học, dân tộc, tôn giáo, quan điểm chính trị, tiền án tiền sự, vị trí, tài chính/ngân hàng, đoàn viên công đoàn) trong từ điển dữ liệu. | M | Nghị định 13/2023 Điều 2; Luật BVDLCN 2025 `[verify-legal]` |
+| BR-PPL-151 | Consent theo từng mục đích được ghi nhận trong **consent registry của saas-platform** (mục đích, phiên bản thông báo, chủ thể = person id, thời điểm, kênh, rút lại); People chỉ lưu tham chiếu và gọi `hasConsent()` trước khi xử lý dữ liệu nhạy cảm không bắt buộc; việc xử lý theo căn cứ hợp pháp (hợp đồng lao động/nghĩa vụ pháp lý) được ghi nhận mà không cần consent khi pháp luật cho phép. Consent từ tuyển dụng được chuyển mục đích trong cùng registry khi tuyển dụng (changed 2026-10-16, R2-02 §5 #27). | M | |
+| BR-PPL-152 | Các trường nhạy cảm được che mặc định trên UI và trong file xuất; việc hiển thị cần quyền và được ghi log (ai, khi nào, trường nào, mục đích). | M | |
+| BR-PPL-153 | Các yêu cầu của chủ thể dữ liệu (truy cập, chỉnh sửa, xuất, rút consent, hạn chế, xóa khi pháp luật cho phép) được mở và theo dõi bởi **điều phối DSR của saas-platform** (điểm vào là ESS); People cung cấp các handler xuất và ẩn danh hóa cho dữ liệu People (OUT-33) (changed 2026-10-16, R2-02 §5 #27). | M | `[verify-legal]` cho thời hạn phản hồi |
+| BR-PPL-154 | Quy tắc lưu trữ: sau khi nghỉ việc, dữ liệu cá nhân được lưu theo lịch lưu trữ của từng danh mục (ví dụ thời hạn lưu trữ theo luật lao động/BHXH/thuế) do **bộ lập lịch lưu trữ của saas-platform** quản lý với mức sàn pháp lý; People đăng ký các danh mục của mình và thực thi callback ẩn danh hóa/xóa, có cơ chế ghi đè khi bị phong tỏa pháp lý (legal hold) (changed 2026-10-16, R2-02 §5 #27). | S | |
 
 ---
 
-## 5. Vietnam compliance rules
+## 5. Quy định tuân thủ pháp luật Việt Nam
 
-| # | Rule (summary) | Legal basis | Applies to |
+| # | Quy định (tóm tắt) | Căn cứ pháp lý | Áp dụng cho |
 |---|---|---|---|
-| C1 | Contract types: indefinite and definite (≤ 36 months). After 2 definite contracts the next must be indefinite (exceptions). Continuing to work 30 days after expiry without new contract → becomes indefinite (from definite). | Labour Code 2019 (45/2019/QH14) Art. 20 `[verify-legal]` | BR-PPL-053/054 |
-| C2 | Probation max durations by job; once per job; probation salary ≥ 85%; result notice at end of probation; no probation for contracts < 1 month. | LC Art. 24–27 `[verify-legal]` | BR-PPL-051/052 |
-| C3 | Electronic labour contracts have the same validity as paper; national platform & conditions per guiding decree. | LC Art. 14; Law on E-Transactions 2023; Decree 337/2025/NĐ-CP `[verify-legal]` | BR-PPL-058 |
-| C4 | Appendices may amend terms but not the contract duration. | LC Art. 22 `[verify-legal]` | BR-PPL-055 |
-| C5 | Temporary transfer to other work: max 60 working days/year without consent, 3 working days notice, salary per new job ≥ 85% of old and ≥ regional minimum, old salary kept 30 working days. | LC Art. 29 `[verify-legal]` | BR-PPL-035 |
-| C6 | Contract suspension grounds and resumption within 15 days. | LC Art. 30–31 `[verify-legal]` | BR-PPL-056 |
-| C7 | Employee notice: 45 days (indefinite), 30 days (12–36 months), 3 working days (< 12 months); special occupations longer (e.g., 120 days) per Decree 145. Employer notice for Art. 36 grounds similar. | LC Art. 35–36; Decree 145/2020 Art. 7 `[verify-legal]` | BR-PPL-071 |
-| C8 | Protected employees (pregnant, maternity leave, child < 12 months) cannot be unilaterally terminated/disciplined except business closure etc. | LC Art. 37, 122, 137 `[verify-legal]` | BR-PPL-073 |
-| C9 | Severance allowance: ½ month salary per year of service for those with ≥ 12 months, excluding UI-covered time and already-compensated time; Job-loss allowance: 1 month per year, min 2 months; salary basis = average contract salary of 6 months before termination. | LC Art. 46–47; Decree 145 Art. 8 `[verify-legal]` | BR-PPL-074 |
-| C10 | Settlement of all entitlements within 14 working days (extendable to 30 days in listed cases); employer must complete SI-period confirmation and return documents. | LC Art. 48 `[verify-legal]` | BR-PPL-075/076 |
-| C11 | Discipline: forms limited to reprimand, extension of salary-increase period ≤ 6 months, demotion, dismissal; statute of limitation 6/12 months; fines prohibited; procedure with union participation; suspension ≤ 15 days (≤ 90 special) with 50% advance; expungement after 3/6 months (non-dismissal) or 3 years for demotion. | LC Art. 122–128; Decree 145 Art. 69–72 `[verify-legal]` | BR-PPL-080–084 |
-| C12 | Material compensation by salary deduction capped at 30% of net monthly salary. | LC Art. 102, 129 `[verify-legal]` | BR-PPL-083 |
-| C13 | Labour management book within 30 days of operation; semi-annual labour usage report (before 5 June and 5 December) via the national labour portal. | Decree 145/2020 Art. 3–4 `[verify-legal]` | BR-PPL-140/141 |
-| C14 | Monthly notice of labour fluctuations to Employment Service Centre (UI). | Law on Employment 2025 (74/2025/QH15) & guiding decree `[verify-legal]` | BR-PPL-142 |
-| C15 | Foreign workers need work permits/exemption; definite-term contracts not exceeding permit validity; renewals. | LC Art. 151–155; Decree 219/2025/NĐ-CP `[verify-legal]` | BR-PPL-020, 053 |
-| C16 | Retirement age follows the gradual roadmap (to 62 male / 60 female). Used for retirement alerts. | LC Art. 169; Decree 135/2020 `[verify-legal]` | Report R7 |
-| C17 | PIT dependants: registration, eligibility (age, income threshold), one taxpayer per dependant; family deduction amounts (e.g., 15.5 M VND self / 6.2 M VND per dependant from 2026). | PIT Law & amendments; Circular 111/2013; Resolution 110/2025/UBTVQH15 `[verify-legal]` | BR-PPL-016/017 (amount used by payroll) |
-| C18 | Personal identification number used as personal tax code. | Law on Tax Administration; Circular 86/2024/TT-BTC `[verify-legal]` | BR-PPL-013 |
-| C19 | Personal data: consent, sensitive-data classification, impact assessment, data-subject rights, breach notification (e.g., 72h). | PDPL 2025 (91/2025/QH15, effective 1/1/2026) and guiding decree; Decree 13/2023/NĐ-CP `[verify-legal]` | BR-PPL-150–154 |
-| C20 | Training contract and cost repayment if the employee leaves before the committed period. | LC Art. 61–62 `[verify-legal]` | BR-PPL-101 |
-| C21 | Internal labour regulations mandatory (registered) for employers with ≥ 10 employees; discipline must cite them. | LC Art. 118–119 `[verify-legal]` | BR-PPL-080 |
-| C22 | Female employees with child < 12 months: 60 min paid break per day; pregnant heavy-work employees from 7th month: reduced 1 h/day. | LC Art. 137 `[verify-legal]` | BR-PPL-021 → T&A |
+| C1 | Loại hợp đồng: không xác định thời hạn và xác định thời hạn (≤ 36 tháng). Sau 2 hợp đồng xác định thời hạn, hợp đồng tiếp theo phải là không xác định thời hạn (có ngoại lệ). Tiếp tục làm việc 30 ngày sau khi hết hạn mà không có hợp đồng mới → trở thành không xác định thời hạn (từ xác định thời hạn). | Bộ luật Lao động 2019 (45/2019/QH14) Điều 20 `[verify-legal]` | BR-PPL-053/054 |
+| C2 | Thời gian thử việc tối đa theo công việc; chỉ một lần cho một công việc; lương thử việc ≥ 85%; thông báo kết quả khi kết thúc thử việc; không thử việc với hợp đồng < 1 tháng. | BLLĐ Điều 24–27 `[verify-legal]` | BR-PPL-051/052 |
+| C3 | Hợp đồng lao động điện tử có giá trị như hợp đồng giấy; nền tảng quốc gia & điều kiện theo nghị định hướng dẫn. | BLLĐ Điều 14; Luật Giao dịch điện tử 2023; Nghị định 337/2025/NĐ-CP `[verify-legal]` | BR-PPL-058 |
+| C4 | Phụ lục có thể sửa đổi điều khoản nhưng không được sửa đổi thời hạn hợp đồng. | BLLĐ Điều 22 `[verify-legal]` | BR-PPL-055 |
+| C5 | Tạm thời chuyển người lao động làm công việc khác: tối đa 60 ngày làm việc/năm nếu không có sự đồng ý, báo trước 3 ngày làm việc, lương theo công việc mới ≥ 85% lương cũ và ≥ mức tối thiểu vùng, giữ nguyên lương cũ 30 ngày làm việc. | BLLĐ Điều 29 `[verify-legal]` | BR-PPL-035 |
+| C6 | Các trường hợp tạm hoãn hợp đồng và việc trở lại làm việc trong vòng 15 ngày. | BLLĐ Điều 30–31 `[verify-legal]` | BR-PPL-056 |
+| C7 | Người lao động báo trước: 45 ngày (không xác định thời hạn), 30 ngày (12–36 tháng), 3 ngày làm việc (< 12 tháng); ngành nghề đặc thù dài hơn (ví dụ 120 ngày) theo Nghị định 145. Người sử dụng lao động báo trước với các căn cứ Điều 36 tương tự. | BLLĐ Điều 35–36; Nghị định 145/2020 Điều 7 `[verify-legal]` | BR-PPL-071 |
+| C8 | Nhân viên được bảo vệ (mang thai, nghỉ thai sản, nuôi con < 12 tháng) không bị đơn phương chấm dứt/xử lý kỷ luật, trừ trường hợp chấm dứt hoạt động v.v. | BLLĐ Điều 37, 122, 137 `[verify-legal]` | BR-PPL-073 |
+| C9 | Trợ cấp thôi việc: ½ tháng lương cho mỗi năm làm việc đối với người làm việc ≥ 12 tháng, trừ thời gian đã tham gia BHTN và thời gian đã được chi trả; trợ cấp mất việc làm: 1 tháng cho mỗi năm, tối thiểu 2 tháng; lương làm căn cứ = bình quân tiền lương theo hợp đồng của 6 tháng liền kề trước khi chấm dứt. | BLLĐ Điều 46–47; Nghị định 145 Điều 8 `[verify-legal]` | BR-PPL-074 |
+| C10 | Thanh toán đầy đủ các khoản trong vòng 14 ngày làm việc (có thể kéo dài đến 30 ngày trong các trường hợp được liệt kê); người sử dụng lao động phải hoàn tất xác nhận thời gian đóng BHXH và trả lại giấy tờ. | BLLĐ Điều 48 `[verify-legal]` | BR-PPL-075/076 |
+| C11 | Kỷ luật: chỉ gồm các hình thức khiển trách, kéo dài thời hạn nâng lương ≤ 6 tháng, cách chức, sa thải; thời hiệu 6/12 tháng; cấm phạt tiền; trình tự có sự tham gia của công đoàn; tạm đình chỉ ≤ 15 ngày (≤ 90 ngày trường hợp đặc biệt) với tạm ứng 50%; xóa kỷ luật sau 3/6 tháng (không phải sa thải) hoặc 3 năm với cách chức. | BLLĐ Điều 122–128; Nghị định 145 Điều 69–72 `[verify-legal]` | BR-PPL-080–084 |
+| C12 | Bồi thường thiệt hại vật chất bằng khấu trừ lương tối đa 30% tiền lương thực trả hằng tháng. | BLLĐ Điều 102, 129 `[verify-legal]` | BR-PPL-083 |
+| C13 | Sổ quản lý lao động trong vòng 30 ngày kể từ khi hoạt động; báo cáo tình hình sử dụng lao động 6 tháng (trước ngày 5 tháng 6 và 5 tháng 12) qua cổng thông tin quốc gia về lao động. | Nghị định 145/2020 Điều 3–4 `[verify-legal]` | BR-PPL-140/141 |
+| C14 | Thông báo biến động lao động hằng tháng cho Trung tâm Dịch vụ việc làm (BHTN). | Luật Việc làm 2025 (74/2025/QH15) & nghị định hướng dẫn `[verify-legal]` | BR-PPL-142 |
+| C15 | Người lao động nước ngoài cần giấy phép lao động/miễn giấy phép; hợp đồng xác định thời hạn không vượt quá thời hạn giấy phép; gia hạn. | BLLĐ Điều 151–155; Nghị định 219/2025/NĐ-CP `[verify-legal]` | BR-PPL-020, 053 |
+| C16 | Tuổi nghỉ hưu theo lộ trình tăng dần (đến 62 với nam / 60 với nữ). Dùng cho cảnh báo nghỉ hưu. | BLLĐ Điều 169; Nghị định 135/2020 `[verify-legal]` | Báo cáo R7 |
+| C17 | Người phụ thuộc thuế TNCN: đăng ký, điều kiện (tuổi, ngưỡng thu nhập), mỗi người phụ thuộc chỉ tính cho một người nộp thuế; mức giảm trừ gia cảnh (ví dụ 15,5 triệu VND cho bản thân / 6,2 triệu VND cho mỗi người phụ thuộc từ 2026). | Luật Thuế TNCN & các văn bản sửa đổi; Thông tư 111/2013; Nghị quyết 110/2025/UBTVQH15 `[verify-legal]` | BR-PPL-016/017 (mức giảm trừ do payroll sử dụng) |
+| C18 | Số định danh cá nhân được dùng làm mã số thuế cá nhân. | Luật Quản lý thuế; Thông tư 86/2024/TT-BTC `[verify-legal]` | BR-PPL-013 |
+| C19 | Dữ liệu cá nhân: consent, phân loại dữ liệu nhạy cảm, đánh giá tác động, quyền của chủ thể dữ liệu, thông báo vi phạm (ví dụ 72 giờ). | Luật BVDLCN 2025 (91/2025/QH15, hiệu lực 1/1/2026) và nghị định hướng dẫn; Nghị định 13/2023/NĐ-CP `[verify-legal]` | BR-PPL-150–154 |
+| C20 | Hợp đồng đào tạo và hoàn trả chi phí nếu người lao động nghỉ việc trước thời hạn cam kết. | BLLĐ Điều 61–62 `[verify-legal]` | BR-PPL-101 |
+| C21 | Nội quy lao động bắt buộc (phải đăng ký) với người sử dụng lao động có ≥ 10 người lao động; việc xử lý kỷ luật phải viện dẫn nội quy. | BLLĐ Điều 118–119 `[verify-legal]` | BR-PPL-080 |
+| C22 | Lao động nữ nuôi con < 12 tháng: nghỉ 60 phút mỗi ngày có hưởng lương; lao động nữ mang thai làm công việc nặng nhọc từ tháng thứ 7: giảm 1 giờ/ngày. | BLLĐ Điều 137 `[verify-legal]` | BR-PPL-021 → T&A |
 
 ---
 
-## 6. Key business entities
+## 6. Thực thể nghiệp vụ chính
 
-| Entity | Purpose | Key attributes |
+| Thực thể | Mục đích | Thuộc tính chính |
 |---|---|---|
-| `hr.person` | Real individual (tenant-scoped) | person_id, legal names, DOB, gender, nationality, ethnicity, religion (sensitive), national_id_no, tax_code, si_code, photo, verification status |
-| `hr.tax_residency` | Effective-dated PIT residency (new 2026-10-16, GAP-048) | person_id, status (resident/non-resident), basis, valid_from/to, arrival dates, departure dates, days_in_vn per year (optional), source (HR / payroll 183-day proposal), approval ref |
-| `hr.person_identity_doc` | ID documents & permits | doc_type, number, issue date/place, expiry, files |
-| `hr.person_address` | Addresses (effective-dated) | type, province, commune, line, from/to |
-| `hr.person_contact` | Phones, emails | type, value, primary |
-| `hr.emergency_contact` | Emergency contacts | name, relationship, phone |
-| `hr.family_member` | Family members | relationship, name, DOB, ID no., tax code, income status |
-| `hr.pit_dependant` | Dependant registration (People is the owner, R2-02 §5 #3) | family_member_id, employment_id (claiming — must be the primary employment, R2-16), from_month, to_month, status, tax-registration ref |
-| `hr.bank_account` | Salary accounts | bank, branch, account no., holder, split, default, from/to |
-| `hr.education`, `hr.certificate` | Qualifications | level, institution, major, year / type, issuer, expiry |
-| `hr.work_permit` | Foreign worker permit | number, type (permit/exempt), job, from/to |
-| `hr.special_status` | Protection & regime flags | type (pregnancy, child<12m, disability, minor, union…), from/to |
-| `hr.employment` | Engagement with a legal entity (at most one live per person per legal entity) | employment_id, person_id, legal_entity_id, employee_no, hire date, seniority date, status, worker category, rehire eligible |
-| `hr.primary_employment` | Effective-dated primary employment per purpose (changed 2026-10-16, R2-16; DESIGN.md §7.3) | person_id, purpose (PIT_FAMILY_DEDUCTION / SOCIAL_INSURANCE), employment_id, valid_from/to, approval ref |
-| `hr.insurance_participation` | Effective-dated participation per insurance type per employment (changed 2026-10-16, R2-16) `[verify-legal]` | employment_id, insurance type (SI / HI / UI / OA-OD), participates (Y/N), reason (rule value applied from the legal parameter `insurance.multi_contract_rule`: FIRST_CONTRACT / HIGHEST_SALARY / EACH_EMPLOYER, or exemption) (changed 2026-10-16, R3-03), valid_from/to |
-| `hr.assignment` | Effective-dated placement | employment_id, type, position_id, org_unit_id, job, grade, manager, location, cost centre(s), FTE, contractual working regime, from/to, reason, decision_id, reorg_package_id — no pay group, no schedule (changed 2026-10-16, R2-02 §5 #25, #26) |
-| `hr.salary_record` | Effective-dated agreed compensation — system of record (changed 2026-10-16, R2-02 §5 #24; GAP-047) | employment_id, pay scale/grade/step, pay_basis (GROSS/NET), base salary, agreed_net_amount, net_guaranteed_components, SI salary, contract allowances (component codes), currency, probation %, from/to, reason, decision_id or appendix_id (mandatory), version |
-| `hr.contract` | Labour contract / probation / service | type, number, sign date, start, end, sequence (nth definite), signatory, e-sign status, file |
-| `hr.contract_appendix` | Amendments | contract_id, changes, effective date |
-| `hr.contract_suspension` | Suspension periods | reason, from/to, resumption date |
-| `hr.decision` | Quyết định | number, type, sign date, effective date, signatory, subject employment, file |
-| `hr.hr_event` | Timeline / outbox | event type, employment, effective date, payload, retro flag, published status |
-| `hr.separation` | Resignation/termination case | reason code, legal ground, notice date, required notice, LWD, termination date, access_revocation_date, severance type and eligibility, employment periods and compensated periods (inputs), payroll severance result ref (display), settlement deadline (display of the payroll clock), status (changed 2026-10-16, R2-02 §5 #9, #29) |
-| `hr.checklist_template`, `hr.checklist`, `hr.checklist_task` | On/offboarding | template, owner, due, status |
-| `hr.discipline_case` | Discipline | violation, evidence, meeting, form, period, expunge date, compensation |
-| `hr.reward` | Rewards | type, level, amount, tax flag, decision, pay period |
-| `hr.appraisal_cycle`, `hr.appraisal`, `hr.goal` | Performance | cycle, template, goals, scores, final rating |
-| `hr.course`, `hr.training_session`, `hr.training_enrolment`, `hr.training_bond` | Training | course, session, attendance, result, bond cost & period |
-| `hr.expense_claim`, `hr.expense_line`, `hr.cash_advance` | Expenses | category, amount, invoice data, status, route (payroll/finance) |
-| `hr.business_trip` | Removed — owned by time-attendance (R2-02); expense claims reference the T&A trip id (changed 2026-10-16, R2-02 §5 #6) | — |
-| `hr.document` | Employee documents (metadata reference to the Core document service) | category, Core document id, confidentiality, retention class (changed 2026-10-16, R2-02 §5 #15b) |
-| `hr.consent_record` → `hr.consent_ref` | Reference to the saas-platform consent registry (changed 2026-10-16, R2-02 §5 #27) | person_id, purpose, registry consent id |
-| `hr.data_request` | Removed — owned by saas-platform DSR orchestration (R2-02); People handles export/anonymise callbacks (changed 2026-10-16, R2-02 §5 #27) | — |
-| `hr.statutory_report` | Labour reports | type, legal entity, period, generated file, submitted at |
+| `hr.person` | Cá nhân thực (theo phạm vi tenant) | person_id, họ tên pháp lý, ngày sinh, giới tính, quốc tịch, dân tộc, tôn giáo (nhạy cảm), national_id_no, tax_code, si_code, ảnh, trạng thái xác thực |
+| `hr.tax_residency` | Cư trú thuế TNCN có hiệu lực theo ngày (new 2026-10-16, GAP-048) | person_id, trạng thái (cư trú/không cư trú), căn cứ, valid_from/to, các ngày nhập cảnh, các ngày xuất cảnh, days_in_vn theo năm (không bắt buộc), nguồn (HR / đề xuất 183 ngày của payroll), tham chiếu phê duyệt |
+| `hr.person_identity_doc` | Giấy tờ tùy thân & giấy phép | doc_type, số, ngày/nơi cấp, ngày hết hạn, tệp |
+| `hr.person_address` | Địa chỉ (có hiệu lực theo ngày) | loại, tỉnh, xã, dòng địa chỉ, từ/đến |
+| `hr.person_contact` | Điện thoại, email | loại, giá trị, chính |
+| `hr.emergency_contact` | Người liên hệ khẩn cấp | họ tên, quan hệ, điện thoại |
+| `hr.family_member` | Thành viên gia đình | quan hệ, họ tên, ngày sinh, số định danh, mã số thuế, tình trạng thu nhập |
+| `hr.pit_dependant` | Đăng ký người phụ thuộc (People là chủ sở hữu, R2-02 §5 #3) | family_member_id, employment_id (employment kê khai — phải là employment chính, R2-16), from_month, to_month, trạng thái, tham chiếu đăng ký thuế |
+| `hr.bank_account` | Tài khoản nhận lương | ngân hàng, chi nhánh, số tài khoản, chủ tài khoản, tỷ lệ chia, mặc định, từ/đến |
+| `hr.education`, `hr.certificate` | Bằng cấp, chứng chỉ | trình độ, cơ sở đào tạo, chuyên ngành, năm / loại, đơn vị cấp, ngày hết hạn |
+| `hr.work_permit` | Giấy phép lao động của người nước ngoài | số, loại (giấy phép/miễn), công việc, từ/đến |
+| `hr.special_status` | Cờ bảo vệ & chế độ | loại (mang thai, con<12 tháng, khuyết tật, chưa thành niên, công đoàn…), từ/đến |
+| `hr.employment` | Quan hệ lao động với một pháp nhân (tối đa một employment đang hiệu lực cho mỗi người trên mỗi pháp nhân) | employment_id, person_id, legal_entity_id, employee_no, ngày vào làm, ngày tính thâm niên, trạng thái, nhóm người lao động, đủ điều kiện tái tuyển |
+| `hr.primary_employment` | Employment chính theo từng mục đích, có hiệu lực theo ngày (changed 2026-10-16, R2-16; DESIGN.md §7.3) | person_id, mục đích (PIT_FAMILY_DEDUCTION / SOCIAL_INSURANCE), employment_id, valid_from/to, tham chiếu phê duyệt |
+| `hr.insurance_participation` | Việc tham gia theo từng loại bảo hiểm trên từng employment, có hiệu lực theo ngày (changed 2026-10-16, R2-16) `[verify-legal]` | employment_id, loại bảo hiểm (BHXH / BHYT / BHTN / BHTNLĐ-BNN), có tham gia (Y/N), lý do (giá trị quy tắc được áp dụng từ tham số pháp lý `insurance.multi_contract_rule`: FIRST_CONTRACT / HIGHEST_SALARY / EACH_EMPLOYER, hoặc miễn) (changed 2026-10-16, R3-03), valid_from/to |
+| `hr.assignment` | Bố trí công việc có hiệu lực theo ngày | employment_id, loại, position_id, org_unit_id, công việc, ngạch, quản lý, địa điểm, (các) trung tâm chi phí, FTE, chế độ làm việc theo hợp đồng, từ/đến, lý do, decision_id, reorg_package_id — không có pay group, không có lịch làm việc (changed 2026-10-16, R2-02 §5 #25, #26) |
+| `hr.salary_record` | Mức đãi ngộ đã thỏa thuận có hiệu lực theo ngày — system of record (changed 2026-10-16, R2-02 §5 #24; GAP-047) | employment_id, thang lương/ngạch/bậc, pay_basis (GROSS/NET), lương cơ bản, agreed_net_amount, net_guaranteed_components, lương đóng BHXH, phụ cấp theo hợp đồng (mã thành phần), tiền tệ, % thử việc, từ/đến, lý do, decision_id hoặc appendix_id (bắt buộc), phiên bản |
+| `hr.contract` | Hợp đồng lao động / thử việc / dịch vụ | loại, số, ngày ký, ngày bắt đầu, ngày kết thúc, thứ tự (hợp đồng xác định thời hạn thứ n), người ký, trạng thái ký điện tử, tệp |
+| `hr.contract_appendix` | Sửa đổi | contract_id, nội dung thay đổi, ngày hiệu lực |
+| `hr.contract_suspension` | Giai đoạn tạm hoãn | lý do, từ/đến, ngày trở lại làm việc |
+| `hr.decision` | Quyết định | số, loại, ngày ký, ngày hiệu lực, người ký, employment liên quan, tệp |
+| `hr.hr_event` | Dòng thời gian / outbox | loại sự kiện, employment, ngày hiệu lực, payload, cờ retro, trạng thái phát |
+| `hr.separation` | Hồ sơ thôi việc/chấm dứt | mã lý do, căn cứ pháp lý, ngày báo trước, thời hạn báo trước bắt buộc, LWD, ngày chấm dứt, access_revocation_date, loại trợ cấp và điều kiện hưởng, các giai đoạn làm việc và các giai đoạn đã được chi trả (đầu vào), tham chiếu kết quả trợ cấp thôi việc của payroll (hiển thị), hạn quyết toán (hiển thị đồng hồ của payroll), trạng thái (changed 2026-10-16, R2-02 §5 #9, #29) |
+| `hr.checklist_template`, `hr.checklist`, `hr.checklist_task` | Tiếp nhận/nghỉ việc | mẫu, người phụ trách, hạn, trạng thái |
+| `hr.discipline_case` | Kỷ luật | vi phạm, bằng chứng, cuộc họp, hình thức, thời gian, ngày xóa kỷ luật, bồi thường |
+| `hr.reward` | Khen thưởng | loại, cấp, số tiền, cờ thuế, quyết định, kỳ lương |
+| `hr.appraisal_cycle`, `hr.appraisal`, `hr.goal` | Hiệu suất | chu kỳ, mẫu, mục tiêu, điểm, xếp loại cuối cùng |
+| `hr.course`, `hr.training_session`, `hr.training_enrolment`, `hr.training_bond` | Đào tạo | khóa học, buổi học, điểm danh, kết quả, chi phí & thời gian cam kết |
+| `hr.expense_claim`, `hr.expense_line`, `hr.cash_advance` | Chi phí | loại, số tiền, dữ liệu hóa đơn, trạng thái, luồng chuyển (payroll/tài chính) |
+| `hr.business_trip` | Đã bỏ — thuộc sở hữu của time-attendance (R2-02); đề nghị thanh toán chi phí tham chiếu trip id của T&A (changed 2026-10-16, R2-02 §5 #6) | — |
+| `hr.document` | Tài liệu nhân viên (tham chiếu metadata tới dịch vụ tài liệu của Core) | danh mục, Core document id, mức bảo mật, lớp lưu trữ (changed 2026-10-16, R2-02 §5 #15b) |
+| `hr.consent_record` → `hr.consent_ref` | Tham chiếu tới consent registry của saas-platform (changed 2026-10-16, R2-02 §5 #27) | person_id, mục đích, registry consent id |
+| `hr.data_request` | Đã bỏ — thuộc sở hữu của điều phối DSR của saas-platform (R2-02); People xử lý các callback xuất/ẩn danh hóa (changed 2026-10-16, R2-02 §5 #27) | — |
+| `hr.statutory_report` | Báo cáo lao động | loại, pháp nhân, kỳ, tệp đã tạo, thời điểm nộp |
 
-All tables carry `tenant_id`, audit columns, and (where relevant) `valid_from`/`valid_to`.
+Mọi bảng đều có `tenant_id`, các cột audit, và (khi phù hợp) `valid_from`/`valid_to`.
 
 ---
 
-## 7. Cross-module interfaces
+## 7. Giao diện liên phân hệ
 
-Event names are logical (`hr.<Event>`); transport (outbox → message bus vs. synchronous API) is decided by architecture. Every event carries: `tenant_id`, `person_id`, `employment_id`, `legal_entity_id`, `effective_date`, `event_id`, `occurred_at`, `retro` flag, `correlation_id` (decision/case).
+Tên sự kiện là tên logic (`hr.<Event>`); cơ chế truyền tải (outbox → message bus hay API đồng bộ) do kiến trúc quyết định. Mỗi sự kiện mang: `tenant_id`, `person_id`, `employment_id`, `legal_entity_id`, `effective_date`, `event_id`, `occurred_at`, cờ `retro`, `correlation_id` (quyết định/hồ sơ).
 
-### 7.1 Consumes
+### 7.1 Tiêu thụ
 
-| # | What | From module | When / trigger | Used for |
+| # | Nội dung | Từ phân hệ | Khi nào / kích hoạt | Dùng cho |
 |---|---|---|---|---|
-| IN-01 | Legal entities (name, tax code, address, SI unit code, region for minimum wage, legal representative) | core | Reference lookup; on change | Employment, contracts, decisions, statutory reports |
-| IN-02 | Org units tree (effective-dated) and cost centres; `core.ReorgActivated` with mapping table; `core.ReorgPackageStatusChanged` | core | Lookup; `core.OrgUnitChanged` / reorg events | Assignments; reorg mapping execution (BR-PPL-039) (changed 2026-10-16, GAP-053) |
-| IN-03 | Positions (with headcount, job, grade, parent position, manager position) and job catalogue / job grades | core | Lookup; `PositionChanged` / `PositionClosed` | Assignments, incumbency, vacancy, manager derivation |
-| IN-04 | Work locations (address, province, minimum-wage region) | core | Lookup | Assignment, minimum-wage validation (region) |
-| IN-05 | Users, roles, permissions, data scopes (by legal entity/org unit), field-level permission for sensitive data | core | Each request | Access control, ESS/MSS, masking |
-| IN-06 | Workflow engine (approval chains, delegation, SLA) | core | Change requests, separation, discipline, expenses, dependants, data changes | Approvals |
-| IN-07 | Notifications (email, in-app, push) and templates | core | Alerts and reminders | Expiry alerts, checklist reminders, deadlines |
-| IN-08 | Audit log service | core | Every write / sensitive reveal | Audit, PDPL access logs |
-| IN-09 | Reference data: administrative units (2-level from 2025), nationalities, ethnicities, banks/branches, education levels, relationships, document numbering sequences | core | Lookup | Personal data validation |
-| IN-10 | Statutory parameters: regional minimum wage by region & date; retirement-age roadmap; statutory notice/probation limits; settlement deadline (as parameters) — via `getParam(key, scope, asOfDate)`; `saas.LegalParameterPackPublished` | saas-platform (Legal Parameter Service) | Validation at effective date | BR-PPL-041, 051, 071 (changed 2026-10-16, R2-02 §5 #1) |
-| IN-11 | `rec.CandidateHired` (payload v1, recruitment §7.3) — hire hand-off to **People only**: candidate personal data, statutory data, bank account, documents, consent references, requisition & position, legal entity, start date, agreed compensation (pay basis GROSS/NET, base, agreed net, allowances), contract type & probation terms, recruiter/hiring manager | recruitment | Hire action after acceptance | Create pre-hire and the salary record (P1); People is the owner of bank accounts and agreed compensation (changed 2026-10-16, R2-02 §5 #5, #24) |
-| IN-12 | `rec.HireAmended` / `rec.HireWithdrawn` (renege) | recruitment | Before start date | Update or cancel pre-hire (`HireCancelled`) (changed 2026-10-16, R2-02 §5 #24) |
-| IN-13 | Leave balances (annual leave remaining, as of last working day) and unpaid-leave periods | time-attendance | On `TerminationScheduled` and at LWD | Final settlement inputs (unused leave payout), offboarding clearance |
-| IN-14 | Unpaid leave / long absence periods > threshold, and maternity leave periods | time-attendance | On approval | Seniority computation, contract suspension, service-year exclusion for severance, protected status |
-| IN-15 | Attendance-completion status for the final period | time-attendance | Before final settlement | Offboarding clearance |
-| IN-16 | `att.BusinessTripApproved` (dates, half-days, destination domestic/overseas, cost centre; ATT-P-08) and training attendance confirmation (optional) | time-attendance | On trip approval/change/cancellation; period close | Trip expense and per-diem pre-fill and validation (BR-PPL-113) (changed 2026-10-16, R2-02 §5 #6) |
-| IN-17 | Pay scales / grade salary bands / steps and allowance catalogue (code, taxable, SI-insurable) — `pay.CompensationCatalogueChanged` | payroll | Lookup | Salary records, contract allowance clauses (changed 2026-10-16, R2-02 §5 #7) |
-| IN-18 | SI contribution history for display (months, basis, status, cumulative months; `pay.SiContributionPosted`) — Payroll owns all SI history incl. pre-go-live months | payroll | On run approval; on request | SI profile display, SI book closing (no severance computation in People) (changed 2026-10-16, R2-02 §5 #20, #29) |
-| IN-19 | Payroll's severance / job-loss result (working time, excluded UI months, 6-month average base, amount), final-settlement amounts (leave payout, deductions), deadline clock and status (`pay.FinalSettlementStatusChanged`) | payroll | After final settlement run | Termination decision text, separation case display and closure (changed 2026-10-16, R2-02 §5 #29) |
-| IN-20 | Income data for HR letters (income confirmation) and payslip link for ESS | payroll | On request | BR-PPL-132, ESS |
-| IN-21 | SI book closing status (chốt sổ) / SI declaration status for hire & termination | payroll | After declaration | Post-separation obligations (BR-PPL-076), onboarding checklist |
-| IN-22 | Advance deduction / expense reimbursement payment status | payroll | After payroll run | Advance settlement status |
-| IN-23 | Tenant context, enabled modules/features, plan limits (max active employees) | saas-platform | Each request; on hire | Feature toggles, licence check before activating employment |
-| IN-24 | Document service (upload, virus scan, versioning, retention class, signed URLs) over saas-platform object storage | core (P-21) | Document upload/generation | Documents (changed 2026-10-16, R2-02 §5 #15b) |
-| IN-25 | E-signature orchestration and signing status (Core P-21), using saas-platform e-signature / e-labour-contract connectors; status callbacks | core (orchestration) / saas-platform (connectors) | Contract/decision signing | BR-PPL-058, 134 (changed 2026-10-16, R2-02 §5 #15b) |
-| IN-26 | VNeID / identity verification connector | saas-platform | Pre-hire / data change | BR-PPL-012 |
-| IN-27 | Consent registry (`hasConsent()`, `saas.ConsentChanged`), PD inventory field registration, DSR orchestration (`saas.DataSubjectRequestOpened`), retention scheduler | saas-platform | Data-subject request; daily | BR-PPL-151/153/154 (changed 2026-10-16, R2-02 §5 #27) |
-| IN-28 | Import engine incl. opening-balance mode and templates (changed 2026-10-16, D-09) | core (P-22) | Tenant onboarding / go-live | Bulk load of persons, employments, current contract and salary, dependants, and the employment history needed for severance; People owns these import types (changed 2026-10-16, R2-02 §5 #12) |
-| IN-29 | `core.UserStatusChanged` (user, employee link, status) | core | On provision / downgrade | Employee ↔ user link; onboarding readiness item "user account" (`people.OnboardingReadinessChanged`) (new 2026-10-16, R2-02 §5 #9) |
-| IN-30 | `pay.PayGroupAssigned` and T&A schedule assignment status | payroll, time-attendance | On rule or manual assignment | Onboarding readiness items "pay group", "schedule"; no pay group or schedule is stored in People (new 2026-10-16, R2-02 §5 #25, #26) |
-| IN-31 | ESS/MSS shell (navigation, auth, step-up, responsive web in Phase 1) | saas-platform | Runtime | Hosts the People ESS/MSS pages (BR-PPL-120) (new 2026-10-16, R2-02 §5 #17) |
-| IN-32 | 183-day residency check proposals (person, year, days in VN, proposed status) | payroll | Monthly / on request | HR review and approval of residency changes (BR-PPL-023) (new 2026-10-16, GAP-048) |
+| IN-01 | Pháp nhân (tên, mã số thuế, địa chỉ, mã đơn vị BHXH, vùng lương tối thiểu, người đại diện theo pháp luật) | core | Tra cứu tham chiếu; khi thay đổi | Employment, hợp đồng, quyết định, báo cáo theo luật định |
+| IN-02 | Cây đơn vị tổ chức (có hiệu lực theo ngày) và trung tâm chi phí; `core.ReorgActivated` kèm bảng ánh xạ; `core.ReorgPackageStatusChanged` | core | Tra cứu; `core.OrgUnitChanged` / sự kiện tái cơ cấu | Phân công; thực thi ánh xạ tái cơ cấu (BR-PPL-039) (changed 2026-10-16, GAP-053) |
+| IN-03 | Vị trí (kèm định biên, công việc, ngạch, vị trí cha, vị trí quản lý) và danh mục công việc / ngạch công việc | core | Tra cứu; `PositionChanged` / `PositionClosed` | Phân công, người đảm nhiệm, vị trí trống, xác định quản lý |
+| IN-04 | Địa điểm làm việc (địa chỉ, tỉnh, vùng lương tối thiểu) | core | Tra cứu | Phân công, kiểm tra lương tối thiểu (vùng) |
+| IN-05 | Người dùng, vai trò, quyền, phạm vi dữ liệu (theo pháp nhân/đơn vị tổ chức), quyền ở mức trường cho dữ liệu nhạy cảm | core | Mỗi request | Kiểm soát truy cập, ESS/MSS, che dữ liệu |
+| IN-06 | Workflow engine (chuỗi phê duyệt, ủy quyền, SLA) | core | Yêu cầu thay đổi, nghỉ việc, kỷ luật, chi phí, người phụ thuộc, thay đổi dữ liệu | Phê duyệt |
+| IN-07 | Thông báo (email, in-app, push) và mẫu | core | Cảnh báo và nhắc việc | Cảnh báo hết hạn, nhắc việc checklist, hạn chót |
+| IN-08 | Dịch vụ audit log | core | Mỗi lần ghi / hiển thị dữ liệu nhạy cảm | Audit, nhật ký truy cập theo Luật BVDLCN |
+| IN-09 | Dữ liệu tham chiếu: đơn vị hành chính (2 cấp từ 2025), quốc tịch, dân tộc, ngân hàng/chi nhánh, trình độ học vấn, quan hệ, dãy số đánh số văn bản | core | Tra cứu | Kiểm tra dữ liệu cá nhân |
+| IN-10 | Tham số luật định: mức lương tối thiểu vùng theo vùng & ngày; lộ trình tuổi nghỉ hưu; giới hạn báo trước/thử việc theo luật; hạn quyết toán (dưới dạng tham số) — qua `getParam(key, scope, asOfDate)`; `saas.LegalParameterPackPublished` | saas-platform (Legal Parameter Service) | Kiểm tra tại ngày hiệu lực | BR-PPL-041, 051, 071 (changed 2026-10-16, R2-02 §5 #1) |
+| IN-11 | `rec.CandidateHired` (payload v1, recruitment §7.3) — bàn giao tuyển dụng **chỉ tới People**: dữ liệu cá nhân của ứng viên, dữ liệu luật định, tài khoản ngân hàng, tài liệu, tham chiếu consent, yêu cầu tuyển dụng & vị trí, pháp nhân, ngày bắt đầu, mức đãi ngộ thỏa thuận (cơ sở trả lương GROSS/NET, lương cơ bản, lương net thỏa thuận, phụ cấp), loại hợp đồng & điều khoản thử việc, recruiter/quản lý tuyển dụng | recruitment | Hành động tuyển sau khi chấp nhận offer | Tạo pre-hire và bản ghi lương (P1); People là chủ sở hữu tài khoản ngân hàng và mức đãi ngộ thỏa thuận (changed 2026-10-16, R2-02 §5 #5, #24) |
+| IN-12 | `rec.HireAmended` / `rec.HireWithdrawn` (ứng viên bội ước) | recruitment | Trước ngày bắt đầu | Cập nhật hoặc hủy pre-hire (`HireCancelled`) (changed 2026-10-16, R2-02 §5 #24) |
+| IN-13 | Số dư phép (phép năm còn lại, tính đến ngày làm việc cuối cùng) và các giai đoạn nghỉ không lương | time-attendance | Khi có `TerminationScheduled` và tại LWD | Đầu vào quyết toán cuối cùng (thanh toán phép chưa nghỉ), xác nhận hoàn tất thủ tục nghỉ việc |
+| IN-14 | Các giai đoạn nghỉ không lương / vắng mặt dài > ngưỡng, và các giai đoạn nghỉ thai sản | time-attendance | Khi được phê duyệt | Tính thâm niên, tạm hoãn hợp đồng, loại trừ năm làm việc khi tính trợ cấp thôi việc, tình trạng được bảo vệ |
+| IN-15 | Trạng thái hoàn tất chấm công cho kỳ cuối cùng | time-attendance | Trước quyết toán cuối cùng | Xác nhận hoàn tất thủ tục nghỉ việc |
+| IN-16 | `att.BusinessTripApproved` (ngày, nửa ngày, điểm đến trong nước/nước ngoài, trung tâm chi phí; ATT-P-08) và xác nhận tham dự đào tạo (không bắt buộc) | time-attendance | Khi phê duyệt/thay đổi/hủy chuyến công tác; khóa kỳ | Điền sẵn và kiểm tra chi phí công tác và công tác phí (BR-PPL-113) (changed 2026-10-16, R2-02 §5 #6) |
+| IN-17 | Thang lương / khung lương theo ngạch / bậc và danh mục phụ cấp (mã, chịu thuế, đóng BHXH) — `pay.CompensationCatalogueChanged` | payroll | Tra cứu | Bản ghi lương, điều khoản phụ cấp trong hợp đồng (changed 2026-10-16, R2-02 §5 #7) |
+| IN-18 | Lịch sử đóng BHXH để hiển thị (tháng, căn cứ, trạng thái, số tháng cộng dồn; `pay.SiContributionPosted`) — Payroll sở hữu toàn bộ lịch sử BHXH bao gồm các tháng trước go-live | payroll | Khi phê duyệt kỳ lương; theo yêu cầu | Hiển thị hồ sơ BHXH, chốt sổ BHXH (People không tính trợ cấp thôi việc) (changed 2026-10-16, R2-02 §5 #20, #29) |
+| IN-19 | Kết quả trợ cấp thôi việc / mất việc làm của Payroll (thời gian làm việc, số tháng BHTN bị loại trừ, lương bình quân 6 tháng, số tiền), các khoản quyết toán cuối cùng (thanh toán phép, khấu trừ), đồng hồ hạn chót và trạng thái (`pay.FinalSettlementStatusChanged`) | payroll | Sau kỳ chạy quyết toán cuối cùng | Nội dung quyết định chấm dứt, hiển thị và đóng hồ sơ nghỉ việc (changed 2026-10-16, R2-02 §5 #29) |
+| IN-20 | Dữ liệu thu nhập cho văn bản nhân sự (xác nhận thu nhập) và liên kết phiếu lương cho ESS | payroll | Theo yêu cầu | BR-PPL-132, ESS |
+| IN-21 | Trạng thái chốt sổ BHXH / trạng thái khai báo BHXH cho tuyển mới & chấm dứt | payroll | Sau khi khai báo | Nghĩa vụ sau nghỉ việc (BR-PPL-076), checklist tiếp nhận |
+| IN-22 | Trạng thái khấu trừ tạm ứng / chi trả hoàn ứng chi phí | payroll | Sau kỳ chạy lương | Trạng thái quyết toán tạm ứng |
+| IN-23 | Ngữ cảnh tenant, các phân hệ/tính năng được bật, giới hạn gói (số nhân viên active tối đa) | saas-platform | Mỗi request; khi tuyển | Bật/tắt tính năng, kiểm tra giấy phép trước khi kích hoạt employment |
+| IN-24 | Dịch vụ tài liệu (tải lên, quét virus, phiên bản, lớp lưu trữ, signed URL) trên object storage của saas-platform | core (P-21) | Tải lên/tạo tài liệu | Tài liệu (changed 2026-10-16, R2-02 §5 #15b) |
+| IN-25 | Điều phối ký điện tử và trạng thái ký (Core P-21), dùng các connector chữ ký điện tử / hợp đồng lao động điện tử của saas-platform; callback trạng thái | core (điều phối) / saas-platform (connector) | Ký hợp đồng/quyết định | BR-PPL-058, 134 (changed 2026-10-16, R2-02 §5 #15b) |
+| IN-26 | Connector VNeID / xác thực danh tính | saas-platform | Pre-hire / thay đổi dữ liệu | BR-PPL-012 |
+| IN-27 | Consent registry (`hasConsent()`, `saas.ConsentChanged`), đăng ký trường trong PD inventory, điều phối DSR (`saas.DataSubjectRequestOpened`), bộ lập lịch lưu trữ | saas-platform | Yêu cầu của chủ thể dữ liệu; hằng ngày | BR-PPL-151/153/154 (changed 2026-10-16, R2-02 §5 #27) |
+| IN-28 | Import engine bao gồm chế độ số dư đầu kỳ và các mẫu (changed 2026-10-16, D-09) | core (P-22) | Onboarding tenant / go-live | Nạp hàng loạt person, employment, hợp đồng và lương hiện tại, người phụ thuộc, và lịch sử làm việc cần cho trợ cấp thôi việc; People sở hữu các loại import này (changed 2026-10-16, R2-02 §5 #12) |
+| IN-29 | `core.UserStatusChanged` (người dùng, liên kết nhân viên, trạng thái) | core | Khi cấp / hạ quyền | Liên kết nhân viên ↔ người dùng; mục sẵn sàng tiếp nhận "tài khoản người dùng" (`people.OnboardingReadinessChanged`) (new 2026-10-16, R2-02 §5 #9) |
+| IN-30 | `pay.PayGroupAssigned` và trạng thái gán lịch làm việc của T&A | payroll, time-attendance | Khi gán theo quy tắc hoặc thủ công | Các mục sẵn sàng tiếp nhận "pay group", "lịch làm việc"; People không lưu pay group hay lịch làm việc (new 2026-10-16, R2-02 §5 #25, #26) |
+| IN-31 | Shell ESS/MSS (điều hướng, xác thực, step-up, responsive web trong Phase 1) | saas-platform | Runtime | Host các trang ESS/MSS của People (BR-PPL-120) (new 2026-10-16, R2-02 §5 #17) |
+| IN-32 | Đề xuất từ kiểm tra cư trú 183 ngày (người, năm, số ngày tại Việt Nam, trạng thái đề xuất) | payroll | Hằng tháng / theo yêu cầu | HR xem xét và phê duyệt thay đổi cư trú (BR-PPL-023) (new 2026-10-16, GAP-048) |
 
-### 7.2 Provides
+### 7.2 Cung cấp
 
-| # | What (event / data) | To module | When / trigger | Key payload |
+| # | Nội dung (sự kiện / dữ liệu) | Tới phân hệ | Khi nào / kích hoạt | Payload chính |
 |---|---|---|---|---|
-| OUT-01 | `EmployeeHired` (incl. rehire, concurrent hire) | payroll, time-attendance, core, recruitment, saas-platform | Employment activated on hire date (also future-dated preview at approval) | hire_type NEW/REHIRE/CONCURRENT, employee_no, legal entity, hire date, seniority date, employment type, worker category, primary-employment per purpose at hire (PIT family deduction, social insurance — later changes via OUT-36, R2-16), initial assignment & salary refs, contract type, preview flag (changed 2026-10-16, R2-16; R2-02 §5 #9) |
-| OUT-02 | `HireCancelled` | payroll, time-attendance, core, recruitment | Pre-hire cancelled | employment_id, reason |
-| OUT-03 | Employee master read API (current & as-of-date): person, employment, assignment, contract summary, salary summary (permission-gated) | all modules | On demand | As-of date query |
-| OUT-04 | `AssignmentChanged` (transfer, promotion, demotion, reorg, manager change, location change, cost-centre change, concurrent position start/end) | time-attendance, payroll, core, recruitment | Effective date (and at approval for future-dated) | old/new org unit, position, job, grade, manager, location, cost-centre split, FTE, working-time regime, assignment type, retro flag |
-| OUT-05 | `SecondmentStarted` / `SecondmentEnded` | payroll, time-attendance, core | Effective date | home/host legal entity, paying entity, recharge flag |
-| OUT-06 | `TemporaryTransferStarted` / `Ended` with salary-protection rule | payroll, time-attendance | Effective date | days used in year, protected salary until date |
-| OUT-07 | `people.SalaryChanged` — People is the system of record for agreed compensation | payroll | Effective date (approved decision / appendix) | salary record id + version, pay scale/grade/step, **pay basis GROSS/NET, agreed net amount, net-guaranteed component scope**, base salary, SI contribution salary, contract allowances (codes & amounts), probation %, currency, retro flag, decision / appendix no. (changed 2026-10-16, R2-02 §5 #24; GAP-047) |
-| OUT-08 | `ContractSigned` / `ContractRenewed` / `ContractConverted` / `ContractAppendixSigned` | payroll, time-attendance, core | On signature completion | contract type, number, start/end, duration months (drives SI mandatory participation ≥ 1 month and PIT 10% flat-rate rule for < 3 months), probation flag |
-| OUT-09 | `ProbationStarted` / `ProbationCompleted` (pass/fail) | payroll, time-attendance, recruitment | Start; outcome date | probation salary %, end date, outcome (quality-of-hire for recruitment) |
-| OUT-10 | `ContractExpiring` | core (notifications), recruitment (backfill planning) | Configured offsets before end | end date, recommended action |
-| OUT-11 | `ContractSuspended` / `ContractResumed` | payroll, time-attendance | Effective date | reason, from/to (stop pay, SI handling, no attendance expected) |
-| OUT-12 | `people.TerminationScheduled` | payroll, time-attendance, core, recruitment | Separation approved | last working day, termination date, reason code, legal ground, notice compliance (shortfall days), protected flag, **access_revocation_date** (default LWD 23:59; drives the Core user downgrade) (changed 2026-10-16, R2-02 §5 #9) |
-| OUT-13 | `people.EmployeeTerminated` + **final-settlement trigger** | payroll, time-attendance, core, recruitment, saas-platform | Day after LWD | LWD, reason/legal ground, SI/UI termination code, severance vs job-loss eligibility, **employment periods and already-compensated periods** (Payroll computes the severance working time), notice-shortfall compensation (either direction), training-bond repayment, outstanding cash advances, material-compensation balance, assets outstanding (changed 2026-10-16, R2-02 §5 #29; the settlement deadline clock is Payroll's) |
-| OUT-14 | `TerminationCancelled` (resignation withdrawn) | payroll, time-attendance, core, recruitment | On cancellation | employment_id |
-| OUT-15 | `people.PersonalDataChanged` (name, ID number, nationality, **tax residency status with valid from/to and basis, arrival/departure dates**, address, tax code, SI code) | payroll, core, time-attendance | On approval | changed fields (minimised), effective date — payroll needs tax code, SI code, nationality and the effective-dated residency for the PIT method (BR-PPL-023) (changed 2026-10-16, GAP-048) |
-| OUT-16 | `BankAccountChanged` | payroll | On approval (step-up verified) | accounts, split, default, effective from |
-| OUT-17 | `DependantChanged` (registered / ended / transferred to another employment) | payroll | On HR approval | dependant id, relationship, tax code, from/to month, claiming employment — drives PIT family deduction |
-| OUT-18 | Removed — owned by payroll (R2-02). Form 08/CK-TNCN commitments and PIT finalisation authorisation are Payroll's tax-year documents (BR-PAY-055/058/104), captured on Payroll ESS pages; People only shows their status (changed 2026-10-16, R2-02 §5 #4) | — | — | ID kept; not reused |
-| OUT-19 | `SpecialStatusChanged` (pregnancy, child < 12 months, disability, minor, elderly, heavy/hazardous job, union membership) | time-attendance, payroll | On approval | type, from/to — T&A reduced hours/extra leave; payroll union fee, SI benefit regimes |
-| OUT-20 | Seniority / service data (seniority date, recognised prior service, excluded periods) | time-attendance, payroll | On change | Annual-leave seniority increment (T&A), seniority allowance (payroll) |
-| OUT-21 | Removed — owned by core (R2-02). People emits no `UserProvisioningRequested` / `UserDeactivationRequested`: Core creates and downgrades users from `EmployeeHired` (OUT-01) and `TerminationScheduled.access_revocation_date` (OUT-12); the reporting line travels in `AssignmentChanged` (OUT-04) (changed 2026-10-16, R2-02 §5 #9) | — | — | ID kept; not reused |
-| OUT-22 | Position incumbency & vacancy (filled/vacant/over-filled per position) | core, recruitment | On assignment change | position_id, incumbents, FTE used |
-| OUT-23 | Internal candidate profile (skills, education, certificates, appraisal rating — with consent) | recruitment | On search | for internal mobility |
-| OUT-24 | Rehire eligibility / former-employee lookup by ID number | recruitment | On candidate creation | eligible flag, last LWD, reason category (no sensitive detail) |
-| OUT-25 | `RewardApproved` (monetary) | payroll | On decision | amount, pay period, taxable flag, component code |
-| OUT-26 | `DisciplineDecided` with payroll impact: salary-increase deferral, demotion (→ also `SalaryChanged`), suspension salary advance %, material-compensation deduction schedule | payroll | On decision | type, amounts, period, cap |
-| OUT-27 | `AppraisalFinalised` / periodic KPI score | payroll | Cycle close (or monthly for KPI pay) | period, score, rating — performance bonus / KPI pay |
-| OUT-28 | `ExpenseReimbursementApproved` | payroll (or finance export) | On final approval | amount, category, taxable flag, pay period |
-| OUT-29 | `AdvanceDeductionRequested` | payroll | Overdue unsettled advance / at termination | amount, period, consent ref |
-| OUT-30 | Removed — owned by time-attendance (R2-02). `att.BusinessTripApproved` is produced by T&A and consumed by People (IN-16) (changed 2026-10-16, R2-02 §5 #6) | — | — | ID kept; not reused |
-| OUT-31 | `TrainingAttendanceRecorded` (optional) | time-attendance | Session close | dates, hours |
-| OUT-32 | Active employee count per legal entity (daily snapshot) | saas-platform | Daily / on hire & termination | for billing & plan limits |
-| OUT-33 | Personal-data inventory, consent status and DSAR export package for People data; anonymisation-completed confirmation | saas-platform | On DSAR / retention job | per-person data package |
-| OUT-34 | Headcount & turnover facts (by org, legal entity, category) for reporting/BI | saas-platform (reporting store) | Daily | snapshot facts (changed 2026-10-16, R2-02 §5 #18) |
-| OUT-36 | `people.PrimaryEmploymentChanged` | payroll, time-attendance | Primary employment set or changed for a purpose | person_id, employment_id, purpose (PIT_FAMILY_DEDUCTION / SOCIAL_INSURANCE), valid_from, valid_to; the per-type insurance participation travels with it (BR-PPL-004) (new 2026-10-16, R2-16) |
-| OUT-35 | `people.ReorgMappingCompleted` | core | After applying `core.ReorgActivated` and after each fix-and-retry | package_id, moved count, failed count, per-employee fix list ref (BR-PPL-039) (new 2026-10-16, GAP-053) |
+| OUT-01 | `EmployeeHired` (bao gồm tái tuyển dụng, tuyển đồng thời) | payroll, time-attendance, core, recruitment, saas-platform | Employment được kích hoạt vào ngày vào làm (cũng có bản xem trước ngày tương lai khi phê duyệt) | hire_type NEW/REHIRE/CONCURRENT, employee_no, pháp nhân, ngày vào làm, ngày tính thâm niên, loại hình làm việc, nhóm người lao động, employment chính theo mục đích tại thời điểm tuyển (giảm trừ gia cảnh thuế TNCN, bảo hiểm xã hội — thay đổi sau đó qua OUT-36, R2-16), tham chiếu phân công & lương ban đầu, loại hợp đồng, cờ xem trước (changed 2026-10-16, R2-16; R2-02 §5 #9) |
+| OUT-02 | `HireCancelled` | payroll, time-attendance, core, recruitment | Hủy pre-hire | employment_id, lý do |
+| OUT-03 | API đọc dữ liệu gốc nhân viên (hiện tại & tại một ngày): person, employment, phân công, tóm tắt hợp đồng, tóm tắt lương (cần quyền) | tất cả phân hệ | Theo yêu cầu | Truy vấn theo ngày |
+| OUT-04 | `AssignmentChanged` (điều chuyển, thăng chức, giáng chức, tái cơ cấu, đổi quản lý, đổi địa điểm, đổi trung tâm chi phí, bắt đầu/kết thúc kiêm nhiệm) | time-attendance, payroll, core, recruitment | Ngày hiệu lực (và khi phê duyệt với thay đổi có hiệu lực tương lai) | đơn vị tổ chức, vị trí, công việc, ngạch, quản lý, địa điểm, tỷ lệ chia trung tâm chi phí, FTE, chế độ thời giờ làm việc, loại phân công cũ/mới, cờ retro |
+| OUT-05 | `SecondmentStarted` / `SecondmentEnded` | payroll, time-attendance, core | Ngày hiệu lực | pháp nhân gốc/tiếp nhận, pháp nhân chi trả, cờ phân bổ lại chi phí |
+| OUT-06 | `TemporaryTransferStarted` / `Ended` kèm quy tắc bảo vệ tiền lương | payroll, time-attendance | Ngày hiệu lực | số ngày đã dùng trong năm, lương được bảo vệ đến ngày |
+| OUT-07 | `people.SalaryChanged` — People là system of record cho mức đãi ngộ đã thỏa thuận | payroll | Ngày hiệu lực (quyết định / phụ lục đã duyệt) | salary record id + phiên bản, thang lương/ngạch/bậc, **cơ sở trả lương GROSS/NET, số tiền net thỏa thuận, phạm vi thành phần được đảm bảo net**, lương cơ bản, lương đóng BHXH, phụ cấp theo hợp đồng (mã & số tiền), % thử việc, tiền tệ, cờ retro, số quyết định / phụ lục (changed 2026-10-16, R2-02 §5 #24; GAP-047) |
+| OUT-08 | `ContractSigned` / `ContractRenewed` / `ContractConverted` / `ContractAppendixSigned` | payroll, time-attendance, core | Khi hoàn tất ký | loại hợp đồng, số, ngày bắt đầu/kết thúc, thời hạn theo tháng (căn cứ cho việc bắt buộc tham gia BHXH khi ≥ 1 tháng và quy tắc khấu trừ thuế TNCN 10% với hợp đồng < 3 tháng), cờ thử việc |
+| OUT-09 | `ProbationStarted` / `ProbationCompleted` (đạt/không đạt) | payroll, time-attendance, recruitment | Bắt đầu; ngày có kết quả | % lương thử việc, ngày kết thúc, kết quả (chất lượng tuyển dụng cho recruitment) |
+| OUT-10 | `ContractExpiring` | core (thông báo), recruitment (kế hoạch tuyển bù) | Các mốc cấu hình trước ngày kết thúc | ngày kết thúc, hành động khuyến nghị |
+| OUT-11 | `ContractSuspended` / `ContractResumed` | payroll, time-attendance | Ngày hiệu lực | lý do, từ/đến (dừng trả lương, xử lý BHXH, không yêu cầu chấm công) |
+| OUT-12 | `people.TerminationScheduled` | payroll, time-attendance, core, recruitment | Nghỉ việc được phê duyệt | ngày làm việc cuối cùng, ngày chấm dứt, mã lý do, căn cứ pháp lý, tuân thủ báo trước (số ngày thiếu), cờ được bảo vệ, **access_revocation_date** (mặc định 23:59 ngày LWD; căn cứ để Core hạ quyền người dùng) (changed 2026-10-16, R2-02 §5 #9) |
+| OUT-13 | `people.EmployeeTerminated` + **kích hoạt quyết toán cuối cùng** | payroll, time-attendance, core, recruitment, saas-platform | Ngày sau LWD | LWD, lý do/căn cứ pháp lý, mã chấm dứt BHXH/BHTN, điều kiện hưởng trợ cấp thôi việc hay mất việc làm, **các giai đoạn làm việc và các giai đoạn đã được chi trả** (Payroll tính thời gian làm việc tính trợ cấp thôi việc), bồi thường do thiếu thời gian báo trước (cả hai chiều), hoàn trả cam kết đào tạo, tạm ứng còn tồn, số dư bồi thường vật chất, tài sản chưa trả (changed 2026-10-16, R2-02 §5 #29; đồng hồ hạn quyết toán thuộc Payroll) |
+| OUT-14 | `TerminationCancelled` (rút đơn nghỉ việc) | payroll, time-attendance, core, recruitment | Khi hủy | employment_id |
+| OUT-15 | `people.PersonalDataChanged` (họ tên, số định danh, quốc tịch, **tình trạng cư trú thuế với valid from/to và căn cứ, ngày nhập cảnh/xuất cảnh**, địa chỉ, mã số thuế, mã BHXH) | payroll, core, time-attendance | Khi được phê duyệt | các trường thay đổi (tối thiểu hóa), ngày hiệu lực — payroll cần mã số thuế, mã BHXH, quốc tịch và tình trạng cư trú có hiệu lực theo ngày để xác định phương pháp tính thuế TNCN (BR-PPL-023) (changed 2026-10-16, GAP-048) |
+| OUT-16 | `BankAccountChanged` | payroll | Khi được phê duyệt (đã xác thực step-up) | tài khoản, tỷ lệ chia, mặc định, hiệu lực từ |
+| OUT-17 | `DependantChanged` (đăng ký / kết thúc / chuyển sang employment khác) | payroll | Khi HR phê duyệt | dependant id, quan hệ, mã số thuế, từ/đến tháng, employment kê khai — căn cứ giảm trừ gia cảnh thuế TNCN |
+| OUT-18 | Đã bỏ — thuộc sở hữu của payroll (R2-02). Cam kết Mẫu 08/CK-TNCN và ủy quyền quyết toán thuế TNCN là tài liệu năm tính thuế của Payroll (BR-PAY-055/058/104), được thu thập trên các trang ESS của Payroll; People chỉ hiển thị trạng thái (changed 2026-10-16, R2-02 §5 #4) | — | — | Giữ ID; không dùng lại |
+| OUT-19 | `SpecialStatusChanged` (mang thai, con < 12 tháng, khuyết tật, chưa thành niên, cao tuổi, công việc nặng nhọc/độc hại, đoàn viên công đoàn) | time-attendance, payroll | Khi được phê duyệt | loại, từ/đến — T&A giảm giờ làm/thêm ngày nghỉ; payroll đoàn phí công đoàn, các chế độ BHXH |
+| OUT-20 | Dữ liệu thâm niên / thời gian làm việc (ngày tính thâm niên, thời gian làm việc trước đó được công nhận, các giai đoạn bị loại trừ) | time-attendance, payroll | Khi thay đổi | Tăng phép năm theo thâm niên (T&A), phụ cấp thâm niên (payroll) |
+| OUT-21 | Đã bỏ — thuộc sở hữu của core (R2-02). People không phát `UserProvisioningRequested` / `UserDeactivationRequested`: Core tạo và hạ quyền người dùng từ `EmployeeHired` (OUT-01) và `TerminationScheduled.access_revocation_date` (OUT-12); tuyến báo cáo được truyền trong `AssignmentChanged` (OUT-04) (changed 2026-10-16, R2-02 §5 #9) | — | — | Giữ ID; không dùng lại |
+| OUT-22 | Người đảm nhiệm vị trí & vị trí trống (đủ/trống/vượt định biên theo vị trí) | core, recruitment | Khi phân công thay đổi | position_id, người đảm nhiệm, FTE đã dùng |
+| OUT-23 | Hồ sơ ứng viên nội bộ (kỹ năng, học vấn, chứng chỉ, xếp loại đánh giá — có consent) | recruitment | Khi tìm kiếm | cho luân chuyển nội bộ |
+| OUT-24 | Tra cứu điều kiện tái tuyển / nhân viên cũ theo số định danh | recruitment | Khi tạo ứng viên | cờ đủ điều kiện, LWD gần nhất, nhóm lý do (không có chi tiết nhạy cảm) |
+| OUT-25 | `RewardApproved` (bằng tiền) | payroll | Khi có quyết định | số tiền, kỳ lương, cờ chịu thuế, mã thành phần |
+| OUT-26 | `DisciplineDecided` có ảnh hưởng tới payroll: kéo dài thời hạn nâng lương, cách chức (→ kèm `SalaryChanged`), % tạm ứng lương khi tạm đình chỉ, lịch khấu trừ bồi thường vật chất | payroll | Khi có quyết định | loại, số tiền, kỳ, giới hạn |
+| OUT-27 | `AppraisalFinalised` / điểm KPI định kỳ | payroll | Khóa chu kỳ (hoặc hằng tháng với lương theo KPI) | kỳ, điểm, xếp loại — thưởng hiệu suất / lương theo KPI |
+| OUT-28 | `ExpenseReimbursementApproved` | payroll (hoặc file xuất tài chính) | Khi phê duyệt cuối cùng | số tiền, loại, cờ chịu thuế, kỳ lương |
+| OUT-29 | `AdvanceDeductionRequested` | payroll | Tạm ứng quá hạn chưa quyết toán / khi chấm dứt | số tiền, kỳ, tham chiếu consent |
+| OUT-30 | Đã bỏ — thuộc sở hữu của time-attendance (R2-02). `att.BusinessTripApproved` do T&A phát và People tiêu thụ (IN-16) (changed 2026-10-16, R2-02 §5 #6) | — | — | Giữ ID; không dùng lại |
+| OUT-31 | `TrainingAttendanceRecorded` (không bắt buộc) | time-attendance | Khi đóng buổi học | ngày, số giờ |
+| OUT-32 | Số nhân viên active theo pháp nhân (ảnh chụp hằng ngày) | saas-platform | Hằng ngày / khi tuyển & chấm dứt | phục vụ tính phí & giới hạn gói |
+| OUT-33 | Danh mục dữ liệu cá nhân, trạng thái consent và gói xuất DSAR cho dữ liệu People; xác nhận hoàn tất ẩn danh hóa | saas-platform | Khi có DSAR / job lưu trữ | gói dữ liệu theo từng người |
+| OUT-34 | Dữ liệu dữ kiện về headcount & nghỉ việc (theo tổ chức, pháp nhân, nhóm) cho báo cáo/BI | saas-platform (kho báo cáo) | Hằng ngày | dữ kiện ảnh chụp (changed 2026-10-16, R2-02 §5 #18) |
+| OUT-36 | `people.PrimaryEmploymentChanged` | payroll, time-attendance | Employment chính được thiết lập hoặc thay đổi cho một mục đích | person_id, employment_id, mục đích (PIT_FAMILY_DEDUCTION / SOCIAL_INSURANCE), valid_from, valid_to; việc tham gia bảo hiểm theo loại được truyền kèm (BR-PPL-004) (new 2026-10-16, R2-16) |
+| OUT-35 | `people.ReorgMappingCompleted` | core | Sau khi áp dụng `core.ReorgActivated` và sau mỗi lần sửa và chạy lại | package_id, số đã chuyển, số lỗi, tham chiếu danh sách cần sửa theo nhân viên (BR-PPL-039) (new 2026-10-16, GAP-053) |
 
 ---
 
-## 8. Reports & analytics
+## 8. Báo cáo & phân tích
 
-| # | Report | Audience | Notes |
+| # | Báo cáo | Đối tượng | Ghi chú |
 |---|---|---|---|
-| R1 | Employee master list (as-of date, filters, configurable columns, masking) | HR | Export Excel |
-| R2 | Headcount & FTE by legal entity / org unit / location / category, trend | HR, management | |
-| R3 | Movements report: hires, transfers, promotions, terminations in period | HR | |
-| R4 | Turnover & retention (voluntary/involuntary, by tenure band, regretted) | HR, management | |
-| R5 | Contract expiry & probation-ending list; contracts approaching conversion rule | HR | Daily alert source |
-| R6 | ID / work permit / certificate expiry list | HR | |
-| R7 | Retirement forecast (next 12–24 months) per statutory roadmap | HR | |
-| R8 | Labour management book (sổ quản lý lao động) | HR, inspector | BR-PPL-140 |
-| R9 | Semi-annual labour-usage report (Decree 145) | HR | BR-PPL-141 |
-| R10 | Monthly labour-fluctuation notice (Employment Service Centre) | HR | BR-PPL-142 |
-| R11 | Dependant register (PIT) and changes per month | HR, payroll | |
-| R12 | Salary change history & cost impact of changes | C&B | Permission-gated |
-| R13 | Discipline & reward register | HR | |
-| R14 | Appraisal distribution & calibration results | HR, management | Phase 2 |
-| R15 | Training hours, cost per employee, compliance (mandatory training) | L&D | Phase 2 |
-| R16 | Expense & advance aging (outstanding advances) | Finance | |
-| R17 | Onboarding/offboarding checklist completion & overdue tasks | HR | |
-| R18 | Demographics (age, gender, education, seniority) | HR | Sensitive fields aggregated only |
-| R19 | PDPL: consent coverage, sensitive-data access log, DSAR SLA | DPO | |
-| R20 | Data-quality report (missing mandatory fields: tax code, SI code, bank, emergency contact) | HR | Pre-payroll check |
+| R1 | Danh sách nhân viên (tại ngày, bộ lọc, cột cấu hình được, che dữ liệu) | HR | Xuất Excel |
+| R2 | Headcount & FTE theo pháp nhân / đơn vị tổ chức / địa điểm / nhóm, xu hướng | HR, ban lãnh đạo | |
+| R3 | Báo cáo biến động: tuyển mới, điều chuyển, thăng chức, chấm dứt trong kỳ | HR | |
+| R4 | Tỷ lệ nghỉ việc & giữ chân (tự nguyện/không tự nguyện, theo nhóm thâm niên, đáng tiếc) | HR, ban lãnh đạo | |
+| R5 | Danh sách hợp đồng sắp hết hạn & sắp kết thúc thử việc; hợp đồng sắp chạm quy tắc chuyển đổi | HR | Nguồn cảnh báo hằng ngày |
+| R6 | Danh sách giấy tờ tùy thân / giấy phép lao động / chứng chỉ sắp hết hạn | HR | |
+| R7 | Dự báo nghỉ hưu (12–24 tháng tới) theo lộ trình luật định | HR | |
+| R8 | Sổ quản lý lao động | HR, thanh tra | BR-PPL-140 |
+| R9 | Báo cáo tình hình sử dụng lao động 6 tháng (Nghị định 145) | HR | BR-PPL-141 |
+| R10 | Thông báo biến động lao động hằng tháng (Trung tâm Dịch vụ việc làm) | HR | BR-PPL-142 |
+| R11 | Sổ đăng ký người phụ thuộc (thuế TNCN) và thay đổi theo tháng | HR, payroll | |
+| R12 | Lịch sử thay đổi lương & tác động chi phí của các thay đổi | C&B | Cần quyền |
+| R13 | Sổ kỷ luật & khen thưởng | HR | |
+| R14 | Phân bổ đánh giá & kết quả hiệu chỉnh | HR, ban lãnh đạo | Phase 2 |
+| R15 | Số giờ đào tạo, chi phí trên mỗi nhân viên, tuân thủ (đào tạo bắt buộc) | L&D | Phase 2 |
+| R16 | Tuổi nợ chi phí & tạm ứng (tạm ứng còn tồn) | Tài chính | |
+| R17 | Mức độ hoàn thành checklist tiếp nhận/nghỉ việc & đầu việc quá hạn | HR | |
+| R18 | Nhân khẩu học (tuổi, giới tính, học vấn, thâm niên) | HR | Trường nhạy cảm chỉ hiển thị dạng tổng hợp |
+| R19 | Luật BVDLCN: độ bao phủ consent, nhật ký truy cập dữ liệu nhạy cảm, SLA DSAR | DPO | |
+| R20 | Báo cáo chất lượng dữ liệu (thiếu trường bắt buộc: mã số thuế, mã BHXH, ngân hàng, người liên hệ khẩn cấp) | HR | Kiểm tra trước khi chạy lương |
 
 ---
 
-## 9. Non-functional requirements (module-specific)
+## 9. Yêu cầu phi chức năng (riêng cho phân hệ)
 
-| ID | Requirement | Pri |
+| ID | Yêu cầu | Ưu tiên |
 |---|---|---|
-| NFR-PPL-001 | Effective-dating: any employee query must support "as of date X" and "as known on date Y" (correction history) for assignments, salary, contracts. | M |
-| NFR-PPL-002 | Event publication is transactional (outbox) — no committed HR change without a corresponding event; at-least-once delivery with idempotent `event_id`. | M |
-| NFR-PPL-003 | Employee profile page loads ≤ 2 s (p95) for tenants up to 10,000 employees; employee list search ≤ 1 s (p95). | M |
-| NFR-PPL-004 | Bulk operations (mass change, document generation) handle 5,000 employees in ≤ 10 min, asynchronously, with progress and per-row error report. | S |
-| NFR-PPL-005 | Sensitive fields (ID numbers, bank accounts, health, religion, ethnicity) encrypted at field level; masked in logs and non-production copies. | M |
-| NFR-PPL-006 | Every read of sensitive data and every write logged with actor, purpose, before/after (writes). | M |
-| NFR-PPL-007 | Opening employee data import from the standard Excel templates (BR-SAAS-069): persons, employments (incl. original hire and seniority dates), current assignment, current contract (with count of prior definite-term contracts), current salary plus the salary history needed for severance and average bases, dependants (with registration months), bank accounts. Validated with a reconciliation report; idempotent re-runs. No legacy database migration (changed 2026-10-16, D-09). | M |
-| NFR-PPL-008 | Strict tenant isolation: no cross-tenant person matching. | M |
-| NFR-PPL-009 | UI bilingual VI/EN; Vietnamese collation and diacritics-insensitive search on names. | M |
-| NFR-PPL-010 | Generated documents in PDF/A for archiving; templates render Vietnamese fonts correctly. | M |
-| NFR-PPL-011 | ESS usable on mobile browsers (≥ 360 px width) with step-up authentication for bank account changes. | M |
-| NFR-PPL-012 | Document storage retention and legal hold configurable per category; deletion is verifiable. | S |
+| NFR-PPL-001 | Hiệu lực theo ngày: mọi truy vấn nhân viên phải hỗ trợ "tại ngày X" và "như đã biết vào ngày Y" (lịch sử đính chính) cho phân công, lương, hợp đồng. | M |
+| NFR-PPL-002 | Việc phát sự kiện mang tính giao dịch (outbox) — không có thay đổi nhân sự nào được commit mà không có sự kiện tương ứng; gửi at-least-once với `event_id` idempotent. | M |
+| NFR-PPL-003 | Trang hồ sơ nhân viên tải ≤ 2 s (p95) với tenant tối đa 10.000 nhân viên; tìm kiếm danh sách nhân viên ≤ 1 s (p95). | M |
+| NFR-PPL-004 | Thao tác hàng loạt (thay đổi hàng loạt, tạo tài liệu) xử lý 5.000 nhân viên trong ≤ 10 phút, bất đồng bộ, có tiến độ và báo cáo lỗi theo từng dòng. | S |
+| NFR-PPL-005 | Các trường nhạy cảm (số định danh, tài khoản ngân hàng, sức khỏe, tôn giáo, dân tộc) được mã hóa ở mức trường; được che trong log và các bản sao không phải môi trường production. | M |
+| NFR-PPL-006 | Mọi lượt đọc dữ liệu nhạy cảm và mọi lượt ghi đều được log với người thực hiện, mục đích, trước/sau (với thao tác ghi). | M |
+| NFR-PPL-007 | Import dữ liệu nhân viên ban đầu từ các mẫu Excel chuẩn (BR-SAAS-069): person, employment (bao gồm ngày vào làm ban đầu và ngày tính thâm niên), phân công hiện tại, hợp đồng hiện tại (kèm số hợp đồng xác định thời hạn trước đó), lương hiện tại cùng lịch sử lương cần cho trợ cấp thôi việc và lương bình quân, người phụ thuộc (kèm tháng đăng ký), tài khoản ngân hàng. Được kiểm tra kèm báo cáo đối soát; chạy lại idempotent. Không migrate cơ sở dữ liệu cũ (changed 2026-10-16, D-09). | M |
+| NFR-PPL-008 | Cô lập tenant chặt chẽ: không đối chiếu person giữa các tenant. | M |
+| NFR-PPL-009 | UI song ngữ Việt/Anh; collation tiếng Việt và tìm kiếm tên không phân biệt dấu. | M |
+| NFR-PPL-010 | Tài liệu được tạo ở định dạng PDF/A để lưu trữ; mẫu hiển thị đúng font tiếng Việt. | M |
+| NFR-PPL-011 | ESS dùng được trên trình duyệt di động (chiều rộng ≥ 360 px) với xác thực step-up khi thay đổi tài khoản ngân hàng. | M |
+| NFR-PPL-012 | Thời hạn lưu trữ tài liệu và legal hold cấu hình được theo danh mục; việc xóa có thể kiểm chứng được. | S |
 
 ---
 
-## 10. Assumptions, open questions, risks
+## 10. Giả định, câu hỏi mở, rủi ro
 
-### 10.1 Assumptions
-- A1. Position, org unit, job, grade catalogues are mastered in `core`; People only references them.
-- A2. Payroll computes every money amount (severance, job-loss, leave payout, deductions); People only provides eligibility, inputs and triggers.
-- A3. SI/HI/UI declarations (hire/termination/salary change) are produced by `payroll` from People events; People holds the SI code and book custody status only.
-- A4. Leave and attendance (incl. maternity leave as a leave type) are mastered in `time-attendance`; People holds only statuses that change legal regime (suspension, special status).
-- A5. A tenant may contain several legal entities; concurrent employment across legal entities of one tenant is supported in Phase 1 (basic, R2-16: primary employment carries the PIT family deduction and SI); concurrent employment across tenants is not supported (changed 2026-10-16, R2-16).
-- A7. People owns the agreed compensation; Payroll owns only derived pay results and the pay profile (R2-02 §5 #24).
-- A6. E-signature and VNeID connectors are provided by `saas-platform` as shared services.
+### 10.1 Giả định
+- A1. Các danh mục vị trí, đơn vị tổ chức, công việc, ngạch được quản lý gốc trong `core`; People chỉ tham chiếu tới chúng.
+- A2. Payroll tính mọi khoản tiền (trợ cấp thôi việc, mất việc làm, thanh toán phép, khấu trừ); People chỉ cung cấp điều kiện hưởng, dữ liệu đầu vào và kích hoạt.
+- A3. Các khai báo BHXH/BHYT/BHTN (tuyển mới/chấm dứt/thay đổi lương) do `payroll` tạo từ sự kiện của People; People chỉ lưu mã BHXH và trạng thái lưu giữ sổ.
+- A4. Nghỉ phép và chấm công (bao gồm nghỉ thai sản như một loại nghỉ) được quản lý gốc trong `time-attendance`; People chỉ lưu các trạng thái làm thay đổi chế độ pháp lý (tạm hoãn, tình trạng đặc biệt).
+- A5. Một tenant có thể gồm nhiều pháp nhân; làm việc đồng thời tại nhiều pháp nhân của một tenant được hỗ trợ trong Phase 1 (cơ bản, R2-16: employment chính mang giảm trừ gia cảnh thuế TNCN và BHXH); không hỗ trợ làm việc đồng thời giữa các tenant (changed 2026-10-16, R2-16).
+- A7. People sở hữu mức đãi ngộ đã thỏa thuận; Payroll chỉ sở hữu các kết quả lương phái sinh và hồ sơ trả lương (R2-02 §5 #24).
+- A6. Các connector chữ ký điện tử và VNeID do `saas-platform` cung cấp dưới dạng dịch vụ dùng chung.
 
-### 10.2 Open questions
-| # | Question | Owner |
+### 10.2 Câu hỏi mở
+| # | Câu hỏi | Người phụ trách |
 |---|---|---|
-| Q1 | ~~Who owns statutory parameters?~~ **Closed 2026-10-16 (R2-02 §5 #1):** the saas-platform Legal Parameter Service; People reads by effective date (IN-10). | PM / Core BA / Payroll BA |
-| Q2 | ~~Are pay scales and the allowance catalogue mastered in payroll or core?~~ **Closed 2026-10-16 (R2-02 §5 #7):** payroll owns pay scales, bands and the component catalogue; Core owns only the grade catalogue. | Payroll BA |
-| Q3 | ~~Does payroll provide UI participation periods from its own SI history?~~ **Closed 2026-10-16 (R2-02 §5 #20):** Payroll owns all SI contribution history incl. pre-go-live months (opening-balance import); People stores only the SI number and book custody, and Payroll computes the severance exclusion (§5 #29). | Payroll BA |
-| Q4 | Monthly KPI scores for KPI-linked pay: MVP need for pilot tenant? Would make BR-PPL-093 `M`. | PM |
-| Q5 | ~~Expense reimbursement route?~~ **Closed 2026-10-16 (R2-02 §5 #21):** per tenant **per expense category** — payroll component or finance export (file in Phase 1; accounting APIs are Phase 2, R2-01). Expense claims and cash advances are Phase 2 unless the pilot needs them. | PM / Finance |
-| Q6 | ~~Business trips: owned by People or T&A?~~ **Closed 2026-10-16 (R2-02 §5 #6):** T&A owns the trip request; People consumes `att.BusinessTripApproved`. | T&A BA |
-| Q7 | Is collaborator/service contract (non-labour) handled as an Employment in People or as a separate "contractor" entity for PIT only? | Payroll BA |
-| Q8 | E-labour contract: which providers and is submission to the national platform mandatory for pilot tenants in 2026? | Legal consultant |
-| Q9 | Retention periods for HR data after separation (labour, SI, tax, PDPL interplay). | Legal consultant / DPO |
-| Q10 | Recruitment consents: can People reuse candidate consent, or must new employee consent be collected at pre-hire? | DPO / Recruitment BA |
-| Q11 | ~~Should ESS for former employees be in MVP?~~ **Closed 2026-10-16 (OD-8, GAP-036):** yes — Core `FORMER_EMPLOYEE` role with e-mail OTP login; People captures a personal e-mail at offboarding. | PM |
+| Q1 | ~~Ai sở hữu các tham số luật định?~~ **Đã đóng 2026-10-16 (R2-02 §5 #1):** Legal Parameter Service của saas-platform; People đọc theo ngày hiệu lực (IN-10). | PM / Core BA / Payroll BA |
+| Q2 | ~~Thang lương và danh mục phụ cấp được quản lý gốc ở payroll hay core?~~ **Đã đóng 2026-10-16 (R2-02 §5 #7):** payroll sở hữu thang lương, khung lương và danh mục thành phần; Core chỉ sở hữu danh mục ngạch. | Payroll BA |
+| Q3 | ~~Payroll có cung cấp các giai đoạn tham gia BHTN từ lịch sử BHXH của mình không?~~ **Đã đóng 2026-10-16 (R2-02 §5 #20):** Payroll sở hữu toàn bộ lịch sử đóng BHXH bao gồm các tháng trước go-live (import số dư đầu kỳ); People chỉ lưu số BHXH và tình trạng lưu giữ sổ, và Payroll tính phần loại trừ khi tính trợ cấp thôi việc (§5 #29). | Payroll BA |
+| Q4 | Điểm KPI hằng tháng cho lương gắn KPI: tenant pilot có cần trong MVP không? Nếu có sẽ chuyển BR-PPL-093 thành `M`. | PM |
+| Q5 | ~~Luồng hoàn ứng chi phí?~~ **Đã đóng 2026-10-16 (R2-02 §5 #21):** theo tenant **theo từng loại chi phí** — thành phần lương hoặc file xuất tài chính (file trong Phase 1; API kế toán là Phase 2, R2-01). Đề nghị thanh toán chi phí và tạm ứng là Phase 2 trừ khi pilot cần. | PM / Tài chính |
+| Q6 | ~~Công tác: People hay T&A sở hữu?~~ **Đã đóng 2026-10-16 (R2-02 §5 #6):** T&A sở hữu yêu cầu công tác; People tiêu thụ `att.BusinessTripApproved`. | T&A BA |
+| Q7 | Hợp đồng cộng tác viên/dịch vụ (không phải hợp đồng lao động) được xử lý như một Employment trong People hay như một thực thể "contractor" riêng chỉ để tính thuế TNCN? | Payroll BA |
+| Q8 | Hợp đồng lao động điện tử: những nhà cung cấp nào và việc nộp lên nền tảng quốc gia có bắt buộc với tenant pilot trong năm 2026 không? | Chuyên gia tư vấn pháp lý |
+| Q9 | Thời hạn lưu trữ dữ liệu nhân sự sau khi nghỉ việc (tương tác giữa luật lao động, BHXH, thuế, Luật BVDLCN). | Chuyên gia tư vấn pháp lý / DPO |
+| Q10 | Consent từ tuyển dụng: People có thể tái sử dụng consent của ứng viên không, hay phải thu thập consent mới của nhân viên ở giai đoạn pre-hire? | DPO / Recruitment BA |
+| Q11 | ~~ESS cho nhân viên cũ có nằm trong MVP không?~~ **Đã đóng 2026-10-16 (OD-8, GAP-036):** có — vai trò `FORMER_EMPLOYEE` của Core với đăng nhập bằng OTP qua e-mail; People thu thập e-mail cá nhân khi nghỉ việc. | PM |
 
-### 10.3 Risks
-| # | Risk | Impact | Mitigation |
+### 10.3 Rủi ro
+| # | Rủi ro | Tác động | Giảm thiểu |
 |---|---|---|---|
-| RK1 | Frequent legal changes (PDPL 2025, Employment Law 2025, e-contract decree, admin-unit merger 2025) | Rework, non-compliance | Parameterise; `[verify-legal]` review gate; legal consultant sign-off |
-| RK2 | Quality of customer-supplied opening data (duplicates, missing ID/tax codes, 3-level addresses) (changed 2026-10-16, D-09) | Bad person matching, payroll errors | Data-quality report R20, merge tool, validate-only import and opening-balance reconciliation (BR-SAAS-072) |
-| RK7 | Primary employment per purpose or insurance participation per type wrong or missing for a concurrent employee (R2-16) | Family deduction applied twice or not at all; SI/HI/UI declared by the wrong entity | Validation: exactly one primary employment per person per purpose at any date (BR-PPL-004); payroll exception report; legal review of the per-type rules `[verify-legal]` |
-| RK3 | Effective-dated retro changes after payroll close | Pay errors | Retro flag on events; payroll retro process agreed in gap analysis |
-| RK4 | Event contract drift between People and consumers | Integration defects | Versioned event schemas, contract tests |
-| RK5 | Sensitive-data exposure (bank, ID, health) | Legal penalties, reputation | Field encryption, masking, access logging, DPO reports |
-| RK6 | Scope breadth (appraisal, training, expenses) vs MVP timeline | Delay | MVP = all `M` items (incl. probation appraisal BR-PPL-094); expenses (BR-PPL-110–113) deferred unless Q5 resolved; Phase 2 for full appraisal/training |
+| RK1 | Thay đổi pháp luật thường xuyên (Luật BVDLCN 2025, Luật Việc làm 2025, nghị định hợp đồng điện tử, sáp nhập đơn vị hành chính 2025) | Làm lại, không tuân thủ | Tham số hóa; cổng review `[verify-legal]`; chuyên gia tư vấn pháp lý ký duyệt |
+| RK2 | Chất lượng dữ liệu ban đầu do khách hàng cung cấp (trùng lặp, thiếu số định danh/mã số thuế, địa chỉ 3 cấp) (changed 2026-10-16, D-09) | Đối chiếu person sai, lỗi tính lương | Báo cáo chất lượng dữ liệu R20, công cụ gộp, import chỉ kiểm tra (validate-only) và đối soát số dư đầu kỳ (BR-SAAS-072) |
+| RK7 | Employment chính theo mục đích hoặc việc tham gia bảo hiểm theo loại bị sai hoặc thiếu đối với nhân viên làm việc đồng thời (R2-16) | Giảm trừ gia cảnh bị áp dụng hai lần hoặc không áp dụng; BHXH/BHYT/BHTN được khai báo bởi sai pháp nhân | Kiểm tra: đúng một employment chính cho mỗi người theo mỗi mục đích tại bất kỳ ngày nào (BR-PPL-004); báo cáo ngoại lệ payroll; review pháp lý các quy tắc theo loại `[verify-legal]` |
+| RK3 | Thay đổi hồi tố có hiệu lực theo ngày sau khi đã khóa kỳ lương | Sai lương | Cờ retro trên sự kiện; quy trình truy lĩnh/truy thu của payroll được thống nhất trong gap analysis |
+| RK4 | Sai lệch hợp đồng sự kiện giữa People và các bên tiêu thụ | Lỗi tích hợp | Schema sự kiện có phiên bản, contract test |
+| RK5 | Lộ dữ liệu nhạy cảm (ngân hàng, định danh, sức khỏe) | Chế tài pháp lý, uy tín | Mã hóa ở mức trường, che dữ liệu, log truy cập, báo cáo DPO |
+| RK6 | Phạm vi rộng (đánh giá, đào tạo, chi phí) so với timeline MVP | Chậm tiến độ | MVP = tất cả mục `M` (bao gồm đánh giá thử việc BR-PPL-094); chi phí (BR-PPL-110–113) hoãn lại trừ khi Q5 được giải quyết; Phase 2 cho đánh giá/đào tạo đầy đủ |

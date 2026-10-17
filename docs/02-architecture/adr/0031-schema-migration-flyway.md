@@ -1,41 +1,41 @@
-# ADR-0031: Schema migration tooling — Flyway, forward-only expand/contract
+# ADR-0031: Công cụ migration schema — Flyway, forward-only expand/contract
 
-- **Status:** Accepted (2026-10-16, Flyway Community licence)
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Solution architect, DevOps
-- **Related:** NFR-SAAS-014 (zero-downtime, rollback ≤ 15 min), NFR-CORE-013; ADR-0002 (Flyway per schema), ADR-0036 (fleet of databases); [DESIGN.md](../../../database/postgresql/DESIGN.md) §12
+- **Trạng thái:** Đã chấp thuận (2026-10-16, license Flyway Community)
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, Solution architect, DevOps
+- **Liên quan:** NFR-SAAS-014 (không downtime, rollback ≤ 15 phút), NFR-CORE-013; ADR-0002 (Flyway theo schema), ADR-0036 (đội database); [DESIGN.md](../../../database/postgresql/DESIGN.md) §12
 
-## Context
+## Bối cảnh
 
-The product is PostgreSQL-only and relies on features that ORMs and abstract changelogs model poorly: RLS policies, exclusion constraints, partitioning, generated columns, `SECURITY DEFINER` functions. Releases ship at least every two weeks with no planned downtime, to shared pool clusters and to every dedicated database. Modules own their schemas and should migrate independently.
+Sản phẩm chỉ dùng PostgreSQL và dựa vào các tính năng mà ORM và changelog trừu tượng mô hình hoá kém: RLS policy, exclusion constraint, partitioning, generated column, hàm `SECURITY DEFINER`. Release được phát hành ít nhất hai tuần một lần mà không có downtime theo kế hoạch, tới các pool cluster dùng chung và tới mọi database riêng. Các module sở hữu schema của mình và nên migrate độc lập.
 
-## Decision
+## Quyết định
 
-1. **Flyway** (Community edition, 11.x), SQL-first. One location and **one history table per schema** (`<schema>.flyway_schema_history`). Run order: `sys` → `saas` → `core`/`audit` → `hr` → `att` → `pay` → `rec`.
-2. Naming: `V<yyyymmddHHMM>__<desc>.sql` (timestamped to avoid merge conflicts) and `R__<object>.sql` for views, functions and policies. The `database/postgresql/ddl/*.sql` files become each schema's `V1__baseline`.
-3. Execution as `yhrm_migrator` with `initSql = SET ROLE yhrm_owner; SET lock_timeout = '3s'`. CI runs the **squawk** linter.
+1. **Flyway** (bản Community, 11.x), ưu tiên SQL. Một location và **một bảng lịch sử cho mỗi schema** (`<schema>.flyway_schema_history`). Thứ tự chạy: `sys` → `saas` → `core`/`audit` → `hr` → `att` → `pay` → `rec`.
+2. Đặt tên: `V<yyyymmddHHMM>__<desc>.sql` (gắn timestamp để tránh xung đột merge) và `R__<object>.sql` cho view, hàm và policy. Các file `database/postgresql/ddl/*.sql` trở thành `V1__baseline` của từng schema.
+3. Thực thi dưới `yhrm_migrator` với `initSql = SET ROLE yhrm_owner; SET lock_timeout = '3s'`. CI chạy linter **squawk**.
 4. **Forward-only expand/contract:**
-   * N: add nullable columns, tables, dual write;
-   * a backfill job runs per tenant (fair-share, ADR-0011);
-   * N+1: switch reads;
+   * N: thêm cột nullable, bảng, ghi kép;
+   * một job backfill chạy theo từng tenant (fair-share, ADR-0011);
+   * N+1: chuyển luồng đọc;
    * N+2: drop.
 
-   Rules: indexes `CONCURRENTLY` (`executeInTransaction=false`), constraints `NOT VALID` then `VALIDATE`, no renames, no `ALTER TYPE` on large tables, `NOT NULL` through a validated `CHECK`.
-5. **Fleet rollout** in rings (internal → pilot → shared pools → dedicated), driven by a migration orchestrator. App startup checks the required schema version against the history table.
-6. **Tenant seeding is not a migration:** provisioning calls module seed APIs. Global master data and legal packs ship through the release job.
-7. Tests: Testcontainers runs all migrations from zero and from the previous release; the RLS isolation suite and the catalogue check are release-blocking.
+   Quy tắc: index tạo `CONCURRENTLY` (`executeInTransaction=false`), constraint `NOT VALID` rồi `VALIDATE`, không đổi tên, không `ALTER TYPE` trên bảng lớn, `NOT NULL` thông qua một `CHECK` đã được validate.
+5. **Triển khai cho toàn bộ đội database** theo các vòng (nội bộ → pilot → pool dùng chung → database riêng), do một migration orchestrator điều khiển. Khi khởi động, ứng dụng kiểm tra phiên bản schema yêu cầu với bảng lịch sử.
+6. **Seed dữ liệu tenant không phải là migration:** quá trình khởi tạo tenant gọi seed API của các module. Master data global và legal pack được phát hành qua release job.
+7. Kiểm thử: Testcontainers chạy mọi migration từ đầu và từ bản release trước; bộ test cách ly RLS và kiểm tra catalogue là chặn release.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Liquibase | Changelog abstraction adds little for a single-database product; PostgreSQL-specific DDL ends up in raw `sql` change sets anyway; rollback blocks are rarely correct for data changes. Valid, but no advantage here. |
-| Hibernate `ddl-auto` | Not acceptable for production; no control over locks or ordering. |
-| Single history table for all schemas | Couples module release trains; one module's failed migration blocks the others. |
-| Down migrations | Data-destructive and untestable at scale. Rollback = previous app version on an expanded schema. |
+| Liquibase | Lớp trừu tượng changelog ít giá trị cho một sản phẩm chỉ một loại database; DDL đặc thù PostgreSQL rốt cuộc vẫn nằm trong các change set `sql` thô; khối rollback hiếm khi đúng với thay đổi dữ liệu. Hợp lệ, nhưng không có lợi thế ở đây. |
+| Hibernate `ddl-auto` | Không chấp nhận được cho production; không kiểm soát được lock hay thứ tự. |
+| Một bảng lịch sử duy nhất cho mọi schema | Gắn chặt release train của các module; migration thất bại của một module chặn các module khác. |
+| Down migration | Phá huỷ dữ liệu và không kiểm thử được ở quy mô lớn. Rollback = phiên bản ứng dụng trước đó trên schema đã expand. |
 
-## Consequences
+## Hệ quả
 
-- \+ Plain SQL is reviewable by DBAs and uses every PostgreSQL feature directly.
-- − The Flyway Teams/Enterprise features (undo, dry-run reports) are not used. The Community edition is sufficient and was accepted on 2026-10-16 (decision-log "Flyway", D-08).
-- − Expand/contract stretches a breaking change over three releases. Teams must track the contract steps (lint rule plus a backlog item).
+- \+ SQL thuần có thể được DBA review và dùng trực tiếp mọi tính năng của PostgreSQL.
+- − Không dùng các tính năng Flyway Teams/Enterprise (undo, báo cáo dry-run). Bản Community là đủ và đã được chấp thuận ngày 2026-10-16 (decision-log "Flyway", D-08).
+- − Expand/contract kéo dài một thay đổi phá vỡ tương thích qua ba bản release. Các đội phải theo dõi các bước contract (lint rule cộng một backlog item).

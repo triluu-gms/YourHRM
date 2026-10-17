@@ -1,483 +1,483 @@
 # YourHRM — BRD Module 01: Core (`core`)
 
-| Item | Value |
+| Hạng mục | Giá trị |
 |---|---|
-| Module | `core` (DB schema `core`, backend `backend/src/modules/core` + shared `auth`, `audit`, `workflow`, `common`) |
-| Requirement prefix | `BR-CORE-NNN`, `NFR-CORE-NNN` |
-| Version / date | Draft v0.2, 2026-10-16 (v0.1 minor edits 2026-10-16 for D-09/OD-9: BR-CORE-005, 081, 114, P-07, P-22, R-01) |
-| Change note | v0.2 (2026-10-16): applies the approved single-owner table ([gap-analysis](../gap-analysis.md) §5, decision **R2-02**). Authentication, SSO, MFA, sessions and API clients move to saas-platform (BR-CORE-038/039/042 removed, P-05 removed, P-09 re-pointed); legal parameters incl. the region map are read from the SaaS Legal Parameter Service (BR-CORE-006, A-03); grade salary ranges removed (BR-CORE-021); list export moves to the SaaS reporting framework (BR-CORE-113 removed); notification dispatch via SaaS delivery adapters (BR-CORE-070/073); document service over SaaS object storage; user provisioning driven only by People events (P-04, C-07/C-08); new exchange-rate master (BR-CORE-088). GAP-049: tax authority, PIT declaration frequency and OA-OD rate decision on the legal entity (BR-CORE-002); legal-entity lock state read from Payroll (C-16). GAP-053: reorg mapping result `people.ReorgMappingCompleted` (C-12). R2-17: payslip PDF exception to BR-CORE-074. Edits are marked "(changed 2026-10-16, R2-02 §5 #n)" or with the decision/gap ID. Priority and phase columns are unchanged (PM syncs them). |
-| Author | BA – Core |
-| Status | Draft for review (Phase 0) |
-| Related | [Project charter](../../../00-project-management/project-charter.md), 02-people, 03-time-attendance, 04-payroll, 05-recruitment, 06-saas-platform |
+| Module | `core` (DB schema `core`, backend `backend/src/modules/core` + dùng chung `auth`, `audit`, `workflow`, `common`) |
+| Tiền tố yêu cầu | `BR-CORE-NNN`, `NFR-CORE-NNN` |
+| Phiên bản / ngày | Bản nháp v0.2, 2026-10-16 (v0.1 chỉnh sửa nhỏ 2026-10-16 theo D-09/OD-9: BR-CORE-005, 081, 114, P-07, P-22, R-01) |
+| Ghi chú thay đổi | v0.2 (2026-10-16): áp dụng bảng chủ sở hữu duy nhất đã phê duyệt ([gap-analysis](../gap-analysis.md) §5, quyết định **R2-02**). Xác thực, SSO, MFA, session và API client chuyển sang saas-platform (bỏ BR-CORE-038/039/042, bỏ P-05, trỏ lại P-09); các tham số pháp lý, bao gồm bảng ánh xạ vùng, được đọc từ SaaS Legal Parameter Service (BR-CORE-006, A-03); bỏ khung lương theo ngạch bậc (BR-CORE-021); xuất danh sách chuyển sang SaaS reporting framework (bỏ BR-CORE-113); gửi thông báo qua SaaS delivery adapter (BR-CORE-070/073); dịch vụ tài liệu dựa trên SaaS object storage; cấp tài khoản người dùng chỉ được kích hoạt bởi sự kiện People (P-04, C-07/C-08); master tỷ giá mới (BR-CORE-088). GAP-049: cơ quan thuế, kỳ khai thuế TNCN và quyết định mức đóng BHTNLĐ-BNN gắn với pháp nhân (BR-CORE-002); trạng thái khóa của pháp nhân được đọc từ Payroll (C-16). GAP-053: kết quả ánh xạ tái cơ cấu `people.ReorgMappingCompleted` (C-12). R2-17: ngoại lệ phiếu lương PDF đối với BR-CORE-074. Các chỉnh sửa được đánh dấu "(thay đổi 2026-10-16, R2-02 §5 #n)" hoặc kèm mã quyết định/gap. Cột độ ưu tiên và giai đoạn không thay đổi (PM đồng bộ). |
+| Tác giả | BA – Core |
+| Trạng thái | Bản nháp để review (Phase 0) |
+| Liên quan | [Project charter](../../../00-project-management/project-charter.md), 02-people, 03-time-attendance, 04-payroll, 05-recruitment, 06-saas-platform |
 
-> **Phase:** the delivery phase of every requirement is set only in [mvp-scope.md](../mvp-scope.md) §9; MoSCoW here is business priority. (2026-10-16)
+> **Giai đoạn:** giai đoạn triển khai của mọi yêu cầu chỉ được xác định trong [mvp-scope.md](../mvp-scope.md) §9; MoSCoW ở đây là độ ưu tiên nghiệp vụ. (2026-10-16)
 
-> Convention reminder: legal values are effective-dated parameters, never hard-coded. Every legal figure in this document is marked `[verify-legal]` until confirmed by a Vietnam labour/tax consultant.
+> Lưu ý quy ước: các giá trị pháp lý là tham số có hiệu lực theo ngày, không bao giờ hard-code. Mọi số liệu pháp lý trong tài liệu này được đánh dấu `[verify-legal]` cho đến khi được chuyên gia tư vấn lao động/thuế Việt Nam xác nhận.
 
 ---
 
-## 1. Purpose & scope
+## 1. Mục đích & phạm vi
 
-### 1.1 Purpose
-Core is the foundation every other module stands on inside a tenant. It owns:
-- **The employer structure**: who the legal employer is (legal entity), where people work (branches / work locations), how the organisation is shaped (org units, effective-dated), and the job architecture (job titles, positions, grades, cost centres).
-- **Authorisation**: tenant user accounts, roles, permissions, data-scope security, field masking. Authentication (passwords, MFA, SSO, sessions, API clients) is owned by saas-platform (changed 2026-10-16, R2-02 §5 #10).
-- **Shared engines**: workflow & approval, notification centre (channel delivery by saas-platform adapters), import engine, document service (over saas-platform object storage), audit service and store. Exports and reporting are owned by saas-platform (changed 2026-10-16, R2-02 §5 #12–#15b, #18).
-- **Shared reference data**: VN administrative units (post-2025 merger), nationalities, ethnicities, religions, banks, currencies, generic code lists, tenant settings.
+### 1.1 Mục đích
+Core là nền tảng mà mọi module khác dựa vào bên trong một tenant. Core sở hữu:
+- **Cơ cấu người sử dụng lao động**: ai là người sử dụng lao động theo pháp luật (pháp nhân), người lao động làm việc ở đâu (chi nhánh / địa điểm làm việc), tổ chức được cấu trúc ra sao (đơn vị tổ chức, có hiệu lực theo ngày) và kiến trúc công việc (chức danh, vị trí, ngạch bậc, trung tâm chi phí).
+- **Phân quyền**: tài khoản người dùng tenant, vai trò, quyền, bảo mật theo phạm vi dữ liệu, che giấu trường dữ liệu. Xác thực (mật khẩu, MFA, SSO, session, API client) do saas-platform sở hữu (thay đổi 2026-10-16, R2-02 §5 #10).
+- **Engine dùng chung**: workflow & phê duyệt, trung tâm thông báo (gửi qua kênh bằng adapter của saas-platform), import engine, dịch vụ tài liệu (dựa trên object storage của saas-platform), dịch vụ và kho audit. Xuất dữ liệu và báo cáo do saas-platform sở hữu (thay đổi 2026-10-16, R2-02 §5 #12–#15b, #18).
+- **Dữ liệu tham chiếu dùng chung**: đơn vị hành chính Việt Nam (sau sáp nhập 2025), quốc tịch, dân tộc, tôn giáo, ngân hàng, tiền tệ, danh mục mã chung, cấu hình tenant.
 
-### 1.2 In scope
-| # | Area |
+### 1.2 Trong phạm vi
+| # | Lĩnh vực |
 |---|---|
-| S1 | Tenant company profile and **legal entities** (1..n per tenant), each with tax code, SI unit code, minimum-wage region, bank accounts, legal representative, seal/signature assets |
-| S2 | Branches / work locations (address, minimum-wage region, geo-fence data for attendance, timezone) |
-| S3 | Org tree: org units, org unit types, managers, effective-dated reorganisations (merge, split, move, rename, close) with history and future-dated changes |
-| S4 | Job architecture: job families, job titles, positions (budgeted seats), grade catalogue (code, order, structure — no salary amounts; pay scales and bands are owned by payroll), cost centres (changed 2026-10-16, R2-02 §5 #7) |
-| S5 | Tenant user accounts, roles, permissions, data-scope rules, field masking, delegation of access. SSO (OIDC / SAML), MFA, passwords and sessions are consumed from saas-platform (changed 2026-10-16, R2-02 §5 #10) |
-| S6 | Generic workflow & approval engine (multi-level, conditional routing, parallel, delegation, substitution, SLA, escalation, recall, mobile approve — mobile approve is Phase 2, changed 2026-10-16, OD-9) |
-| S7 | Notification centre: event codes, templates, recipients/scope, preferences, quiet hours, digest, in-app inbox, fallback rules. Channel delivery (SMTP/DKIM, push, ZNS, SMS) and provider accounts are saas-platform adapters (changed 2026-10-16, R2-02 §5 #14) |
-| S8 | Tenant settings & generic code lists; global master data store and admin API (provinces/wards, nationalities, ethnicities, religions, banks, currencies, ID document types); exchange rates (changed 2026-10-16, R2-02 §5 #19, #28) |
-| S9 | Audit service and store (data change + security events, incl. events written by saas-platform identity and operator back-office), immutable, searchable (changed 2026-10-16, R2-02 §5 #13) |
-| S10 | Document service (metadata, record-level access, versioning, templates, retention class, e-signature orchestration) over saas-platform object storage (changed 2026-10-16, R2-02 §5 #15/#15b) |
-| S11 | Import engine (templates, validation, staging, dry-run, all-or-nothing by default, async jobs, Excel/CSV) incl. opening-balance mode. Exports belong to the saas-platform reporting framework (changed 2026-10-16, R2-02 §5 #12, #18) |
-| S12 | Sequence / numbering service (employee codes, document numbers) and holiday-agnostic calendar utilities used by workflow SLA |
+| S1 | Hồ sơ công ty của tenant và **pháp nhân** (1..n mỗi tenant), mỗi pháp nhân có MST, mã đơn vị BHXH, vùng lương tối thiểu, tài khoản ngân hàng, người đại diện theo pháp luật, hình ảnh con dấu/chữ ký |
+| S2 | Chi nhánh / địa điểm làm việc (địa chỉ, vùng lương tối thiểu, dữ liệu geo-fence cho chấm công, múi giờ) |
+| S3 | Cây tổ chức: đơn vị tổ chức, loại đơn vị, người quản lý, tái cơ cấu có hiệu lực theo ngày (sáp nhập, chia tách, di chuyển, đổi tên, giải thể) kèm lịch sử và thay đổi có hiệu lực trong tương lai |
+| S4 | Kiến trúc công việc: nhóm công việc, chức danh, vị trí (định biên), danh mục ngạch bậc (mã, thứ tự, cấu trúc — không có mức lương; thang bảng lương và khung lương do payroll sở hữu), trung tâm chi phí (thay đổi 2026-10-16, R2-02 §5 #7) |
+| S5 | Tài khoản người dùng tenant, vai trò, quyền, quy tắc phạm vi dữ liệu, che giấu trường dữ liệu, ủy quyền truy cập. SSO (OIDC / SAML), MFA, mật khẩu và session được sử dụng từ saas-platform (thay đổi 2026-10-16, R2-02 §5 #10) |
+| S6 | Engine workflow & phê duyệt chung (nhiều cấp, định tuyến có điều kiện, song song, ủy quyền, thay thế, SLA, leo thang, thu hồi, phê duyệt trên mobile — phê duyệt trên mobile thuộc Phase 2, thay đổi 2026-10-16, OD-9) |
+| S7 | Trung tâm thông báo: mã sự kiện, mẫu, người nhận/phạm vi, tùy chọn, khung giờ yên lặng, bản tổng hợp, hộp thư trong ứng dụng, quy tắc dự phòng. Việc gửi qua kênh (SMTP/DKIM, push, ZNS, SMS) và tài khoản nhà cung cấp là adapter của saas-platform (thay đổi 2026-10-16, R2-02 §5 #14) |
+| S8 | Cấu hình tenant & danh mục mã chung; kho master data toàn cục và admin API (tỉnh/phường, quốc tịch, dân tộc, tôn giáo, ngân hàng, tiền tệ, loại giấy tờ tùy thân); tỷ giá (thay đổi 2026-10-16, R2-02 §5 #19, #28) |
+| S9 | Dịch vụ và kho audit (thay đổi dữ liệu + sự kiện bảo mật, bao gồm sự kiện do identity của saas-platform và back-office của operator ghi vào), bất biến, có thể tìm kiếm (thay đổi 2026-10-16, R2-02 §5 #13) |
+| S10 | Dịch vụ tài liệu (metadata, phân quyền truy cập theo bản ghi, quản lý phiên bản, mẫu, lớp lưu trữ, điều phối ký điện tử) dựa trên object storage của saas-platform (thay đổi 2026-10-16, R2-02 §5 #15/#15b) |
+| S11 | Import engine (mẫu, kiểm tra hợp lệ, staging, dry-run, mặc định all-or-nothing, job bất đồng bộ, Excel/CSV) bao gồm chế độ số dư đầu kỳ. Xuất dữ liệu thuộc reporting framework của saas-platform (thay đổi 2026-10-16, R2-02 §5 #12, #18) |
+| S12 | Dịch vụ sinh số thứ tự / đánh số (mã nhân viên, số văn bản) và tiện ích lịch không phụ thuộc ngày lễ dùng cho SLA của workflow |
 
-### 1.3 Out of scope (owned elsewhere)
-| Item | Owner |
+### 1.3 Ngoài phạm vi (do module khác sở hữu)
+| Hạng mục | Chủ sở hữu |
 |---|---|
-| Tenant provisioning, subscription plans, billing, feature flags per plan, platform super-admin, cross-tenant operations, data residency of the platform | saas-platform (`06`) |
-| Person / employee records, assignments, contracts, headcount actuals | people (`02`) |
-| Public holidays, work calendars, shifts, leave | time-attendance (`03`) — Core provides only a business-day calculator interface that *consumes* the T&A holiday calendar |
-| **Legal parameters**: minimum-wage amounts and the admin-unit → region map, SI/HI/UI/OA-OD rates and caps, PIT schedules, OT caps, holiday template, etc. | saas-platform (`06`) Legal Parameter Service — Core resolves location → region by reading the pack map (changed 2026-10-16, R2-02 §5 #1) |
-| Salary components, pay scales, grade salary bands | payroll (`04`) (changed 2026-10-16, R2-02 §5 #7) |
-| Authentication, SSO, MFA, sessions, API clients and credentials | saas-platform (`06`) (changed 2026-10-16, R2-02 §5 #10) |
-| Object storage, job scheduler / queue, consent registry, PD inventory, DSR orchestration, retention scheduler | saas-platform (`06`) (changed 2026-10-16, R2-02 §5 #15, #16, #27) |
-| Requisitions, staffing plans (Phase 2; the plan writes FTE budgets and proposed positions to Core through an API) | recruitment (`05`) (changed 2026-10-16, R2-02 §5 #8) |
-| Reporting framework, reporting store, all exports incl. list exports, BI | saas-platform (`06`) — Core supplies the scope predicate and masking (P-10) (changed 2026-10-16, R2-02 §5 #18) |
+| Khởi tạo tenant, gói thuê bao, thanh toán, feature flag theo gói, super-admin nền tảng, thao tác liên tenant, vị trí lưu trữ dữ liệu của nền tảng | saas-platform (`06`) |
+| Hồ sơ cá nhân / nhân viên, phân công công việc, hợp đồng, headcount thực tế | people (`02`) |
+| Ngày lễ, lịch làm việc, ca làm việc, nghỉ phép | time-attendance (`03`) — Core chỉ cung cấp interface tính ngày làm việc *sử dụng* lịch ngày lễ của T&A |
+| **Tham số pháp lý**: mức lương tối thiểu và bảng ánh xạ đơn vị hành chính → vùng, tỷ lệ và mức trần BHXH/BHYT/BHTN/BHTNLĐ-BNN, biểu thuế TNCN, giới hạn làm thêm giờ, mẫu ngày lễ, v.v. | Legal Parameter Service của saas-platform (`06`) — Core xác định địa điểm → vùng bằng cách đọc bảng ánh xạ của pack (thay đổi 2026-10-16, R2-02 §5 #1) |
+| Thành phần lương, thang bảng lương, khung lương theo ngạch bậc | payroll (`04`) (thay đổi 2026-10-16, R2-02 §5 #7) |
+| Xác thực, SSO, MFA, session, API client và thông tin xác thực | saas-platform (`06`) (thay đổi 2026-10-16, R2-02 §5 #10) |
+| Object storage, job scheduler / queue, sổ đăng ký sự đồng ý, danh mục dữ liệu cá nhân, điều phối DSR, bộ lập lịch lưu trữ | saas-platform (`06`) (thay đổi 2026-10-16, R2-02 §5 #15, #16, #27) |
+| Yêu cầu tuyển dụng, kế hoạch nhân sự (Phase 2; kế hoạch ghi ngân sách FTE và vị trí đề xuất vào Core thông qua API) | recruitment (`05`) (thay đổi 2026-10-16, R2-02 §5 #8) |
+| Reporting framework, reporting store, mọi loại xuất dữ liệu bao gồm xuất danh sách, BI | saas-platform (`06`) — Core cung cấp predicate phạm vi và che giấu dữ liệu (P-10) (thay đổi 2026-10-16, R2-02 §5 #18) |
 
 ---
 
-## 2. Actors & personas
+## 2. Tác nhân & persona
 
-| Actor | Description | Typical Core activities |
+| Tác nhân | Mô tả | Hoạt động Core điển hình |
 |---|---|---|
-| Tenant Owner / Super Admin (Quản trị hệ thống khách hàng) | Customer-side top admin created at tenant provisioning | Configure entities, SSO, roles, settings; grant admin rights |
-| HR Administrator (Quản trị nhân sự) | HR ops for one or more legal entities | Maintain org tree, positions, job titles; run imports; configure workflows & templates |
-| C&B Specialist | Compensation & benefits | Maintain the grade catalogue and cost centres; salary ranges live in payroll (changed 2026-10-16, R2-02 §5 #7) |
-| Line Manager (Quản lý trực tiếp) | Manages an org subtree | Approves requests; views own subtree |
-| Employee (ESS user) | Any staff with login | Approves when delegated; receives notifications; manages own preferences |
-| Approver / Delegate / Substitute | Any user acting in a workflow step | Approve, reject, return, delegate, comment |
-| Finance user | Accounting / payroll costing | Maintains cost-centre mapping; read-only org |
-| Auditor (internal / external) | Read-only | Searches audit log, exports evidence |
-| IT Administrator (customer) | Customer IT | Maps API client scopes to permissions/data scopes; SSO, IP allowlist and API client credentials are configured in saas-platform (changed 2026-10-16, R2-02 §5 #10) |
-| System (scheduler / integration) | Non-human actor | Runs SLA timers, effective-dated activation, notification dispatch, import jobs |
-| Platform Operator | YourHRM staff (saas-platform) | Maintains global master data (provinces, banks) through the saas-platform back-office UI and release workflow, which loads it into the Core store; support access (break-glass) (changed 2026-10-16, R2-02 §5 #28) |
+| Tenant Owner / Super Admin (Quản trị hệ thống khách hàng) | Quản trị viên cao nhất phía khách hàng, được tạo khi khởi tạo tenant | Cấu hình pháp nhân, SSO, vai trò, cấu hình; cấp quyền quản trị |
+| HR Administrator (Quản trị nhân sự) | Vận hành nhân sự cho một hoặc nhiều pháp nhân | Duy trì cây tổ chức, vị trí, chức danh; chạy import; cấu hình workflow & mẫu |
+| Chuyên viên C&B | Lương thưởng & phúc lợi | Duy trì danh mục ngạch bậc và trung tâm chi phí; khung lương nằm ở payroll (thay đổi 2026-10-16, R2-02 §5 #7) |
+| Line Manager (Quản lý trực tiếp) | Quản lý một nhánh cây tổ chức | Phê duyệt yêu cầu; xem nhánh của mình |
+| Nhân viên (người dùng ESS) | Mọi nhân viên có tài khoản đăng nhập | Phê duyệt khi được ủy quyền; nhận thông báo; quản lý tùy chọn cá nhân |
+| Người phê duyệt / Người được ủy quyền / Người thay thế | Bất kỳ người dùng nào thực hiện một bước workflow | Phê duyệt, từ chối, trả lại, ủy quyền, bình luận |
+| Người dùng tài chính | Kế toán / hạch toán chi phí lương | Duy trì ánh xạ trung tâm chi phí; chỉ xem tổ chức |
+| Kiểm toán viên (nội bộ / bên ngoài) | Chỉ đọc | Tìm kiếm audit log, xuất bằng chứng |
+| Quản trị viên IT (khách hàng) | IT phía khách hàng | Ánh xạ scope của API client sang quyền/phạm vi dữ liệu; SSO, IP allowlist và thông tin xác thực API client được cấu hình trong saas-platform (thay đổi 2026-10-16, R2-02 §5 #10) |
+| Hệ thống (scheduler / tích hợp) | Tác nhân không phải con người | Chạy bộ đếm SLA, kích hoạt theo ngày hiệu lực, gửi thông báo, job import |
+| Platform Operator | Nhân viên YourHRM (saas-platform) | Duy trì master data toàn cục (tỉnh thành, ngân hàng) qua giao diện back-office và quy trình phát hành của saas-platform, nạp dữ liệu vào kho của Core; truy cập hỗ trợ (break-glass) (thay đổi 2026-10-16, R2-02 §5 #28) |
 
 ---
 
-## 3. Business processes
+## 3. Quy trình nghiệp vụ
 
-### P-01 Set up a tenant's employer structure (initial configuration)
-1. saas-platform provisions the tenant and creates the Tenant Owner account (Core receives `TenantProvisioned`). Provisioning creates the first legal entity through a Core API; Core is the only master of legal entities, and saas-platform keeps only a billing party and the plan's legal-entity limit (changed 2026-10-16, R2-02 §5 #23).
-2. Tenant Owner enters company group profile (name, logo, default language, timezone `Asia/Ho_Chi_Minh`, currency VND).
-3. Tenant Owner creates ≥1 **legal entity**: legal name (VN/EN), short name, enterprise tax code (MST), SI unit code (mã đơn vị BHXH), business registration number/date, registered address (province/ward), legal representative, minimum-wage region, default bank account, fiscal year start.
-4. System validates MST format and uniqueness within tenant; activates entity.
-5. HR Admin creates branches / work locations, each linked to exactly one legal entity, with address, region and (optional) geo-coordinates and radius.
-6. HR Admin builds the org tree (root per legal entity or a group-level root), job titles, grades, positions, cost centres — manually or via import (P-09).
-7. Exception: the plan limits number of legal entities (from saas-platform) → system blocks creation with a plan-limit message.
+### P-01 Thiết lập cơ cấu người sử dụng lao động của tenant (cấu hình ban đầu)
+1. saas-platform khởi tạo tenant và tạo tài khoản Tenant Owner (Core nhận `TenantProvisioned`). Quá trình khởi tạo tạo pháp nhân đầu tiên thông qua API của Core; Core là master duy nhất của pháp nhân, saas-platform chỉ giữ bên thanh toán và giới hạn số pháp nhân theo gói (thay đổi 2026-10-16, R2-02 §5 #23).
+2. Tenant Owner nhập hồ sơ tập đoàn/công ty (tên, logo, ngôn ngữ mặc định, múi giờ `Asia/Ho_Chi_Minh`, tiền tệ VND).
+3. Tenant Owner tạo ≥1 **pháp nhân**: tên pháp lý (VN/EN), tên viết tắt, mã số thuế doanh nghiệp (MST), mã đơn vị BHXH, số/ngày đăng ký kinh doanh, địa chỉ đăng ký (tỉnh/phường), người đại diện theo pháp luật, vùng lương tối thiểu, tài khoản ngân hàng mặc định, tháng bắt đầu năm tài chính.
+4. Hệ thống kiểm tra định dạng MST và tính duy nhất trong tenant; kích hoạt pháp nhân.
+5. HR Admin tạo chi nhánh / địa điểm làm việc, mỗi địa điểm gắn với đúng một pháp nhân, có địa chỉ, vùng và (tùy chọn) tọa độ địa lý và bán kính.
+6. HR Admin xây dựng cây tổ chức (gốc theo từng pháp nhân hoặc một gốc cấp tập đoàn), chức danh, ngạch bậc, vị trí, trung tâm chi phí — thủ công hoặc qua import (P-09).
+7. Ngoại lệ: gói thuê bao giới hạn số pháp nhân (từ saas-platform) → hệ thống chặn việc tạo và hiển thị thông báo giới hạn gói.
 
-### P-02 Effective-dated reorganisation (tái cơ cấu tổ chức)
-1. HR Admin opens a **reorganisation package** with an effective date (past, today, or future).
-2. Adds changes: create unit, rename, move under new parent, merge A+B→C, split A→A1+A2, change manager, change cost centre, close unit.
-3. System computes impact: affected positions, employees (via people), open requisitions (via recruitment), active workflow instances routed to affected managers, data-scope changes.
-4. Package is submitted for approval through the workflow engine (process type `CORE_REORG`).
-5. On approval and when the effective date is reached, the scheduler activates the package atomically: new org versions created, old versions end-dated (end date = effective date − 1).
-6. Core publishes `OrgUnitChanged` / `ReorgActivated` events; people module re-maps assignments per the mapping table in the package; recruitment and workflow re-route.
-7. Exceptions: (a) unit to be closed still has active employees with no mapping → block; (b) back-dated package that crosses a closed payroll period → warning and requires `CORE_REORG_BACKDATE` permission; payroll is notified for retro handling; (c) conflicting future packages on the same unit → block until resolved.
+### P-02 Tái cơ cấu tổ chức có hiệu lực theo ngày (tái cơ cấu tổ chức)
+1. HR Admin mở một **gói tái cơ cấu** với ngày hiệu lực (quá khứ, hôm nay hoặc tương lai).
+2. Thêm các thay đổi: tạo đơn vị, đổi tên, chuyển sang đơn vị cha mới, sáp nhập A+B→C, chia tách A→A1+A2, đổi người quản lý, đổi trung tâm chi phí, giải thể đơn vị.
+3. Hệ thống tính toán tác động: các vị trí, nhân viên bị ảnh hưởng (qua people), yêu cầu tuyển dụng đang mở (qua recruitment), các workflow instance đang hoạt động được định tuyến tới người quản lý bị ảnh hưởng, thay đổi phạm vi dữ liệu.
+4. Gói được trình phê duyệt qua workflow engine (process type `CORE_REORG`).
+5. Khi được phê duyệt và đến ngày hiệu lực, scheduler kích hoạt gói một cách nguyên tử: tạo các phiên bản tổ chức mới, kết thúc các phiên bản cũ (ngày kết thúc = ngày hiệu lực − 1).
+6. Core phát sự kiện `OrgUnitChanged` / `ReorgActivated`; module people ánh xạ lại phân công công việc theo bảng ánh xạ trong gói; recruitment và workflow định tuyến lại.
+7. Ngoại lệ: (a) đơn vị sắp giải thể vẫn còn nhân viên đang làm việc chưa được ánh xạ → chặn; (b) gói hồi tố vượt qua kỳ lương đã khóa → cảnh báo và yêu cầu quyền `CORE_REORG_BACKDATE`; payroll được thông báo để xử lý hồi tố; (c) các gói tương lai xung đột trên cùng một đơn vị → chặn cho đến khi được giải quyết.
 
-### P-03 Position management
-1. HR Admin creates a position: code, title (job title), org unit, location, grade range, cost centre, reports-to position, headcount (FTE) budget, status (proposed / active / frozen / closed), effective dates.
-2. Optional approval (`CORE_POSITION`).
-3. People module assigns employees to the position; Core exposes occupancy = budget FTE − occupied FTE (occupied supplied by people).
-4. Recruitment raises requisitions against vacant positions.
-5. Exception: closing a position with an incumbent → block; freezing → blocks new requisitions.
+### P-03 Quản lý vị trí
+1. HR Admin tạo vị trí: mã, chức danh (job title), đơn vị tổ chức, địa điểm, khoảng ngạch bậc, trung tâm chi phí, vị trí báo cáo trực tiếp, ngân sách định biên (FTE), trạng thái (đề xuất / hoạt động / đóng băng / đóng), ngày hiệu lực.
+2. Phê duyệt tùy chọn (`CORE_POSITION`).
+3. Module people phân công nhân viên vào vị trí; Core cung cấp mức lấp đầy = FTE ngân sách − FTE đã lấp (FTE đã lấp do people cung cấp).
+4. Recruitment tạo yêu cầu tuyển dụng cho các vị trí còn trống.
+5. Ngoại lệ: đóng vị trí đang có người đảm nhiệm → chặn; đóng băng → chặn yêu cầu tuyển dụng mới.
 
-### P-04 User lifecycle & access
-Core owns tenant user accounts and reacts **only to People events**; People emits no provisioning "requests" (changed 2026-10-16, R2-02 §5 #9).
-1. People emits `people.EmployeeHired` (also the pre-hire preview at approval) → Core auto-creates a user (if tenant setting `auto_create_user = true`) with default ESS role, login = work email or employee code, locale, and publishes `core.UserStatusChanged(ACTIVE)`; saas-platform then creates the credential/identity.
-2. Activation link sent via notification (email in Phase 1). With SSO (saas-platform), the identity links on first SSO login via email / `employee_code` claim.
-3. HR Admin assigns additional roles with data scopes (e.g. "HR Officer" scope = Legal Entity A).
-4. Manager role is **derived** automatically: manager of an org unit gets the `LINE_MANAGER` role with scope = own subtree (no manual grant).
-5. On `people.TerminationScheduled` Core schedules the access downgrade at `access_revocation_date` (default: last working day 23:59). At that time pending approvals are reassigned (P-07 step 8), sessions are revoked through saas-platform, and the user switches to the `FORMER_EMPLOYEE` role (own payslips, PIT certificates, letters) for the tenant-set period (OD-8); full deactivation follows after that period. Each change publishes `core.UserStatusChanged` (changed 2026-10-16, R2-02 §5 #9).
-6. Exceptions: rehire reactivates the same user; a user may exist without employee record (external auditor, consultant) with expiry date.
+### P-04 Vòng đời người dùng & quyền truy cập
+Core sở hữu tài khoản người dùng tenant và **chỉ phản ứng với sự kiện People**; People không phát "yêu cầu" cấp tài khoản nào (thay đổi 2026-10-16, R2-02 §5 #9).
+1. People phát `people.EmployeeHired` (bao gồm cả bản xem trước trước ngày nhận việc khi được phê duyệt) → Core tự động tạo người dùng (nếu cấu hình tenant `auto_create_user = true`) với vai trò ESS mặc định, login = email công việc hoặc mã nhân viên, locale, và phát `core.UserStatusChanged(ACTIVE)`; sau đó saas-platform tạo credential/identity.
+2. Liên kết kích hoạt được gửi qua thông báo (email ở Phase 1). Với SSO (saas-platform), identity được liên kết ở lần đăng nhập SSO đầu tiên qua claim email / `employee_code`.
+3. HR Admin gán thêm vai trò kèm phạm vi dữ liệu (ví dụ "HR Officer" phạm vi = Pháp nhân A).
+4. Vai trò quản lý được **suy ra** tự động: người quản lý của một đơn vị tổ chức nhận vai trò `LINE_MANAGER` với phạm vi = nhánh của mình (không cần cấp thủ công).
+5. Khi nhận `people.TerminationScheduled`, Core lên lịch hạ quyền truy cập tại `access_revocation_date` (mặc định: 23:59 ngày làm việc cuối cùng). Tại thời điểm đó các phê duyệt đang chờ được giao lại (P-07 bước 8), session bị thu hồi qua saas-platform và người dùng chuyển sang vai trò `FORMER_EMPLOYEE` (phiếu lương, chứng từ khấu trừ thuế TNCN, thư xác nhận của bản thân) trong khoảng thời gian do tenant thiết lập (OD-8); sau khoảng thời gian đó tài khoản bị vô hiệu hóa hoàn toàn. Mỗi thay đổi phát `core.UserStatusChanged` (thay đổi 2026-10-16, R2-02 §5 #9).
+6. Ngoại lệ: tái tuyển dụng kích hoạt lại cùng người dùng; một người dùng có thể tồn tại mà không có hồ sơ nhân viên (kiểm toán viên bên ngoài, tư vấn viên) với ngày hết hạn.
 
-### P-05 Single sign-on — Removed — owned by saas-platform (R2-02)
-SSO configuration, claim mapping, enforcement and IdP-outage fallback are saas-platform process P7 (BR-SAAS-040/041). Core only maps the authenticated identity (PR-03) to a tenant user account and its roles (changed 2026-10-16, R2-02 §5 #10).
+### P-05 Single sign-on — Đã bỏ — do saas-platform sở hữu (R2-02)
+Cấu hình SSO, ánh xạ claim, bắt buộc áp dụng và phương án dự phòng khi IdP gián đoạn là quy trình P7 của saas-platform (BR-SAAS-040/041). Core chỉ ánh xạ identity đã xác thực (PR-03) sang tài khoản người dùng tenant và các vai trò của nó (thay đổi 2026-10-16, R2-02 §5 #10).
 
-### P-06 Configure a workflow
-1. HR Admin selects a **process type** published by a module (e.g. `ATT_LEAVE_REQUEST`, `ATT_OT_REQUEST`, `PPL_CONTRACT_NEW`, `PAY_RUN_APPROVAL`, `REC_REQUISITION`, `CORE_REORG`).
-2. Defines one or more **workflow definitions** with applicability conditions (legal entity, org unit, employee category, request attributes such as leave days > 3, OT hours, amount).
-3. Defines steps: approver resolver (direct manager, manager at level N, position holder, role in scope, named user, dynamic field from request, HR of entity), step type (single, any-of, all-of, parallel branches), SLA (business hours/days), escalation rule, auto-action on timeout (escalate / auto-approve / auto-reject — auto-approve only if process type allows), skip rules (approver = requester, duplicate approver).
-4. Publishes a version; running instances keep the version they started with.
+### P-06 Cấu hình workflow
+1. HR Admin chọn một **process type** do module công bố (ví dụ `ATT_LEAVE_REQUEST`, `ATT_OT_REQUEST`, `PPL_CONTRACT_NEW`, `PAY_RUN_APPROVAL`, `REC_REQUISITION`, `CORE_REORG`).
+2. Định nghĩa một hoặc nhiều **workflow definition** với điều kiện áp dụng (pháp nhân, đơn vị tổ chức, loại nhân viên, thuộc tính yêu cầu như số ngày nghỉ > 3, số giờ làm thêm, số tiền).
+3. Định nghĩa các bước: cách xác định người phê duyệt (quản lý trực tiếp, quản lý cấp N, người giữ vị trí, vai trò trong phạm vi, người dùng chỉ định, trường động từ yêu cầu, HR của pháp nhân), loại bước (một người, any-of, all-of, nhánh song song), SLA (giờ/ngày làm việc), quy tắc leo thang, hành động tự động khi quá hạn (leo thang / tự động phê duyệt / tự động từ chối — chỉ tự động phê duyệt nếu process type cho phép), quy tắc bỏ qua (người phê duyệt = người yêu cầu, người phê duyệt trùng lặp).
+4. Công bố một phiên bản; các instance đang chạy giữ nguyên phiên bản lúc bắt đầu.
 
-### P-07 Run an approval
-1. Module submits a request → Core creates a workflow instance with a snapshot of the request summary and resolved approver chain.
-2. Approver receives notification (in-app + email; push/Zalo in Phase 2) with deep link and approves in the web app; approval from the mobile app or email action link (one-time, signed, expiring) is Phase 2 (changed 2026-10-16, OD-9).
-3. Approver: approve, reject (reason mandatory), return for change (back to requester or a previous step), request info, forward (if allowed), add comment/attachment.
-4. Delegation: an absent approver's tasks route to the delegate defined for the period / process type; actions are recorded "by B on behalf of A".
-5. Substitution: HR Admin may reassign an open task to another user (reason mandatory).
-6. SLA timer runs on business time (tenant work calendar from T&A); reminders at configurable % of SLA; on breach → escalate to next-level manager or named role.
-7. On final outcome Core calls back the owning module (`WorkflowCompleted` with outcome) — the module applies the business effect.
-8. Exceptions: approver deactivated / position vacant → resolver falls back (manager's manager → HR of entity) and logs; requester withdraws before final decision; org change mid-flight → open steps re-resolved by tenant setting (`reresolve_on_reorg`).
+### P-07 Thực hiện phê duyệt
+1. Module gửi yêu cầu → Core tạo workflow instance kèm snapshot tóm tắt yêu cầu và chuỗi người phê duyệt đã xác định.
+2. Người phê duyệt nhận thông báo (trong ứng dụng + email; push/Zalo ở Phase 2) kèm deep link và phê duyệt trên web app; phê duyệt từ mobile app hoặc liên kết thao tác trong email (dùng một lần, có ký, có thời hạn) thuộc Phase 2 (thay đổi 2026-10-16, OD-9).
+3. Người phê duyệt: phê duyệt, từ chối (bắt buộc nêu lý do), trả lại để chỉnh sửa (về người yêu cầu hoặc một bước trước), yêu cầu bổ sung thông tin, chuyển tiếp (nếu được phép), thêm bình luận/tệp đính kèm.
+4. Ủy quyền: công việc của người phê duyệt vắng mặt được chuyển tới người được ủy quyền đã định nghĩa cho khoảng thời gian / process type; hành động được ghi nhận "do B thực hiện thay mặt A".
+5. Thay thế: HR Admin có thể giao lại một công việc đang mở cho người dùng khác (bắt buộc nêu lý do).
+6. Bộ đếm SLA chạy theo thời gian làm việc (lịch làm việc của tenant từ T&A); nhắc nhở ở các mức % SLA có thể cấu hình; khi vi phạm → leo thang lên quản lý cấp kế tiếp hoặc vai trò được chỉ định.
+7. Khi có kết quả cuối cùng, Core gọi lại module sở hữu (`WorkflowCompleted` kèm kết quả) — module áp dụng tác động nghiệp vụ.
+8. Ngoại lệ: người phê duyệt bị vô hiệu hóa / vị trí trống → cơ chế xác định chuyển sang phương án dự phòng (quản lý của quản lý → HR của pháp nhân) và ghi log; người yêu cầu rút lại trước quyết định cuối cùng; thay đổi tổ chức giữa chừng → các bước đang mở được xác định lại theo cấu hình tenant (`reresolve_on_reorg`).
 
-### P-08 Send a notification
-1. A module raises a notification event with template code, recipients (users, roles in scope, external email/phone), and data payload.
-2. Core renders template in recipient's language (VI/EN), applies channel preferences and quiet hours, deduplicates, and queues per channel.
-3. Core hands each message to the saas-platform channel delivery adapter, which dispatches with retry and returns the delivery status; Core applies the fallback rule to the next channel (e.g. Zalo ZNS fail → SMS → email; Zalo and SMS are Phase 2) (changed 2026-10-16, R2-02 §5 #14).
-4. In-app inbox shows unread count; items deep-link to the record.
+### P-08 Gửi thông báo
+1. Một module phát sự kiện thông báo với mã mẫu, người nhận (người dùng, vai trò trong phạm vi, email/số điện thoại bên ngoài) và payload dữ liệu.
+2. Core render mẫu theo ngôn ngữ của người nhận (VI/EN), áp dụng tùy chọn kênh và khung giờ yên lặng, loại bỏ trùng lặp và đưa vào hàng đợi theo từng kênh.
+3. Core chuyển từng tin nhắn tới channel delivery adapter của saas-platform, adapter gửi đi có retry và trả về trạng thái gửi; Core áp dụng quy tắc dự phòng sang kênh kế tiếp (ví dụ Zalo ZNS lỗi → SMS → email; Zalo và SMS thuộc Phase 2) (thay đổi 2026-10-16, R2-02 §5 #14).
+4. Hộp thư trong ứng dụng hiển thị số chưa đọc; các mục có deep link tới bản ghi.
 
-### P-09 Import data
-1. User downloads a typed template (Excel) for an import type published by a module (e.g. org units, positions, employees, opening leave balances, salary history).
-2. Uploads file → Core stores it, parses into staging, runs module-provided validators.
-3. User reviews errors per row (downloadable error file), fixes and re-uploads. Commit is **all-or-nothing by default**; committing valid rows only is possible only if the import type allows partial commit (changed 2026-10-16, R2-02 §5 #12).
-4. Commit runs asynchronously; result summary + audit trail per import job; rollback of a batch within 24 h if no dependent transactions exist (changed 2026-10-16, R2-02 §5 #12).
+### P-09 Import dữ liệu
+1. Người dùng tải về mẫu có định kiểu (Excel) cho một loại import do module công bố (ví dụ đơn vị tổ chức, vị trí, nhân viên, số dư phép đầu kỳ, lịch sử lương).
+2. Tải tệp lên → Core lưu tệp, phân tích vào staging, chạy các validator do module cung cấp.
+3. Người dùng xem lỗi theo từng dòng (tệp lỗi có thể tải về), sửa và tải lên lại. Commit **mặc định là all-or-nothing**; chỉ commit các dòng hợp lệ khi loại import cho phép commit một phần (thay đổi 2026-10-16, R2-02 §5 #12).
+4. Commit chạy bất đồng bộ; tóm tắt kết quả + audit trail cho từng job import; rollback một lô trong vòng 24 h nếu chưa có giao dịch phụ thuộc (thay đổi 2026-10-16, R2-02 §5 #12).
 
-### P-10 Audit investigation
-1. Auditor filters audit log by entity type, record, user, date, action, IP.
-2. Views before/after values; exports to Excel/CSV (export itself audited).
+### P-10 Điều tra audit
+1. Kiểm toán viên lọc audit log theo loại thực thể, bản ghi, người dùng, ngày, hành động, IP.
+2. Xem giá trị trước/sau; xuất ra Excel/CSV (bản thân việc xuất cũng được audit).
 
 ---
 
-## 4. Business requirements
+## 4. Yêu cầu nghiệp vụ
 
-### 4.1 Company, legal entities, locations
-| ID | Requirement | Pri | Notes |
+### 4.1 Công ty, pháp nhân, địa điểm
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-001 | A tenant shall have one company group profile and **1..n legal entities**; the max number is limited by the tenant's plan (from saas-platform). | M | Group profile holds branding, default language, timezone, currency. |
-| BR-CORE-002 | Each legal entity shall store: legal name VI/EN, short name, enterprise tax code (MST), SI unit code, business registration no./date/issuer, registered address (province + ward), phone, email, legal representative (name, title, ID), default minimum-wage region, fiscal year start month, default bank account(s), company seal and authorised-signatory images, effective-dated status. It shall also store, effective-dated: the **managing tax authority** (cơ quan thuế quản lý), the **PIT declaration frequency** (monthly / quarterly, per tax year), and the **OA-OD rate decision** (rate applied, e.g. standard or reduced, with decision number, issuing authority, valid from/to and evidence file) (changed 2026-10-16, GAP-049). | M | MST, SI code, tax authority, declaration frequency and OA-OD rate decision are consumed by payroll for PIT/SI declarations and contributions (IF-PAY-C-01). The OA-OD rate value itself must be one the legal pack allows `[verify-legal]`. |
-| BR-CORE-003 | MST shall be validated as 10 digits (head office) or 13 digits in the form `NNNNNNNNNN-NNN` (dependent unit/branch) and be unique per tenant. | M | Format `[verify-legal]`. |
-| BR-CORE-004 | Legal-entity attributes that affect statutory calculations (tax code, SI code, region, address) shall be **effective-dated**; history must be retained and queryable "as of date". | M | Payroll needs the value valid in the payroll period. |
-| BR-CORE-005 | The system shall support branches / work locations linked to exactly one legal entity, with: code, name, type (head office, branch, representative office, factory, store, site), address (province/ward + street), minimum-wage region (default inherited from the ward's region table, overridable with reason), timezone, geo-coordinates and radius (m), allowed Wi-Fi/IP list, dependent tax code (13-digit) if the branch declares PIT separately, effective dates. | M | Geo-coordinates, radius and Wi-Fi/IP list are only used by mobile/web check-in, which is Phase 2. In Phase 1 they are optional fields (changed 2026-10-16, OD-9). |
-| BR-CORE-006 | The system shall resolve the **minimum-wage region** (I–IV) of each entity/location as of a date by reading the admin-unit → region map of the saas-platform **Legal Parameter Service** (`getParam(key, scope, asOfDate)`). Core does not master the map; tenant overrides are possible only where the legal pack flags "law permits", with approval and audit in the Legal Parameter Service. (changed 2026-10-16, R2-02 §5 #1) | M | Map and amounts per region are legal-pack parameters (saas-platform). `[verify-legal]` |
-| BR-CORE-007 | When an entity/location address or the legal pack's region map changes (`saas.LegalParameterPackPublished`), the system shall recompute the effective region and publish `core.LocationChanged` (subtype `LocationRegionChanged`) with effective date (changed 2026-10-16, R2-02 §5 #1). | M | Triggers payroll/people minimum-wage checks. |
-| BR-CORE-008 | Inter-entity relationships (parent/subsidiary, shared-service provider) shall be recordable for reporting and cross-entity data scope. | C | |
+| BR-CORE-001 | Một tenant phải có một hồ sơ tập đoàn/công ty và **1..n pháp nhân**; số lượng tối đa bị giới hạn bởi gói thuê bao của tenant (từ saas-platform). | M | Hồ sơ tập đoàn chứa nhận diện thương hiệu, ngôn ngữ mặc định, múi giờ, tiền tệ. |
+| BR-CORE-002 | Mỗi pháp nhân phải lưu: tên pháp lý VI/EN, tên viết tắt, mã số thuế doanh nghiệp (MST), mã đơn vị BHXH, số/ngày/nơi cấp đăng ký kinh doanh, địa chỉ đăng ký (tỉnh + phường), điện thoại, email, người đại diện theo pháp luật (họ tên, chức vụ, giấy tờ tùy thân), vùng lương tối thiểu mặc định, tháng bắt đầu năm tài chính, (các) tài khoản ngân hàng mặc định, hình ảnh con dấu và chữ ký người có thẩm quyền, trạng thái có hiệu lực theo ngày. Pháp nhân cũng phải lưu, có hiệu lực theo ngày: **cơ quan thuế quản lý**, **kỳ khai thuế TNCN** (theo tháng / theo quý, theo từng năm tính thuế) và **quyết định mức đóng BHTNLĐ-BNN** (mức áp dụng, ví dụ mức chuẩn hoặc mức thấp hơn, kèm số quyết định, cơ quan ban hành, hiệu lực từ/đến và tệp minh chứng) (thay đổi 2026-10-16, GAP-049). | M | MST, mã BHXH, cơ quan thuế, kỳ khai thuế và quyết định mức đóng BHTNLĐ-BNN được payroll sử dụng cho khai báo và đóng thuế TNCN/BHXH (IF-PAY-C-01). Bản thân giá trị mức đóng BHTNLĐ-BNN phải là giá trị được legal pack cho phép `[verify-legal]`. |
+| BR-CORE-003 | MST phải được kiểm tra là 10 chữ số (trụ sở chính) hoặc 13 chữ số dạng `NNNNNNNNNN-NNN` (đơn vị phụ thuộc/chi nhánh) và là duy nhất trong tenant. | M | Định dạng `[verify-legal]`. |
+| BR-CORE-004 | Các thuộc tính pháp nhân ảnh hưởng đến tính toán theo luật định (MST, mã BHXH, vùng, địa chỉ) phải **có hiệu lực theo ngày**; lịch sử phải được lưu giữ và truy vấn được "tại ngày". | M | Payroll cần giá trị có hiệu lực trong kỳ lương. |
+| BR-CORE-005 | Hệ thống phải hỗ trợ chi nhánh / địa điểm làm việc gắn với đúng một pháp nhân, gồm: mã, tên, loại (trụ sở chính, chi nhánh, văn phòng đại diện, nhà máy, cửa hàng, công trường), địa chỉ (tỉnh/phường + đường), vùng lương tối thiểu (mặc định kế thừa từ bảng vùng của phường, có thể ghi đè kèm lý do), múi giờ, tọa độ địa lý và bán kính (m), danh sách Wi-Fi/IP được phép, mã số thuế phụ thuộc (13 chữ số) nếu chi nhánh khai thuế TNCN riêng, ngày hiệu lực. | M | Tọa độ, bán kính và danh sách Wi-Fi/IP chỉ dùng cho check-in trên mobile/web, thuộc Phase 2. Ở Phase 1 đây là các trường tùy chọn (thay đổi 2026-10-16, OD-9). |
+| BR-CORE-006 | Hệ thống phải xác định **vùng lương tối thiểu** (I–IV) của từng pháp nhân/địa điểm tại một ngày bằng cách đọc bảng ánh xạ đơn vị hành chính → vùng của **Legal Parameter Service** thuộc saas-platform (`getParam(key, scope, asOfDate)`). Core không làm master bảng ánh xạ; tenant chỉ được ghi đè ở những nơi legal pack đánh dấu "pháp luật cho phép", kèm phê duyệt và audit trong Legal Parameter Service. (thay đổi 2026-10-16, R2-02 §5 #1) | M | Bảng ánh xạ và mức lương theo vùng là tham số của legal pack (saas-platform). `[verify-legal]` |
+| BR-CORE-007 | Khi địa chỉ của pháp nhân/địa điểm hoặc bảng ánh xạ vùng của legal pack thay đổi (`saas.LegalParameterPackPublished`), hệ thống phải tính lại vùng hiệu lực và phát `core.LocationChanged` (subtype `LocationRegionChanged`) kèm ngày hiệu lực (thay đổi 2026-10-16, R2-02 §5 #1). | M | Kích hoạt kiểm tra lương tối thiểu ở payroll/people. |
+| BR-CORE-008 | Phải ghi nhận được quan hệ giữa các pháp nhân (công ty mẹ/con, đơn vị cung cấp dịch vụ dùng chung) phục vụ báo cáo và phạm vi dữ liệu liên pháp nhân. | C | |
 
-### 4.2 Organisation structure
-| ID | Requirement | Pri | Notes |
+### 4.2 Cơ cấu tổ chức
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-010 | The system shall maintain a hierarchical org tree of org units with configurable **unit types** (e.g. Khối, Phòng, Ban, Bộ phận, Tổ/Nhóm) and depth up to at least 12 levels. | M | |
-| BR-CORE-011 | Each org unit shall store: code (unique per tenant, immutable after use), name VI/EN, type, parent, legal entity, primary location, manager position (and/or manager user), cost centre, status, effective start/end, sort order. | M | A unit belongs to one legal entity; group-level virtual units allowed with `legal_entity = null`. |
-| BR-CORE-012 | All org unit attributes and the parent relationship shall be **effective-dated**; the system shall answer "org tree as of date D" and "history of unit X". | M | |
-| BR-CORE-013 | Org changes shall be made through **reorganisation packages** (create, rename, move, merge, split, close, change manager, change cost centre) with an effective date, impact analysis, approval and scheduled atomic activation (P-02). | M | Simple renames may bypass a package when tenant setting allows. |
-| BR-CORE-014 | Merge/split/close shall require a **mapping** of affected positions and employees to target units; activation is blocked while unmapped active employees exist. | M | Mapping executed by people module on `ReorgActivated`; People returns `people.ReorgMappingCompleted{package_id, moved, failed}` and Core sets the package to `ACTIVE` (0 failures) or `ACTIVATED_WITH_ERRORS` and publishes `core.ReorgPackageStatusChanged` (changed 2026-10-16, GAP-053). |
-| BR-CORE-015 | Back-dated reorganisations shall require a dedicated permission and shall notify payroll and T&A of affected periods. The check uses the **legal-entity lock state** provided by payroll, derived from the runs of all pay groups of the entity (IF-PAY-P-20) (changed 2026-10-16, GAP-049). | M | |
-| BR-CORE-016 | The system shall render an interactive org chart (units and/or positions with incumbents, photos, vacancy flags), exportable to PDF/PNG. | S | Incumbent data from people. |
-| BR-CORE-017 | The system shall support matrix / secondary reporting lines (functional manager) in addition to the line hierarchy. | C | Workflow resolver can target functional manager. |
+| BR-CORE-010 | Hệ thống phải duy trì cây tổ chức phân cấp gồm các đơn vị tổ chức với **loại đơn vị** có thể cấu hình (ví dụ Khối, Phòng, Ban, Bộ phận, Tổ/Nhóm) và độ sâu tối thiểu 12 cấp. | M | |
+| BR-CORE-011 | Mỗi đơn vị tổ chức phải lưu: mã (duy nhất trong tenant, không thay đổi sau khi đã sử dụng), tên VI/EN, loại, đơn vị cha, pháp nhân, địa điểm chính, vị trí quản lý (và/hoặc người dùng quản lý), trung tâm chi phí, trạng thái, ngày bắt đầu/kết thúc hiệu lực, thứ tự sắp xếp. | M | Một đơn vị thuộc một pháp nhân; cho phép đơn vị ảo cấp tập đoàn với `legal_entity = null`. |
+| BR-CORE-012 | Mọi thuộc tính của đơn vị tổ chức và quan hệ cha-con phải **có hiệu lực theo ngày**; hệ thống phải trả lời được "cây tổ chức tại ngày D" và "lịch sử của đơn vị X". | M | |
+| BR-CORE-013 | Thay đổi tổ chức phải được thực hiện thông qua **gói tái cơ cấu** (tạo, đổi tên, di chuyển, sáp nhập, chia tách, giải thể, đổi người quản lý, đổi trung tâm chi phí) với ngày hiệu lực, phân tích tác động, phê duyệt và kích hoạt nguyên tử theo lịch (P-02). | M | Đổi tên đơn giản có thể không cần gói khi cấu hình tenant cho phép. |
+| BR-CORE-014 | Sáp nhập/chia tách/giải thể phải có **ánh xạ** các vị trí và nhân viên bị ảnh hưởng sang đơn vị đích; việc kích hoạt bị chặn khi còn nhân viên đang làm việc chưa được ánh xạ. | M | Ánh xạ do module people thực hiện khi nhận `ReorgActivated`; People trả về `people.ReorgMappingCompleted{package_id, moved, failed}` và Core đặt gói sang `ACTIVE` (0 lỗi) hoặc `ACTIVATED_WITH_ERRORS` và phát `core.ReorgPackageStatusChanged` (thay đổi 2026-10-16, GAP-053). |
+| BR-CORE-015 | Tái cơ cấu hồi tố phải yêu cầu quyền riêng và phải thông báo cho payroll và T&A về các kỳ bị ảnh hưởng. Việc kiểm tra sử dụng **trạng thái khóa của pháp nhân** do payroll cung cấp, được suy ra từ các kỳ lương của mọi nhóm lương thuộc pháp nhân (IF-PAY-P-20) (thay đổi 2026-10-16, GAP-049). | M | |
+| BR-CORE-016 | Hệ thống phải hiển thị sơ đồ tổ chức tương tác (đơn vị và/hoặc vị trí cùng người đảm nhiệm, ảnh, cờ vị trí trống), có thể xuất ra PDF/PNG. | S | Dữ liệu người đảm nhiệm lấy từ people. |
+| BR-CORE-017 | Hệ thống phải hỗ trợ tuyến báo cáo ma trận / phụ (quản lý chức năng) bên cạnh phân cấp trực tuyến. | C | Cơ chế xác định người phê duyệt của workflow có thể nhắm tới quản lý chức năng. |
 
-### 4.3 Job architecture & cost centres
-| ID | Requirement | Pri | Notes |
+### 4.3 Kiến trúc công việc & trung tâm chi phí
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-020 | The system shall maintain job families and **job titles** (chức danh) with code, name VI/EN, family, description/JD attachment, default grade range, occupational code, flag "heavy/hazardous/toxic job" (nặng nhọc, độc hại, nguy hiểm) with category. | M | Hazardous flag drives retirement-age, leave days and SI rules in other modules. `[verify-legal]` |
-| BR-CORE-021 | The system shall maintain the **grade catalogue** (ngạch, bậc, cấp bậc): grade structures, grade codes, names and ordering, effective-dated. The reference salary range (min/mid/max) is removed — owned by payroll (pay scales and grade salary bands, IF-PAY-P-02) (changed 2026-10-16, R2-02 §5 #7). | M | People and recruitment validate salaries against payroll bands, not Core. |
-| BR-CORE-022 | The system shall maintain **positions** (vị trí) as budgeted seats: code, job title, org unit, location, grade range, reports-to position, FTE budget, cost centre, status (proposed/active/frozen/closed), effective dates, critical-position flag. | M | |
-| BR-CORE-023 | Position use shall be configurable per tenant: `position_control = strict` (every assignment needs a vacant position), `soft` (warning) or `off` (job title only). | M | Avoids forcing SMEs into position control. |
-| BR-CORE-024 | The system shall expose position occupancy (budget, occupied, vacant, pipeline) combining Core budget with people (occupied) and recruitment (in-progress requisitions). | S | |
-| BR-CORE-025 | The system shall maintain **cost centres** (code, name, legal entity, accounting segment code, owner, effective dates) and a default cost-centre per org unit and per position; cost-centre split by percentage shall be supported at assignment level (owned by people) using Core's list. | M | Payroll costing / GL export. |
-| BR-CORE-026 | The system shall maintain an **employee category** code list (e.g. official, probation, seasonal, intern, expat, collaborator/CTV) usable as a condition in workflows, data scope and payroll rules. | M | |
+| BR-CORE-020 | Hệ thống phải duy trì nhóm công việc và **chức danh** với mã, tên VI/EN, nhóm, mô tả/tệp JD đính kèm, khoảng ngạch bậc mặc định, mã nghề nghiệp, cờ "nghề, công việc nặng nhọc, độc hại, nguy hiểm" kèm phân loại. | M | Cờ độc hại chi phối tuổi nghỉ hưu, số ngày nghỉ phép và quy tắc BHXH ở các module khác. `[verify-legal]` |
+| BR-CORE-021 | Hệ thống phải duy trì **danh mục ngạch bậc** (ngạch, bậc, cấp bậc): cấu trúc ngạch bậc, mã, tên và thứ tự ngạch bậc, có hiệu lực theo ngày. Khung lương tham chiếu (min/mid/max) đã bị bỏ — do payroll sở hữu (thang bảng lương và khung lương theo ngạch bậc, IF-PAY-P-02) (thay đổi 2026-10-16, R2-02 §5 #7). | M | People và recruitment kiểm tra mức lương theo khung lương của payroll, không theo Core. |
+| BR-CORE-022 | Hệ thống phải duy trì **vị trí** như các suất định biên: mã, chức danh, đơn vị tổ chức, địa điểm, khoảng ngạch bậc, vị trí báo cáo trực tiếp, ngân sách FTE, trung tâm chi phí, trạng thái (đề xuất/hoạt động/đóng băng/đóng), ngày hiệu lực, cờ vị trí trọng yếu. | M | |
+| BR-CORE-023 | Việc sử dụng vị trí phải cấu hình được theo tenant: `position_control = strict` (mọi phân công cần một vị trí trống), `soft` (cảnh báo) hoặc `off` (chỉ dùng chức danh). | M | Tránh ép doanh nghiệp vừa và nhỏ phải kiểm soát vị trí. |
+| BR-CORE-024 | Hệ thống phải cung cấp mức lấp đầy vị trí (ngân sách, đã lấp, còn trống, đang tuyển) kết hợp ngân sách của Core với people (đã lấp) và recruitment (yêu cầu tuyển dụng đang xử lý). | S | |
+| BR-CORE-025 | Hệ thống phải duy trì **trung tâm chi phí** (mã, tên, pháp nhân, mã phân đoạn kế toán, người phụ trách, ngày hiệu lực) và trung tâm chi phí mặc định cho từng đơn vị tổ chức và từng vị trí; phân bổ trung tâm chi phí theo tỷ lệ phần trăm phải được hỗ trợ ở cấp phân công công việc (do people sở hữu) dựa trên danh sách của Core. | M | Hạch toán chi phí lương / xuất GL. |
+| BR-CORE-026 | Hệ thống phải duy trì danh mục mã **loại nhân viên** (ví dụ chính thức, thử việc, thời vụ, thực tập, người nước ngoài, cộng tác viên/CTV) dùng được làm điều kiện trong workflow, phạm vi dữ liệu và quy tắc tính lương. | M | |
 
-### 4.4 Users, roles, permissions, data scope, SSO
-| ID | Requirement | Pri | Notes |
+### 4.4 Người dùng, vai trò, quyền, phạm vi dữ liệu, SSO
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-030 | The system shall manage tenant user accounts (login, display name, email, mobile, linked employee id or none, locale, status ACTIVE / FORMER_EMPLOYEE / DEACTIVATED, expiry date, link to the saas-platform identity). A user account belongs to exactly one tenant. Credentials, MFA factors and SSO subjects are held by saas-platform (changed 2026-10-16, R2-02 §5 #9, #10). | M | Cross-tenant identities handled by saas-platform. Status changes publish `core.UserStatusChanged`. |
-| BR-CORE-031 | Permissions shall be defined per **function** (menu/action: view, create, edit, delete, approve, export, import, view-sensitive) and grouped into **roles**; tenants can clone system roles and create custom roles. | M | Modules register their permission catalog at deploy time. |
-| BR-CORE-032 | A role assignment shall carry a **data scope**: all tenant; legal entity(ies); location(s); org unit(s) with/without subtree; own subtree as manager (derived); self only; custom rule (employee category, grade range). Effective permission = union of assignments. | M | Example: HR Officer → Legal Entity A; Manager → own subtree; Payroll → entities A+B. |
-| BR-CORE-033 | The `LINE_MANAGER` and `SELF` scopes shall be derived automatically from org/position data and change automatically on reorganisation or transfer without admin action. | M | |
-| BR-CORE-034 | **Field-level sensitivity**: salary, bank account, ID number, health info, family/dependent data and personal-data categories shall be maskable per role (`view-sensitive` permission). | M | PDP law: sensitive personal data. `[verify-legal]` Salary data (agreed compensation) is visible only with the **`compensation`** permission registered by people for C&B and authorised HR; every view is audited (changed 2026-10-16, R2-02 §5 #24). |
-| BR-CORE-035 | Data-scope filtering shall be enforced server-side on every query, report, export, API and notification recipient resolution, through a single Core authorisation service. | M | |
-| BR-CORE-036 | Role assignments shall support start/end dates and an approval workflow for privileged roles (`CORE_ROLE_GRANT`). | S | |
-| BR-CORE-037 | Segregation-of-duties rules shall be configurable (e.g. the same user cannot both prepare and approve a payroll run); violations block assignment or action. | S | |
-| BR-CORE-038 | Removed — owned by saas-platform (R2-02). Local login, password policy, MFA and session management are BR-SAAS-038/039/043; Core consumes the authenticated identity (C-22) (changed 2026-10-16, R2-02 §5 #10). | M | ID kept; not reused. |
-| BR-CORE-039 | Removed — owned by saas-platform (R2-02). SSO (OIDC/SAML), JIT linking and SCIM are BR-SAAS-040/041/042; role assignment stays in Core (changed 2026-10-16, R2-02 §5 #10). | M (OIDC), S (SAML), C (SCIM) | ID kept; not reused. |
-| BR-CORE-040 | The system shall support **access delegation** ("act as" for a period, limited functions) distinct from approval delegation, fully audited. | C | |
-| BR-CORE-041 | Platform support staff access to tenant data shall be possible only through time-boxed, tenant-approved break-glass sessions, logged in the tenant's audit log. | M | Mechanism owned by saas-platform; Core logs and enforces. |
-| BR-CORE-042 | Removed — owned by saas-platform (R2-02). API clients and credentials (scopes, IP allowlist, rotation, expiry) are BR-SAAS-056. Core keeps only the mapping from an API scope to permissions and data scope, evaluated by the authorisation service (BR-CORE-035) (changed 2026-10-16, R2-02 §5 #10). | S | ID kept; not reused. |
+| BR-CORE-030 | Hệ thống phải quản lý tài khoản người dùng tenant (login, tên hiển thị, email, di động, mã nhân viên liên kết hoặc không có, locale, trạng thái ACTIVE / FORMER_EMPLOYEE / DEACTIVATED, ngày hết hạn, liên kết tới identity của saas-platform). Một tài khoản người dùng thuộc đúng một tenant. Credential, yếu tố MFA và SSO subject do saas-platform nắm giữ (thay đổi 2026-10-16, R2-02 §5 #9, #10). | M | Identity liên tenant do saas-platform xử lý. Thay đổi trạng thái phát `core.UserStatusChanged`. |
+| BR-CORE-031 | Quyền phải được định nghĩa theo **chức năng** (menu/hành động: xem, tạo, sửa, xóa, phê duyệt, xuất, import, xem dữ liệu nhạy cảm) và nhóm thành **vai trò**; tenant có thể nhân bản vai trò hệ thống và tạo vai trò tùy chỉnh. | M | Các module đăng ký danh mục quyền của mình khi deploy. |
+| BR-CORE-032 | Một phép gán vai trò phải kèm **phạm vi dữ liệu**: toàn tenant; (các) pháp nhân; (các) địa điểm; (các) đơn vị tổ chức có/không bao gồm nhánh con; nhánh của mình với tư cách quản lý (suy ra); chỉ bản thân; quy tắc tùy chỉnh (loại nhân viên, khoảng ngạch bậc). Quyền hiệu lực = hợp của các phép gán. | M | Ví dụ: HR Officer → Pháp nhân A; Quản lý → nhánh của mình; Payroll → pháp nhân A+B. |
+| BR-CORE-033 | Phạm vi `LINE_MANAGER` và `SELF` phải được suy ra tự động từ dữ liệu tổ chức/vị trí và tự động thay đổi khi tái cơ cấu hoặc điều chuyển mà không cần quản trị viên thao tác. | M | |
+| BR-CORE-034 | **Độ nhạy cảm cấp trường**: lương, tài khoản ngân hàng, số giấy tờ tùy thân, thông tin sức khỏe, dữ liệu gia đình/người phụ thuộc và các loại dữ liệu cá nhân phải có thể che giấu theo vai trò (quyền `view-sensitive`). | M | Luật BVDLCN: dữ liệu cá nhân nhạy cảm. `[verify-legal]` Dữ liệu lương (mức lương thỏa thuận) chỉ hiển thị khi có quyền **`compensation`** do people đăng ký cho C&B và HR được ủy quyền; mọi lượt xem đều được audit (thay đổi 2026-10-16, R2-02 §5 #24). |
+| BR-CORE-035 | Lọc theo phạm vi dữ liệu phải được thực thi phía server trên mọi truy vấn, báo cáo, xuất dữ liệu, API và việc xác định người nhận thông báo, thông qua một dịch vụ phân quyền duy nhất của Core. | M | |
+| BR-CORE-036 | Phép gán vai trò phải hỗ trợ ngày bắt đầu/kết thúc và workflow phê duyệt cho các vai trò đặc quyền (`CORE_ROLE_GRANT`). | S | |
+| BR-CORE-037 | Quy tắc phân tách nhiệm vụ phải cấu hình được (ví dụ cùng một người dùng không thể vừa lập vừa duyệt một kỳ lương); vi phạm sẽ chặn phép gán hoặc hành động. | S | |
+| BR-CORE-038 | Đã bỏ — do saas-platform sở hữu (R2-02). Đăng nhập cục bộ, chính sách mật khẩu, MFA và quản lý session là BR-SAAS-038/039/043; Core sử dụng identity đã xác thực (C-22) (thay đổi 2026-10-16, R2-02 §5 #10). | M | Giữ ID; không tái sử dụng. |
+| BR-CORE-039 | Đã bỏ — do saas-platform sở hữu (R2-02). SSO (OIDC/SAML), liên kết JIT và SCIM là BR-SAAS-040/041/042; việc gán vai trò vẫn nằm ở Core (thay đổi 2026-10-16, R2-02 §5 #10). | M (OIDC), S (SAML), C (SCIM) | Giữ ID; không tái sử dụng. |
+| BR-CORE-040 | Hệ thống phải hỗ trợ **ủy quyền truy cập** ("act as" trong một khoảng thời gian, giới hạn chức năng), khác với ủy quyền phê duyệt, được audit đầy đủ. | C | |
+| BR-CORE-041 | Nhân viên hỗ trợ của nền tảng chỉ được truy cập dữ liệu tenant thông qua các session break-glass có giới hạn thời gian, được tenant phê duyệt, và được ghi vào audit log của tenant. | M | Cơ chế do saas-platform sở hữu; Core ghi log và thực thi. |
+| BR-CORE-042 | Đã bỏ — do saas-platform sở hữu (R2-02). API client và credential (scope, IP allowlist, xoay vòng, hết hạn) là BR-SAAS-056. Core chỉ giữ ánh xạ từ API scope sang quyền và phạm vi dữ liệu, được dịch vụ phân quyền đánh giá (BR-CORE-035) (thay đổi 2026-10-16, R2-02 §5 #10). | S | Giữ ID; không tái sử dụng. |
 
-### 4.5 Workflow & approval engine
-| ID | Requirement | Pri | Notes |
+### 4.5 Engine workflow & phê duyệt
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-050 | Core shall provide a generic workflow engine; each module registers **process types** with: request summary schema, condition fields, allowed actions, callback endpoint/event, whether auto-approve on timeout is allowed. | M | |
-| BR-CORE-051 | Workflow definitions shall be configurable without code (form-based designer): applicability conditions (entity, org unit, location, employee category, grade, any registered request field), ordered steps, versioning, activation dates. | M | |
-| BR-CORE-052 | Approver resolvers shall include: direct manager; manager N levels up; manager of a specified unit; holder of a position; users with role R within the requester's scope; named user; requester-selected approver from a filtered list; field from request (e.g. project manager); functional manager. | M | |
-| BR-CORE-053 | Step types: single approver; any-of (first response wins); all-of (consensus); parallel branches with join; conditional skip; notify-only (FYI) step. | M | |
-| BR-CORE-054 | Actions: submit, approve, reject (reason mandatory), return to requester / previous step, request more info, withdraw (requester, before final), forward (if allowed), comment, attach file, bulk approve. | M | |
-| BR-CORE-055 | **Approval delegation**: a user can delegate pending and new tasks for a date range, optionally per process type, to another user; delegate acts "on behalf of"; delegation cannot chain more than one level; delegate must satisfy data scope rules for the request. | M | Auto-suggest delegation when approver has approved leave (event from T&A). |
-| BR-CORE-056 | **Substitution / reassignment**: HR Admin can reassign any open task with mandatory reason; automatic fallback when the resolved approver is inactive, missing, or equals the requester (configurable: skip, go up one level, HR of entity). | M | |
-| BR-CORE-057 | **SLA & escalation**: each step has an SLA in business hours/days computed using the requester's work calendar (from T&A); reminders at configurable thresholds; on breach: escalate, reassign, auto-approve (only if allowed) or auto-reject; SLA reports. | M | |
-| BR-CORE-058 | The engine shall snapshot the approver chain at submission and re-resolve open steps on org change according to tenant setting. | M | |
-| BR-CORE-059 | Approval shall be possible from web, mobile app, and email/Zalo action links (signed, single-use, expiring ≤72h, step-up auth for sensitive process types). | S | |
-| BR-CORE-060 | The engine shall emit lifecycle events (`WorkflowSubmitted`, `StepAssigned`, `StepCompleted`, `WorkflowCompleted`, `WorkflowWithdrawn`, `SlaBreached`) and provide a unified "My tasks / My requests" inbox across modules. | M | |
-| BR-CORE-061 | Full approval history (who, on behalf of whom, when, action, comment, IP/device) shall be immutable and printable as an approval trail on documents. | M | |
+| BR-CORE-050 | Core phải cung cấp một workflow engine chung; mỗi module đăng ký **process type** với: schema tóm tắt yêu cầu, các trường điều kiện, các hành động được phép, endpoint/sự kiện callback, có cho phép tự động phê duyệt khi quá hạn hay không. | M | |
+| BR-CORE-051 | Workflow definition phải cấu hình được mà không cần code (trình thiết kế dạng biểu mẫu): điều kiện áp dụng (pháp nhân, đơn vị tổ chức, địa điểm, loại nhân viên, ngạch bậc, bất kỳ trường yêu cầu nào đã đăng ký), các bước có thứ tự, quản lý phiên bản, ngày kích hoạt. | M | |
+| BR-CORE-052 | Cơ chế xác định người phê duyệt phải bao gồm: quản lý trực tiếp; quản lý cấp trên N cấp; quản lý của một đơn vị chỉ định; người giữ một vị trí; người dùng có vai trò R trong phạm vi của người yêu cầu; người dùng chỉ định; người phê duyệt do người yêu cầu chọn từ danh sách đã lọc; trường từ yêu cầu (ví dụ quản lý dự án); quản lý chức năng. | M | |
+| BR-CORE-053 | Loại bước: một người phê duyệt; any-of (phản hồi đầu tiên được chấp nhận); all-of (đồng thuận); nhánh song song có điểm hợp; bỏ qua có điều kiện; bước chỉ thông báo (FYI). | M | |
+| BR-CORE-054 | Hành động: gửi, phê duyệt, từ chối (bắt buộc nêu lý do), trả lại người yêu cầu / bước trước, yêu cầu bổ sung thông tin, rút lại (người yêu cầu, trước quyết định cuối cùng), chuyển tiếp (nếu được phép), bình luận, đính kèm tệp, phê duyệt hàng loạt. | M | |
+| BR-CORE-055 | **Ủy quyền phê duyệt**: người dùng có thể ủy quyền các công việc đang chờ và công việc mới trong một khoảng ngày, tùy chọn theo process type, cho người dùng khác; người được ủy quyền thực hiện "thay mặt"; ủy quyền không được nối chuỗi quá một cấp; người được ủy quyền phải thỏa mãn quy tắc phạm vi dữ liệu đối với yêu cầu. | M | Tự động gợi ý ủy quyền khi người phê duyệt có đơn nghỉ phép đã được duyệt (sự kiện từ T&A). |
+| BR-CORE-056 | **Thay thế / giao lại**: HR Admin có thể giao lại bất kỳ công việc đang mở nào kèm lý do bắt buộc; dự phòng tự động khi người phê duyệt đã xác định không hoạt động, không tồn tại hoặc trùng với người yêu cầu (cấu hình được: bỏ qua, lên một cấp, HR của pháp nhân). | M | |
+| BR-CORE-057 | **SLA & leo thang**: mỗi bước có SLA tính theo giờ/ngày làm việc dựa trên lịch làm việc của người yêu cầu (từ T&A); nhắc nhở tại các ngưỡng cấu hình được; khi vi phạm: leo thang, giao lại, tự động phê duyệt (chỉ khi được phép) hoặc tự động từ chối; báo cáo SLA. | M | |
+| BR-CORE-058 | Engine phải lưu snapshot chuỗi người phê duyệt khi gửi và xác định lại các bước đang mở khi tổ chức thay đổi theo cấu hình tenant. | M | |
+| BR-CORE-059 | Phê duyệt phải thực hiện được từ web, mobile app và liên kết thao tác qua email/Zalo (có ký, dùng một lần, hết hạn ≤72h, xác thực tăng cường cho các process type nhạy cảm). | S | |
+| BR-CORE-060 | Engine phải phát các sự kiện vòng đời (`WorkflowSubmitted`, `StepAssigned`, `StepCompleted`, `WorkflowCompleted`, `WorkflowWithdrawn`, `SlaBreached`) và cung cấp hộp thư "Việc của tôi / Yêu cầu của tôi" thống nhất cho mọi module. | M | |
+| BR-CORE-061 | Toàn bộ lịch sử phê duyệt (ai, thay mặt ai, khi nào, hành động, bình luận, IP/thiết bị) phải bất biến và in được thành vết phê duyệt trên văn bản. | M | |
 
-### 4.6 Notifications
-| ID | Requirement | Pri | Notes |
+### 4.6 Thông báo
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-070 | Core shall provide the **notification centre** for channels: in-app inbox (Core), and email, mobile push (FCM/APNs), **Zalo OA / ZNS**, SMS delivered through the saas-platform **channel delivery adapters** (SMTP/DKIM, push, ZNS, SMS, provider accounts), which return the delivery status. Modules call Core only (changed 2026-10-16, R2-02 §5 #14). | M (in-app, email), S (push, Zalo), C (SMS) | ZNS templates need Zalo approval — lead time. |
-| BR-CORE-071 | Notification templates shall be managed per event code, channel and language (VI/EN) with placeholders, tenant overrides of system templates, and preview. | M | |
-| BR-CORE-072 | Users shall manage channel preferences per category, except mandatory categories (security, payslip availability, workflow tasks) which can only change channel, not be disabled. | S | |
-| BR-CORE-073 | The notification centre shall support scheduled sends, quiet hours, daily digests, deduplication, channel fallback and display of delivery status (sent/delivered/read/failed). Dispatch and retries are done by the saas-platform delivery adapters (changed 2026-10-16, R2-02 §5 #14). | S | |
-| BR-CORE-074 | Notification content containing sensitive data (e.g. salary) shall not be sent **unencrypted** over email/Zalo/SMS; the default is a secure deep link. **Exception for payslips (R2-17):** payroll may attach the payslip to an e-mail as a **password-protected PDF** (BR-PAY-102). The deep-link-only rule is **relaxed for payslips only**. The password is set by the employee in ESS; there is no default, initial or derived password (date of birth + ID digits is rejected as too weak under PDPL); it is never sent by e-mail, SMS or Zalo. Until the employee has set it, the e-mail carries only a notice with the deep link and no attachment. Sending and resending are audited. Zalo/SMS messages never carry amounts (changed 2026-10-16, R2-17; GAP-057). | M | PDPL review `[verify-legal]` |
-| BR-CORE-075 | Tenants shall be able to send announcements (bản tin nội bộ) to audiences defined by data scope (entity, unit, location, category) with read receipts. | C | |
+| BR-CORE-070 | Core phải cung cấp **trung tâm thông báo** cho các kênh: hộp thư trong ứng dụng (Core), và email, push trên mobile (FCM/APNs), **Zalo OA / ZNS**, SMS được gửi qua **channel delivery adapter** của saas-platform (SMTP/DKIM, push, ZNS, SMS, tài khoản nhà cung cấp), các adapter này trả về trạng thái gửi. Các module chỉ gọi Core (thay đổi 2026-10-16, R2-02 §5 #14). | M (trong ứng dụng, email), S (push, Zalo), C (SMS) | Mẫu ZNS cần Zalo phê duyệt — cần thời gian chuẩn bị. |
+| BR-CORE-071 | Mẫu thông báo phải được quản lý theo mã sự kiện, kênh và ngôn ngữ (VI/EN) với placeholder, cho phép tenant ghi đè mẫu hệ thống và xem trước. | M | |
+| BR-CORE-072 | Người dùng phải quản lý được tùy chọn kênh theo từng nhóm, trừ các nhóm bắt buộc (bảo mật, thông báo có phiếu lương, công việc workflow) chỉ được đổi kênh, không được tắt. | S | |
+| BR-CORE-073 | Trung tâm thông báo phải hỗ trợ gửi theo lịch, khung giờ yên lặng, bản tổng hợp hằng ngày, loại bỏ trùng lặp, dự phòng kênh và hiển thị trạng thái gửi (đã gửi/đã nhận/đã đọc/lỗi). Việc gửi và retry do delivery adapter của saas-platform thực hiện (thay đổi 2026-10-16, R2-02 §5 #14). | S | |
+| BR-CORE-074 | Nội dung thông báo chứa dữ liệu nhạy cảm (ví dụ lương) không được gửi **không mã hóa** qua email/Zalo/SMS; mặc định là deep link bảo mật. **Ngoại lệ cho phiếu lương (R2-17):** payroll có thể đính kèm phiếu lương vào e-mail dưới dạng **PDF có mật khẩu** (BR-PAY-102). Quy tắc chỉ dùng deep link **được nới lỏng chỉ cho phiếu lương**. Mật khẩu do nhân viên tự đặt trong ESS; không có mật khẩu mặc định, ban đầu hay suy ra (ngày sinh + các chữ số giấy tờ tùy thân bị từ chối vì quá yếu theo Luật BVDLCN); mật khẩu không bao giờ được gửi qua e-mail, SMS hay Zalo. Cho đến khi nhân viên đặt mật khẩu, e-mail chỉ chứa thông báo kèm deep link, không có tệp đính kèm. Việc gửi và gửi lại đều được audit. Tin nhắn Zalo/SMS không bao giờ chứa số tiền (thay đổi 2026-10-16, R2-17; GAP-057). | M | Rà soát theo Luật BVDLCN `[verify-legal]` |
+| BR-CORE-075 | Tenant phải gửi được thông báo chung (bản tin nội bộ) tới các nhóm đối tượng xác định theo phạm vi dữ liệu (pháp nhân, đơn vị, địa điểm, loại nhân viên) kèm xác nhận đã đọc. | C | |
 
-### 4.7 Settings & master data
-| ID | Requirement | Pri | Notes |
+### 4.7 Cấu hình & master data
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-080 | Core shall own the **global master data store and its admin API** (read-only to tenants); the platform operator curates the data through the saas-platform back-office UI and release workflow (publish → versioned load into `core` → `core.MasterDataReleased`) (changed 2026-10-16, R2-02 §5 #28). Content: administrative units (34 provinces/centrally-run cities and their wards/communes/special zones under the two-level local government model, effective from 2025-07-01), with history/mapping from the pre-merger 63 provinces and districts. | M | Resolution 202/2025/QH15 `[verify-legal]` |
-| BR-CORE-081 | The administrative-unit model shall keep old codes and an **old→new mapping table** so that old-model addresses (opening-balance imports from the customer's records, old ID cards, birthplaces) remain valid (changed 2026-10-16, D-09), and addresses can be displayed in old or new form. | M | Birthplace / hometown use historic units. |
-| BR-CORE-082 | Global lists shall include: countries/nationalities (ISO 3166), 54 ethnic groups of Vietnam, religions, ID document types (CCCD, CMND legacy, passport), banks and branches (with SBV/NAPAS codes, SWIFT), currencies (ISO 4217), languages, education levels, marital status, relationships, genders. | M | Ethnic list per GSO code list `[verify-legal]` |
-| BR-CORE-083 | Tenants shall be able to define **custom code lists** (e.g. reasons for termination, training types) and extend selected global lists with tenant-local values, with code, VI/EN labels, sort order, active flag and effective dates. | M | |
-| BR-CORE-084 | Tenant settings shall be hierarchical (tenant → legal entity → location) with typed values, validation, effective dating where flagged, and audit of changes. | M | e.g. employee code format, `auto_create_user`, `position_control`. |
-| BR-CORE-085 | Core shall provide a **numbering service**: configurable sequences per tenant/entity/document type with patterns (prefix, year, entity code, zero-padded counter), gap-less option, and reset rules. | M | Employee codes, contract numbers, decision numbers. |
-| BR-CORE-086 | Core shall provide the single **custom-field framework** (user-defined fields) on registered entities of all modules — at least employee, assignment and org unit with basic types — with type, validation, VI/EN labels, sensitivity flag, field-level permission and data scope, inclusion in import/export and reports. saas-platform does not provide a second framework (PR-05 removed); payroll formula reference to numeric custom fields is a later step (changed 2026-10-16, R2-02 §5 #11). | M | §5 #11 rates basic types M: tenant attributes in the opening-balance employee master template must land somewhere (priority changed S → M 2026-10-16, R2-02, PM-approved). Phase stays P2 per mvp-scope.md §9 (custom fields deferred). |
-| BR-CORE-087 | Global master data updates (e.g. new bank, new admin units) shall be distributed to all tenants with an effective date and a change notice (`core.MasterDataReleased`, released from the saas-platform back-office); tenant-specific references to retired values shall be reported (changed 2026-10-16, R2-02 §5 #28). | M | |
-| BR-CORE-088 | Core shall maintain an **exchange-rate table** as master data: currency pair, rate type (e.g. bank buying / selling / central rate), rate date, source, value; manual entry and Excel import; tenant override rows allowed (R2-11). An automatic SBV/bank feed via the saas-platform integration hub is a later phase. Payroll reads the rate valid at the rate date (IF-PAY-C-33) (new 2026-10-16, R2-02 §5 #19). | S | Multi-currency payroll is Phase 2 (R2-09); the table is needed only when a tenant pays in foreign currency. |
+| BR-CORE-080 | Core phải sở hữu **kho master data toàn cục và admin API của kho** (tenant chỉ đọc); platform operator quản lý dữ liệu qua giao diện back-office và quy trình phát hành của saas-platform (publish → nạp có phiên bản vào `core` → `core.MasterDataReleased`) (thay đổi 2026-10-16, R2-02 §5 #28). Nội dung: đơn vị hành chính (34 tỉnh/thành phố trực thuộc trung ương và các phường/xã/đặc khu theo mô hình chính quyền địa phương hai cấp, hiệu lực từ 2025-07-01), kèm lịch sử/ánh xạ từ 63 tỉnh thành và quận huyện trước sáp nhập. | M | Nghị quyết 202/2025/QH15 `[verify-legal]` |
+| BR-CORE-081 | Mô hình đơn vị hành chính phải giữ mã cũ và **bảng ánh xạ cũ→mới** để các địa chỉ theo mô hình cũ (import số dư đầu kỳ từ hồ sơ của khách hàng, CMND cũ, nơi sinh) vẫn hợp lệ (thay đổi 2026-10-16, D-09), và địa chỉ có thể hiển thị theo dạng cũ hoặc mới. | M | Nơi sinh / quê quán dùng đơn vị hành chính lịch sử. |
+| BR-CORE-082 | Danh mục toàn cục phải bao gồm: quốc gia/quốc tịch (ISO 3166), 54 dân tộc Việt Nam, tôn giáo, loại giấy tờ tùy thân (CCCD, CMND cũ, hộ chiếu), ngân hàng và chi nhánh (kèm mã SBV/NAPAS, SWIFT), tiền tệ (ISO 4217), ngôn ngữ, trình độ học vấn, tình trạng hôn nhân, quan hệ, giới tính. | M | Danh mục dân tộc theo bảng mã của Tổng cục Thống kê `[verify-legal]` |
+| BR-CORE-083 | Tenant phải định nghĩa được **danh mục mã tùy chỉnh** (ví dụ lý do nghỉ việc, loại hình đào tạo) và mở rộng một số danh mục toàn cục bằng giá trị riêng của tenant, gồm mã, nhãn VI/EN, thứ tự sắp xếp, cờ hoạt động và ngày hiệu lực. | M | |
+| BR-CORE-084 | Cấu hình tenant phải phân cấp (tenant → pháp nhân → địa điểm) với giá trị có định kiểu, kiểm tra hợp lệ, hiệu lực theo ngày khi được đánh dấu, và audit thay đổi. | M | ví dụ định dạng mã nhân viên, `auto_create_user`, `position_control`. |
+| BR-CORE-085 | Core phải cung cấp **dịch vụ đánh số**: chuỗi số cấu hình được theo tenant/pháp nhân/loại văn bản với mẫu (tiền tố, năm, mã pháp nhân, bộ đếm đệm số 0), tùy chọn không ngắt quãng và quy tắc đặt lại. | M | Mã nhân viên, số hợp đồng, số quyết định. |
+| BR-CORE-086 | Core phải cung cấp **framework trường tùy chỉnh** duy nhất (trường do người dùng định nghĩa) trên các thực thể đã đăng ký của mọi module — tối thiểu nhân viên, phân công công việc và đơn vị tổ chức với các kiểu cơ bản — gồm kiểu, kiểm tra hợp lệ, nhãn VI/EN, cờ nhạy cảm, quyền cấp trường và phạm vi dữ liệu, đưa vào import/xuất và báo cáo. saas-platform không cung cấp framework thứ hai (bỏ PR-05); việc công thức lương tham chiếu tới trường tùy chỉnh kiểu số là bước sau (thay đổi 2026-10-16, R2-02 §5 #11). | M | §5 #11 xếp các kiểu cơ bản là M: các thuộc tính của tenant trong mẫu master nhân viên số dư đầu kỳ phải có nơi lưu (độ ưu tiên đổi S → M 2026-10-16, R2-02, PM đã phê duyệt). Giai đoạn vẫn là P2 theo mvp-scope.md §9 (trường tùy chỉnh được hoãn). |
+| BR-CORE-087 | Cập nhật master data toàn cục (ví dụ ngân hàng mới, đơn vị hành chính mới) phải được phân phối tới mọi tenant kèm ngày hiệu lực và thông báo thay đổi (`core.MasterDataReleased`, phát hành từ back-office của saas-platform); các tham chiếu riêng của tenant tới giá trị đã ngừng sử dụng phải được báo cáo (thay đổi 2026-10-16, R2-02 §5 #28). | M | |
+| BR-CORE-088 | Core phải duy trì **bảng tỷ giá** như master data: cặp tiền tệ, loại tỷ giá (ví dụ mua vào / bán ra của ngân hàng / tỷ giá trung tâm), ngày tỷ giá, nguồn, giá trị; nhập thủ công và import Excel; cho phép các dòng ghi đè của tenant (R2-11). Nguồn cấp tự động từ SBV/ngân hàng qua integration hub của saas-platform thuộc giai đoạn sau. Payroll đọc tỷ giá có hiệu lực tại ngày tỷ giá (IF-PAY-C-33) (mới 2026-10-16, R2-02 §5 #19). | S | Tính lương đa tiền tệ thuộc Phase 2 (R2-09); bảng chỉ cần khi tenant trả lương bằng ngoại tệ. |
 
 ### 4.8 Audit log
-| ID | Requirement | Pri | Notes |
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-090 | Core shall record an audit entry for every create/update/delete on business data of all modules: tenant, entity type, record id, action, changed fields with before/after values (sensitive values masked or encrypted), user, on-behalf-of user, timestamp (UTC + local), IP, user agent, channel (UI/API/import/system), correlation id. | M | |
-| BR-CORE-091 | Security events shall be logged: login success/failure, MFA, password change, role/permission changes, SSO config changes, break-glass sessions, exports and downloads of personal data, viewing of sensitive fields. Identity and operator back-office events are produced by saas-platform and **written into the Core audit store**; only platform-level operator events without a tenant go to `saas.audit_event` (changed 2026-10-16, R2-02 §5 #13). | M | Core is the single tenant audit service and store. |
-| BR-CORE-092 | The audit log shall be append-only and tamper-evident (hash chain or WORM storage); no user including tenant admin can edit or delete entries. | M | |
-| BR-CORE-093 | Audit search shall support filters (date range, user, entity, record, action, module) and export; access requires `AUDIT_VIEW` and is itself audited. | M | |
-| BR-CORE-094 | Audit retention shall be configurable per category with legal floors that tenants cannot lower: security events ≥ 2 years; payroll- and accounting-relevant events ≥ 10 years `[verify-legal]`; purge after retention must be logged (changed 2026-10-16, R2-02 §5 #13). | M | See §5. Aligns BR-SAAS-085, BR-PAY-123, NFR-ATT-007. |
+| BR-CORE-090 | Core phải ghi một bản ghi audit cho mọi thao tác tạo/sửa/xóa dữ liệu nghiệp vụ của mọi module: tenant, loại thực thể, id bản ghi, hành động, các trường thay đổi với giá trị trước/sau (giá trị nhạy cảm được che hoặc mã hóa), người dùng, người dùng được thay mặt, thời điểm (UTC + giờ địa phương), IP, user agent, kênh (UI/API/import/hệ thống), correlation id. | M | |
+| BR-CORE-091 | Các sự kiện bảo mật phải được ghi log: đăng nhập thành công/thất bại, MFA, đổi mật khẩu, thay đổi vai trò/quyền, thay đổi cấu hình SSO, session break-glass, xuất và tải xuống dữ liệu cá nhân, xem các trường nhạy cảm. Sự kiện identity và back-office của operator do saas-platform tạo ra và **được ghi vào kho audit của Core**; chỉ các sự kiện operator cấp nền tảng không gắn với tenant mới vào `saas.audit_event` (thay đổi 2026-10-16, R2-02 §5 #13). | M | Core là dịch vụ và kho audit duy nhất của tenant. |
+| BR-CORE-092 | Audit log phải chỉ cho phép ghi thêm và có khả năng phát hiện giả mạo (hash chain hoặc WORM storage); không người dùng nào, kể cả quản trị viên tenant, được sửa hoặc xóa bản ghi. | M | |
+| BR-CORE-093 | Tìm kiếm audit phải hỗ trợ bộ lọc (khoảng ngày, người dùng, thực thể, bản ghi, hành động, module) và xuất dữ liệu; truy cập yêu cầu `AUDIT_VIEW` và bản thân việc truy cập cũng được audit. | M | |
+| BR-CORE-094 | Thời hạn lưu trữ audit phải cấu hình được theo từng nhóm với mức sàn pháp lý mà tenant không thể hạ thấp: sự kiện bảo mật ≥ 2 năm; sự kiện liên quan đến lương và kế toán ≥ 10 năm `[verify-legal]`; việc xóa sau thời hạn lưu trữ phải được ghi log (thay đổi 2026-10-16, R2-02 §5 #13). | M | Xem §5. Thống nhất với BR-SAAS-085, BR-PAY-123, NFR-ATT-007. |
 
-### 4.9 Documents & files
-| ID | Requirement | Pri | Notes |
+### 4.9 Tài liệu & tệp
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-100 | Core shall provide the **document service API** that all modules call (changed 2026-10-16, R2-02 §5 #15/#15b): upload (size/type limits per tenant), malware scan before availability, storage in the tenant-isolated **saas-platform object storage** (VN residency, per-tenant prefix, encryption/KMS, AV scan, signed URLs — PR-16), metadata (owner module, entity, record id, document type, confidentiality, retention class), versioning. | M | |
-| BR-CORE-101 | Access to a file shall follow the permission and data scope of the owning record; downloads via short-lived signed URLs; access to confidential files audited. | M | |
-| BR-CORE-102 | Core shall provide **document templates** (DOCX/HTML → PDF) with merge fields supplied by modules (e.g. labour contract, decision, certificate), numbering via BR-CORE-085 and entity letterhead/seal. | M | Contract generation consumed by people. |
-| BR-CORE-103 | Core shall own **signing orchestration**: send a document for e-signature, track signing status and store the signed file and certificate evidence. The e-signature / e-contract provider connectors (licensed CA in VN) are saas-platform integration-hub connectors (BR-SAAS-063) (changed 2026-10-16, R2-02 §5 #15b). | S | Law on Electronic Transactions 2023 `[verify-legal]`. E-sign is Phase 2 (R2-01). |
-| BR-CORE-104 | Retention classes shall drive automatic archival/deletion with legal-hold override. A document retention class is a **key into the saas-platform retention policy** (single retention scheduler with legal floors, BR-SAAS-082) (changed 2026-10-16, R2-02 §5 #27). | S | |
+| BR-CORE-100 | Core phải cung cấp **API dịch vụ tài liệu** mà mọi module gọi (thay đổi 2026-10-16, R2-02 §5 #15/#15b): tải lên (giới hạn dung lượng/loại tệp theo tenant), quét mã độc trước khi cho phép sử dụng, lưu trong **object storage của saas-platform** được cô lập theo tenant (lưu trữ tại VN, prefix theo tenant, mã hóa/KMS, quét AV, signed URL — PR-16), metadata (module sở hữu, thực thể, id bản ghi, loại tài liệu, mức độ bảo mật, lớp lưu trữ), quản lý phiên bản. | M | |
+| BR-CORE-101 | Quyền truy cập tệp phải tuân theo quyền và phạm vi dữ liệu của bản ghi sở hữu; tải xuống qua signed URL ngắn hạn; truy cập tệp mật được audit. | M | |
+| BR-CORE-102 | Core phải cung cấp **mẫu văn bản** (DOCX/HTML → PDF) với các trường trộn do module cung cấp (ví dụ hợp đồng lao động, quyết định, giấy xác nhận), đánh số qua BR-CORE-085 và tiêu đề thư/con dấu của pháp nhân. | M | Việc sinh hợp đồng được people sử dụng. |
+| BR-CORE-103 | Core phải sở hữu **điều phối ký điện tử**: gửi văn bản đi ký điện tử, theo dõi trạng thái ký và lưu tệp đã ký cùng bằng chứng chứng thư số. Các connector nhà cung cấp chữ ký điện tử / hợp đồng điện tử (CA được cấp phép tại VN) là connector integration-hub của saas-platform (BR-SAAS-063) (thay đổi 2026-10-16, R2-02 §5 #15b). | S | Luật Giao dịch điện tử 2023 `[verify-legal]`. Ký điện tử thuộc Phase 2 (R2-01). |
+| BR-CORE-104 | Lớp lưu trữ phải điều khiển việc lưu trữ/xóa tự động, có ghi đè khi bị giữ theo yêu cầu pháp lý (legal hold). Lớp lưu trữ của tài liệu là một **khóa trỏ vào chính sách lưu trữ của saas-platform** (bộ lập lịch lưu trữ duy nhất với mức sàn pháp lý, BR-SAAS-082) (thay đổi 2026-10-16, R2-02 §5 #27). | S | |
 
 ### 4.10 Import / export
-| ID | Requirement | Pri | Notes |
+| ID | Yêu cầu | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| BR-CORE-110 | Core shall provide the **single import engine** in which modules register import types (template definition, field mapping, validators, commit handler, undo handler, partial-commit allowed flag). Default commit is **all-or-nothing**; partial commit only if the import type allows it; rollback within 24 h if no dependent transactions. The saas-platform import requirements (BR-SAAS-069/070) are requirements on this engine (changed 2026-10-16, R2-02 §5 #12). | M | |
-| BR-CORE-111 | Imports shall run as asynchronous jobs with staging, row-level validation messages (VI/EN), dry-run, downloadable error file, commit, progress tracking, and a job history; ≥50,000 rows per file. | M | |
-| BR-CORE-112 | Templates shall be generated as Excel with dropdowns from code lists, data-type hints and an instruction sheet; lookups shall accept code or name. | M | |
-| BR-CORE-113 | Removed — owned by saas-platform (R2-02). List and report exports (Excel/CSV/PDF, async, 7-day expiry, audited) are the saas-platform reporting and export framework (BR-SAAS-046/053); Core supplies the data-scope predicate and field-masking policy (P-10) (changed 2026-10-16, R2-02 §5 #18). | M | ID kept; not reused. |
-| BR-CORE-114 | Core shall provide an **opening-balance import mode** of the import framework for go-live of any tenant: bulk load, bypass of workflow, external reference ids kept for traceability, effective dating as at the go-live cut-over, and a reconciliation report. It replaces the Oracle legacy migration mode (changed 2026-10-16, D-09). | M | Used by the BR-SAAS-069/071 templates. No legacy database migration. |
-| BR-CORE-115 | Scheduled exports / outbound integrations (SFTP, webhook) shall be configurable per tenant. | C | |
+| BR-CORE-110 | Core phải cung cấp **import engine duy nhất** trong đó các module đăng ký loại import (định nghĩa mẫu, ánh xạ trường, validator, commit handler, undo handler, cờ cho phép commit một phần). Commit mặc định là **all-or-nothing**; chỉ commit một phần nếu loại import cho phép; rollback trong vòng 24 h nếu chưa có giao dịch phụ thuộc. Các yêu cầu import của saas-platform (BR-SAAS-069/070) là yêu cầu đối với engine này (thay đổi 2026-10-16, R2-02 §5 #12). | M | |
+| BR-CORE-111 | Import phải chạy dưới dạng job bất đồng bộ với staging, thông báo kiểm tra hợp lệ theo từng dòng (VI/EN), dry-run, tệp lỗi có thể tải về, commit, theo dõi tiến độ và lịch sử job; ≥50,000 dòng mỗi tệp. | M | |
+| BR-CORE-112 | Mẫu phải được sinh dưới dạng Excel với dropdown từ danh mục mã, gợi ý kiểu dữ liệu và một sheet hướng dẫn; tra cứu phải chấp nhận mã hoặc tên. | M | |
+| BR-CORE-113 | Đã bỏ — do saas-platform sở hữu (R2-02). Xuất danh sách và báo cáo (Excel/CSV/PDF, bất đồng bộ, hết hạn sau 7 ngày, có audit) thuộc framework báo cáo và xuất dữ liệu của saas-platform (BR-SAAS-046/053); Core cung cấp predicate phạm vi dữ liệu và chính sách che giấu trường (P-10) (thay đổi 2026-10-16, R2-02 §5 #18). | M | Giữ ID; không tái sử dụng. |
+| BR-CORE-114 | Core phải cung cấp **chế độ import số dư đầu kỳ** của import framework cho việc go-live của mọi tenant: nạp hàng loạt, bỏ qua workflow, giữ id tham chiếu bên ngoài để truy vết, hiệu lực theo ngày tại thời điểm chuyển đổi go-live, và báo cáo đối chiếu. Chế độ này thay thế chế độ chuyển đổi dữ liệu Oracle cũ (thay đổi 2026-10-16, D-09). | M | Được dùng bởi các mẫu BR-SAAS-069/071. Không chuyển đổi cơ sở dữ liệu cũ. |
+| BR-CORE-115 | Xuất dữ liệu theo lịch / tích hợp đầu ra (SFTP, webhook) phải cấu hình được theo tenant. | C | |
 
 ---
 
-## 5. Vietnam compliance rules
+## 5. Quy định tuân thủ Việt Nam
 
-| # | Rule | Legal basis | Impact on Core |
+| # | Quy định | Căn cứ pháp lý | Tác động tới Core |
 |---|---|---|---|
-| VN-01 | Since 2025-07-01 Vietnam has 34 provincial-level units and a two-level local government (province → commune/ward/special zone); district level abolished. | Resolution 202/2025/QH15; Law on Organisation of Local Government 72/2025/QH15 `[verify-legal]` | Admin-unit master data (BR-CORE-080/081); addresses model province + ward only for new data; keep historic three-level data. |
-| VN-02 | Regional minimum wage applies by the location where the employer operates; 4 regions mapped to administrative units; where an employer has units in several regions, each unit applies its own region. | Labour Code 2019 Art. 91; Decree 74/2024/ND-CP, as updated for the new admin units by a 2025 decree (e.g. Decree 293/2025/ND-CP effective 2026-01-01) `[verify-legal]` | Region assignment at entity and location level, effective-dated (BR-CORE-005/006/007). |
-| VN-03 | Enterprise tax code = 10 digits; dependent units 13 digits; from 2025-07-01 individuals use the 12-digit personal ID number as tax code. | Law on Tax Administration 38/2019/QH14; Circular 86/2024/TT-BTC `[verify-legal]` | Validation of MST (BR-CORE-003); people/payroll use personal ID as PIT code. |
-| VN-04 | Employers register with social insurance and receive an SI unit code; declarations per unit. | Law on Social Insurance 41/2024/QH15 (effective 2025-07-01) `[verify-legal]` | SI unit code per legal entity (and per branch if branch declares separately). |
-| VN-05 | Personal data processing requires consent, purpose limitation, protection of sensitive data (health, financial, biometric, ethnicity, religion…), data subject rights, and impact assessment. | Law on Personal Data Protection 91/2025/QH15 (effective 2026-01-01); Decree 13/2023/ND-CP and successor guidance `[verify-legal]` | Field sensitivity & masking (BR-CORE-034), audit of access (BR-CORE-091), consent records (provided to people), retention (BR-CORE-094/104). |
-| VN-06 | Certain data of VN users must be stored in Vietnam under conditions in cybersecurity regulations. | Law on Cybersecurity 2018; Decree 53/2022/ND-CP `[verify-legal]` | Hosting region is a saas-platform decision; Core storage must be region-configurable. |
-| VN-07 | Electronic documents, e-signatures and e-contracts (including e-labour contracts) are legally valid when meeting conditions; e-labour contract platforms may be subject to specific rules. | Law on Electronic Transactions 20/2023/QH15; Labour Code Art. 14; related decrees `[verify-legal]` | Document service + e-sign adapter (BR-CORE-102/103). |
-| VN-08 | Accounting documents (incl. payroll as accounting evidence) retained at least 10 years; labour records retention per labour regulations. | Law on Accounting 88/2015/QH13; Decree 174/2016/ND-CP `[verify-legal]` | Retention classes and audit retention minimums. |
-| VN-09 | Jobs classified as heavy, hazardous or dangerous are listed by the MOLISA (now MOHA) circular; affects retirement age, leave, allowances. | Circular 11/2020/TT-BLĐTBXH (and amendments) `[verify-legal]` | Job-title flag & category (BR-CORE-020). |
-| VN-10 | Official documents use Vietnamese; bilingual allowed. Dates DD/MM/YYYY; currency VND without decimals. | Decree 30/2020/ND-CP (administrative documents) `[verify-legal]` | Localisation defaults, document templates. |
-| VN-11 | Ethnic group classification uses the official list of 54 ethnic groups. | Decision 121-TCTK/PPCĐ (GSO) `[verify-legal]` | Master data list (BR-CORE-082). |
+| VN-01 | Từ 2025-07-01 Việt Nam có 34 đơn vị hành chính cấp tỉnh và chính quyền địa phương hai cấp (tỉnh → xã/phường/đặc khu); bỏ cấp huyện. | Nghị quyết 202/2025/QH15; Luật Tổ chức chính quyền địa phương 72/2025/QH15 `[verify-legal]` | Master data đơn vị hành chính (BR-CORE-080/081); địa chỉ chỉ mô hình tỉnh + phường cho dữ liệu mới; giữ dữ liệu ba cấp lịch sử. |
+| VN-02 | Lương tối thiểu vùng áp dụng theo địa bàn nơi người sử dụng lao động hoạt động; 4 vùng được ánh xạ theo đơn vị hành chính; khi người sử dụng lao động có đơn vị ở nhiều vùng, mỗi đơn vị áp dụng vùng của mình. | Bộ luật Lao động 2019 Điều 91; Nghị định 74/2024/NĐ-CP, được cập nhật theo đơn vị hành chính mới bởi một nghị định năm 2025 (ví dụ Nghị định 293/2025/NĐ-CP hiệu lực từ 2026-01-01) `[verify-legal]` | Gán vùng ở cấp pháp nhân và địa điểm, có hiệu lực theo ngày (BR-CORE-005/006/007). |
+| VN-03 | Mã số thuế doanh nghiệp = 10 chữ số; đơn vị phụ thuộc 13 chữ số; từ 2025-07-01 cá nhân dùng số định danh cá nhân 12 chữ số làm mã số thuế. | Luật Quản lý thuế 38/2019/QH14; Thông tư 86/2024/TT-BTC `[verify-legal]` | Kiểm tra MST (BR-CORE-003); people/payroll dùng số định danh cá nhân làm mã số thuế TNCN. |
+| VN-04 | Người sử dụng lao động đăng ký tham gia BHXH và được cấp mã đơn vị BHXH; khai báo theo từng đơn vị. | Luật Bảo hiểm xã hội 41/2024/QH15 (hiệu lực từ 2025-07-01) `[verify-legal]` | Mã đơn vị BHXH theo từng pháp nhân (và theo chi nhánh nếu chi nhánh khai báo riêng). |
+| VN-05 | Xử lý dữ liệu cá nhân yêu cầu sự đồng ý, giới hạn mục đích, bảo vệ dữ liệu nhạy cảm (sức khỏe, tài chính, sinh trắc học, dân tộc, tôn giáo…), quyền của chủ thể dữ liệu và đánh giá tác động. | Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15 (hiệu lực từ 2026-01-01); Nghị định 13/2023/NĐ-CP và văn bản hướng dẫn kế nhiệm `[verify-legal]` | Độ nhạy cảm & che giấu trường (BR-CORE-034), audit truy cập (BR-CORE-091), hồ sơ đồng ý (cung cấp cho people), lưu trữ (BR-CORE-094/104). |
+| VN-06 | Một số dữ liệu của người dùng Việt Nam phải được lưu trữ tại Việt Nam theo các điều kiện của quy định về an ninh mạng. | Luật An ninh mạng 2018; Nghị định 53/2022/NĐ-CP `[verify-legal]` | Vùng hosting là quyết định của saas-platform; storage của Core phải cấu hình được theo vùng. |
+| VN-07 | Văn bản điện tử, chữ ký điện tử và hợp đồng điện tử (bao gồm hợp đồng lao động điện tử) có giá trị pháp lý khi đáp ứng điều kiện; nền tảng hợp đồng lao động điện tử có thể chịu quy định riêng. | Luật Giao dịch điện tử 20/2023/QH15; Bộ luật Lao động Điều 14; các nghị định liên quan `[verify-legal]` | Dịch vụ tài liệu + adapter ký điện tử (BR-CORE-102/103). |
+| VN-08 | Chứng từ kế toán (bao gồm bảng lương là chứng từ kế toán) được lưu trữ tối thiểu 10 năm; hồ sơ lao động lưu trữ theo quy định về lao động. | Luật Kế toán 88/2015/QH13; Nghị định 174/2016/NĐ-CP `[verify-legal]` | Lớp lưu trữ và thời hạn lưu trữ audit tối thiểu. |
+| VN-09 | Danh mục nghề, công việc nặng nhọc, độc hại, nguy hiểm được ban hành bằng thông tư của Bộ LĐTBXH (nay là Bộ Nội vụ); ảnh hưởng tuổi nghỉ hưu, nghỉ phép, phụ cấp. | Thông tư 11/2020/TT-BLĐTBXH (và các văn bản sửa đổi) `[verify-legal]` | Cờ & phân loại chức danh (BR-CORE-020). |
+| VN-10 | Văn bản chính thức dùng tiếng Việt; cho phép song ngữ. Ngày theo định dạng DD/MM/YYYY; tiền tệ VND không có phần thập phân. | Nghị định 30/2020/NĐ-CP (văn bản hành chính) `[verify-legal]` | Mặc định bản địa hóa, mẫu văn bản. |
+| VN-11 | Phân loại dân tộc theo danh mục chính thức gồm 54 dân tộc. | Quyết định 121-TCTK/PPCĐ (Tổng cục Thống kê) `[verify-legal]` | Danh mục master data (BR-CORE-082). |
 
 ---
 
-## 6. Key business entities
+## 6. Thực thể nghiệp vụ chính
 
-| Entity | Purpose | Key attributes |
+| Thực thể | Mục đích | Thuộc tính chính |
 |---|---|---|
-| `company_group` | Tenant-level company profile | tenant_id, name, logo, default_locale, timezone, currency |
-| `legal_entity` (+ `_version`) | Legal employer / taxpayer (single master; saas-platform keeps only a billing party — R2-02 §5 #23) | code, legal_name_vi/en, tax_code, si_unit_code, reg_no, address(province_id, ward_id, street), legal_rep, min_wage_region, fiscal_year_start, tax_authority, pit_declaration_frequency, oa_od_rate + oa_od_decision_ref/valid_from/to (changed 2026-10-16, GAP-049), status, eff_from/eff_to |
-| `legal_entity_bank_account` | Payer bank accounts | legal_entity_id, bank_id, branch, account_no, account_name, purpose (salary, SI, tax), default flag |
-| `location` (+ `_version`) | Branch / work location | code, name, type, legal_entity_id, address, min_wage_region (derived/override), timezone, lat/long, radius_m, wifi/ip list, dependent_tax_code, eff dates |
-| `admin_unit` | Global province/ward master | code, name, level, parent_id, valid_from/valid_to, replaced_by |
-| `admin_unit_mapping` | Old→new admin unit mapping | old_unit_id, new_unit_id, effective_date, mapping_type (merge/split/rename) |
-| `min_wage_region_map` | Read-only cache of the legal pack's admin unit → region map (master in the saas-platform Legal Parameter Service) (changed 2026-10-16, R2-02 §5 #1) | admin_unit_id, region (I–IV), eff_from/eff_to, pack version |
-| `org_unit_type` | Unit type catalogue | code, name, level hint |
-| `org_unit` (+ `_version`) | Org tree node | code, name, type, parent_id, legal_entity_id, location_id, manager_position_id, cost_centre_id, status, eff dates |
-| `reorg_package` / `reorg_change` / `reorg_mapping` | Effective-dated reorganisation | effective_date, status, workflow_instance_id; change type, source/target units; position/employee mappings |
-| `job_family`, `job_title` | Job architecture | code, name, family, hazardous_category, default grade range, JD doc |
-| `grade_structure`, `grade` | Grade catalogue (levels / bậc) | code, name, order, structure, eff dates — no salary range (changed 2026-10-16, R2-02 §5 #7) |
-| `position` (+ `_version`) | Budgeted seat | code, job_title_id, org_unit_id, location_id, grade range, reports_to_position_id, fte_budget, cost_centre_id, status, critical flag |
-| `cost_centre` | Costing object | code, name, legal_entity_id, gl_segment, owner, eff dates |
-| `employee_category` | Category code list | code, name, flags (is_probation, is_expat…) |
-| `user_account` | Tenant user account (credentials and MFA live in saas-platform) | login, email, mobile, employee_id (nullable), locale, status (ACTIVE/FORMER_EMPLOYEE/DEACTIVATED), expiry, identity_ref (saas-platform), access_revocation_at (changed 2026-10-16, R2-02 §5 #9, #10) |
-| `role`, `permission`, `role_permission` | RBAC | role code, system/custom; function code, action |
-| `role_assignment` | User ↔ role with scope | user_id, role_id, scope_type, scope_values, eff dates, granted_by |
-| `sod_rule` | Segregation of duties | conflicting permissions |
-| `identity_provider` | Removed — owned by saas-platform (R2-02): "Identity Provider Config" (changed 2026-10-16, R2-02 §5 #10) | — |
-| `api_client` → `api_scope_mapping` | API scope → permission/data-scope mapping; API clients and secrets are owned by saas-platform (changed 2026-10-16, R2-02 §5 #10) | api scope code, permissions, scope rule |
-| `process_type` | Workflow type registered by module | code, module, summary schema, callback, flags |
-| `workflow_definition` / `workflow_step_def` | Configured flows | conditions, version, steps (resolver, type, SLA, escalation) |
-| `workflow_instance` / `workflow_task` / `workflow_action` | Runtime | request ref, snapshot, status; assignee, on_behalf_of, due_at; action, comment, ts |
-| `approval_delegation` | Delegation | delegator, delegate, process types, from/to |
-| `notification_template` / `notification` / `notification_delivery` | Messaging | event code, channel, locale, body; recipient; channel status |
-| `user_notification_pref` | Preferences | category, channels, quiet hours |
-| `code_list` / `code_value` | Generic code lists | list code, value code, labels, scope (global/tenant), eff dates |
-| `country`, `ethnicity`, `religion`, `bank`, `bank_branch`, `currency`, `id_doc_type` | Global master data | ISO / official codes |
-| `exchange_rate` | Exchange rates (new 2026-10-16, R2-02 §5 #19) | currency pair, rate type, rate date, value, source, scope (global / tenant override) |
-| `setting_definition` / `setting_value` | Tenant settings | key, type, level, value, eff dates |
-| `sequence` | Numbering | pattern, scope, current value, reset rule |
-| `custom_field_def` / `custom_field_value` | UDFs | target entity, type, validation, sensitivity |
-| `audit_event` | Audit log | see BR-CORE-090 |
-| `document` / `document_version` / `doc_template` | Files & templates (bytes in saas-platform object storage) | owner ref, type, confidentiality, retention class (key into the saas-platform retention policy), storage key, hash |
-| `import_type` / `import_job` / `import_row` | Import engine (single engine; incl. opening-balance batches) | template, mode, status, counts, errors, rollback ref |
-| `export_job` | Removed — owned by saas-platform (R2-02) reporting/export framework (changed 2026-10-16, R2-02 §5 #18) | — |
+| `company_group` | Hồ sơ công ty cấp tenant | tenant_id, name, logo, default_locale, timezone, currency |
+| `legal_entity` (+ `_version`) | Người sử dụng lao động / người nộp thuế theo pháp luật (master duy nhất; saas-platform chỉ giữ bên thanh toán — R2-02 §5 #23) | code, legal_name_vi/en, tax_code, si_unit_code, reg_no, address(province_id, ward_id, street), legal_rep, min_wage_region, fiscal_year_start, tax_authority, pit_declaration_frequency, oa_od_rate + oa_od_decision_ref/valid_from/to (thay đổi 2026-10-16, GAP-049), status, eff_from/eff_to |
+| `legal_entity_bank_account` | Tài khoản ngân hàng chi trả | legal_entity_id, bank_id, branch, account_no, account_name, purpose (lương, BHXH, thuế), cờ mặc định |
+| `location` (+ `_version`) | Chi nhánh / địa điểm làm việc | code, name, type, legal_entity_id, address, min_wage_region (suy ra/ghi đè), timezone, lat/long, radius_m, danh sách wifi/ip, dependent_tax_code, ngày hiệu lực |
+| `admin_unit` | Master tỉnh/phường toàn cục | code, name, level, parent_id, valid_from/valid_to, replaced_by |
+| `admin_unit_mapping` | Ánh xạ đơn vị hành chính cũ→mới | old_unit_id, new_unit_id, effective_date, mapping_type (merge/split/rename) |
+| `min_wage_region_map` | Cache chỉ đọc của bảng ánh xạ đơn vị hành chính → vùng của legal pack (master nằm trong Legal Parameter Service của saas-platform) (thay đổi 2026-10-16, R2-02 §5 #1) | admin_unit_id, region (I–IV), eff_from/eff_to, phiên bản pack |
+| `org_unit_type` | Danh mục loại đơn vị | code, name, gợi ý cấp |
+| `org_unit` (+ `_version`) | Nút cây tổ chức | code, name, type, parent_id, legal_entity_id, location_id, manager_position_id, cost_centre_id, status, ngày hiệu lực |
+| `reorg_package` / `reorg_change` / `reorg_mapping` | Tái cơ cấu có hiệu lực theo ngày | effective_date, status, workflow_instance_id; loại thay đổi, đơn vị nguồn/đích; ánh xạ vị trí/nhân viên |
+| `job_family`, `job_title` | Kiến trúc công việc | code, name, family, hazardous_category, khoảng ngạch bậc mặc định, tài liệu JD |
+| `grade_structure`, `grade` | Danh mục ngạch bậc (cấp / bậc) | code, name, order, structure, ngày hiệu lực — không có khung lương (thay đổi 2026-10-16, R2-02 §5 #7) |
+| `position` (+ `_version`) | Suất định biên | code, job_title_id, org_unit_id, location_id, khoảng ngạch bậc, reports_to_position_id, fte_budget, cost_centre_id, status, cờ trọng yếu |
+| `cost_centre` | Đối tượng hạch toán chi phí | code, name, legal_entity_id, gl_segment, owner, ngày hiệu lực |
+| `employee_category` | Danh mục mã loại nhân viên | code, name, flags (is_probation, is_expat…) |
+| `user_account` | Tài khoản người dùng tenant (credential và MFA nằm ở saas-platform) | login, email, mobile, employee_id (nullable), locale, status (ACTIVE/FORMER_EMPLOYEE/DEACTIVATED), expiry, identity_ref (saas-platform), access_revocation_at (thay đổi 2026-10-16, R2-02 §5 #9, #10) |
+| `role`, `permission`, `role_permission` | RBAC | mã vai trò, hệ thống/tùy chỉnh; mã chức năng, hành động |
+| `role_assignment` | Người dùng ↔ vai trò kèm phạm vi | user_id, role_id, scope_type, scope_values, ngày hiệu lực, granted_by |
+| `sod_rule` | Phân tách nhiệm vụ | các quyền xung đột |
+| `identity_provider` | Đã bỏ — do saas-platform sở hữu (R2-02): "Identity Provider Config" (thay đổi 2026-10-16, R2-02 §5 #10) | — |
+| `api_client` → `api_scope_mapping` | Ánh xạ API scope → quyền/phạm vi dữ liệu; API client và secret do saas-platform sở hữu (thay đổi 2026-10-16, R2-02 §5 #10) | mã api scope, quyền, quy tắc phạm vi |
+| `process_type` | Loại workflow do module đăng ký | code, module, summary schema, callback, flags |
+| `workflow_definition` / `workflow_step_def` | Luồng đã cấu hình | điều kiện, phiên bản, các bước (cơ chế xác định, loại, SLA, leo thang) |
+| `workflow_instance` / `workflow_task` / `workflow_action` | Runtime | tham chiếu yêu cầu, snapshot, trạng thái; người được giao, on_behalf_of, due_at; hành động, bình luận, thời điểm |
+| `approval_delegation` | Ủy quyền | người ủy quyền, người được ủy quyền, process type, từ/đến |
+| `notification_template` / `notification` / `notification_delivery` | Nhắn tin | mã sự kiện, kênh, locale, nội dung; người nhận; trạng thái kênh |
+| `user_notification_pref` | Tùy chọn | nhóm, kênh, khung giờ yên lặng |
+| `code_list` / `code_value` | Danh mục mã chung | mã danh mục, mã giá trị, nhãn, phạm vi (toàn cục/tenant), ngày hiệu lực |
+| `country`, `ethnicity`, `religion`, `bank`, `bank_branch`, `currency`, `id_doc_type` | Master data toàn cục | Mã ISO / mã chính thức |
+| `exchange_rate` | Tỷ giá (mới 2026-10-16, R2-02 §5 #19) | cặp tiền tệ, loại tỷ giá, ngày tỷ giá, giá trị, nguồn, phạm vi (toàn cục / tenant ghi đè) |
+| `setting_definition` / `setting_value` | Cấu hình tenant | key, type, level, value, ngày hiệu lực |
+| `sequence` | Đánh số | mẫu, phạm vi, giá trị hiện tại, quy tắc đặt lại |
+| `custom_field_def` / `custom_field_value` | UDF | thực thể đích, kiểu, kiểm tra hợp lệ, độ nhạy cảm |
+| `audit_event` | Audit log | xem BR-CORE-090 |
+| `document` / `document_version` / `doc_template` | Tệp & mẫu (dữ liệu nhị phân trong object storage của saas-platform) | tham chiếu chủ sở hữu, loại, mức độ bảo mật, lớp lưu trữ (khóa trỏ vào chính sách lưu trữ của saas-platform), storage key, hash |
+| `import_type` / `import_job` / `import_row` | Import engine (engine duy nhất; bao gồm lô số dư đầu kỳ) | mẫu, chế độ, trạng thái, số lượng, lỗi, tham chiếu rollback |
+| `export_job` | Đã bỏ — thuộc framework báo cáo/xuất dữ liệu do saas-platform sở hữu (R2-02) (thay đổi 2026-10-16, R2-02 §5 #18) | — |
 
 ---
 
-## 7. Cross-module interfaces
+## 7. Interface liên module
 
-Interface style: synchronous internal API for queries (read-only Core services), asynchronous domain events (outbox → message bus) for state changes. All interfaces are tenant-scoped and data-scope aware.
+Kiểu interface: API nội bộ đồng bộ cho truy vấn (các dịch vụ Core chỉ đọc), domain event bất đồng bộ (outbox → message bus) cho thay đổi trạng thái. Mọi interface đều theo phạm vi tenant và có nhận biết phạm vi dữ liệu.
 
-### 7.1 Consumes
+### 7.1 Sử dụng
 
-| # | What | From module | When / trigger | Used for |
+| # | Nội dung | Từ module | Khi nào / tác nhân kích hoạt | Dùng cho |
 |---|---|---|---|---|
-| C-01 | `TenantProvisioned` (tenant id, plan, owner contact, locale, hosting region) | saas-platform | Tenant creation | Create company group, Owner user, seed system roles, templates, settings |
-| C-02 | Plan entitlements & limits (max legal entities, max users, enabled modules/features, channels allowed e.g. Zalo/SMS, storage quota) | saas-platform | On login/config, on `PlanChanged` | Enforce limits (BR-CORE-001), hide disabled features, gate channels |
-| C-03 | `TenantSuspended` / `TenantReactivated` / `TenantTerminated` | saas-platform | Lifecycle change | Block logins, stop schedulers/notifications, start data export/purge |
-| C-04 | Master-data release commands from the operator back-office UI and release workflow (admin units, banks, nationalities…) into the Core store and admin API; the region map is **not** master data any more (legal pack, C-23) | saas-platform (operator UI) | On publication | Versioned load, `core.MasterDataReleased` (BR-CORE-080/087) (changed 2026-10-16, R2-02 §5 #28) |
-| C-05 | Break-glass support session grant | saas-platform | On support request approved by tenant | Enforce and audit (BR-CORE-041) |
-| C-06 | Platform services: channel delivery adapters with provider accounts (email; push/Zalo/SMS in Phase 2) and delivery status, object storage, KMS keys, message bus | saas-platform | Runtime | Notification delivery, document storage, encryption (changed 2026-10-16, R2-02 §5 #14, #15) |
-| C-07 | `people.EmployeeHired` (hire_type NEW/REHIRE/CONCURRENT, employee id, person name, work email, mobile, hire date, entity, preview flag) | people | At approval (preview) and on hire date | Auto-create/reactivate user (P-04); `EmployeeRehired` is folded into `hire_type` (changed 2026-10-16, R2-02 §5 #9) |
-| C-08 | `people.TerminationScheduled` (access_revocation_date, LWD) and `people.EmployeeTerminated` | people | Separation approved / termination date | Schedule the downgrade, revoke sessions, reassign tasks & delegations, switch to `FORMER_EMPLOYEE` (P-04); People sends no provisioning request events (changed 2026-10-16, R2-02 §5 #9) |
-| C-09 | `AssignmentChanged` (employee, position, org unit, location, legal entity, manager, category, grade, effective date) | people | Transfer / promotion | Recompute derived scopes (SELF/LINE_MANAGER), re-resolve open workflow steps |
-| C-10 | Current assignment lookup: employee → position, org unit, manager, legal entity, location, category, grade (as of date) | people | Synchronous at workflow resolution, scope evaluation, notification audience | Approver resolvers, data scope, audiences |
-| C-11 | Position occupancy (occupied FTE per position, incumbents) | people | On demand / `AssignmentChanged` | Vacancy, org chart, position-control checks |
-| C-12 | `people.ReorgMappingCompleted{package_id, moved, failed, fix list ref}` — reorg mapping execution result (BR-PPL-039, OUT-35) | people | After `ReorgActivated` and after each fix-and-retry | Set package `ACTIVE` / `ACTIVATED_WITH_ERRORS`, publish `core.ReorgPackageStatusChanged`, report failures (changed 2026-10-16, GAP-053) |
-| C-13 | Merge-field data for documents (employee, contract) | people / payroll / recruitment | On document generation | Document templates (BR-CORE-102) |
-| C-14 | Work calendar & public holidays per legal entity/location/employee (`att` calendar API, ATT-P-16; T&A is the single owner of tenant holiday calendars). Tenants without T&A use the national holiday template of the legal pack (baseline, R2-18) | time-attendance | Workflow SLA computation | Business-time SLA (BR-CORE-057) (changed 2026-10-16, R2-02 §5 #2; R2-18) |
-| C-15 | Approved leave / absence of a user (period) | time-attendance | On leave approval | Suggest/auto-activate approval delegation (BR-CORE-055) |
-| C-16 | **Legal-entity lock state** as of date (latest period for which any pay group of the entity has an `APPROVED`/`PAID`/`CLOSED` run), derived by payroll from all pay groups of the entity (IF-PAY-P-20) | payroll | On back-dated reorg / entity attribute change | Warn/block back-dated changes (BR-CORE-015) (changed 2026-10-16, GAP-049) |
-| C-17 | In-progress requisitions per position | recruitment | On demand | Position pipeline (BR-CORE-024), reorg impact analysis |
-| C-18 | Process-type registrations, permission catalogs, import types, notification event codes, custom-field target entities, document types | all modules (people, time-attendance, payroll, recruitment, saas-platform) | Deploy / startup | Engines' configuration |
-| C-19 | Workflow callback acknowledgements (business effect applied / failed) | all modules | After `WorkflowCompleted` | Close instance or raise error task |
-| C-20 | Import validators and commit/undo handlers | all modules | During import job | Import framework |
-| C-21 | Candidate identity for external notifications (email/phone, consent) | recruitment | Candidate notifications | Send to non-users |
-| C-22 | **Authenticated identity** (PR-03): user identity, auth method, MFA level, SSO claims, step-up; session revocation API | saas-platform | Every request; on user downgrade | Map identity → tenant user account → roles and scopes; revoke sessions in P-04 (new 2026-10-16, R2-02 §5 #10) |
-| C-23 | **Legal Parameter Service** `getParam(key, scope, asOfDate)`: admin-unit → region map and other legal values; `saas.LegalParameterPackPublished` | saas-platform | Sync, by effective date; on publication | Region resolution (BR-CORE-006/007), retention floors (new 2026-10-16, R2-02 §5 #1) |
-| C-24 | **Job scheduler / queue** (tenant-aware, quotas, suspends on tenant state, progress API) | saas-platform | Runtime | Effective-dated activation jobs (NFR-CORE-015), SLA timers, import jobs (new 2026-10-16, R2-02 §5 #16) |
-| C-25 | Approved staffing-plan FTE budgets and proposed positions, written through a Core position API (Phase 2) | recruitment | On plan approval | Position FTE budget remains the authoritative seat budget (BR-CORE-022) (new 2026-10-16, R2-02 §5 #8) |
-| C-26 | Consent check API, retention policy keys, DSR orchestration requests | saas-platform | Runtime / DSR | Retention class (BR-CORE-104), DSR export P-25 (new 2026-10-16, R2-02 §5 #27) |
+| C-01 | `TenantProvisioned` (tenant id, gói, liên hệ chủ sở hữu, locale, vùng hosting) | saas-platform | Tạo tenant | Tạo company group, người dùng Owner, khởi tạo vai trò hệ thống, mẫu, cấu hình |
+| C-02 | Quyền lợi & giới hạn theo gói (số pháp nhân tối đa, số người dùng tối đa, module/tính năng được bật, kênh được phép ví dụ Zalo/SMS, hạn mức lưu trữ) | saas-platform | Khi đăng nhập/cấu hình, khi có `PlanChanged` | Thực thi giới hạn (BR-CORE-001), ẩn tính năng bị tắt, kiểm soát kênh |
+| C-03 | `TenantSuspended` / `TenantReactivated` / `TenantTerminated` | saas-platform | Thay đổi vòng đời | Chặn đăng nhập, dừng scheduler/thông báo, bắt đầu xuất/xóa dữ liệu |
+| C-04 | Lệnh phát hành master data từ giao diện back-office và quy trình phát hành của operator (đơn vị hành chính, ngân hàng, quốc tịch…) vào kho và admin API của Core; bảng ánh xạ vùng **không còn** là master data (legal pack, C-23) | saas-platform (giao diện operator) | Khi công bố | Nạp có phiên bản, `core.MasterDataReleased` (BR-CORE-080/087) (thay đổi 2026-10-16, R2-02 §5 #28) |
+| C-05 | Cấp session hỗ trợ break-glass | saas-platform | Khi yêu cầu hỗ trợ được tenant phê duyệt | Thực thi và audit (BR-CORE-041) |
+| C-06 | Dịch vụ nền tảng: channel delivery adapter kèm tài khoản nhà cung cấp (email; push/Zalo/SMS ở Phase 2) và trạng thái gửi, object storage, khóa KMS, message bus | saas-platform | Runtime | Gửi thông báo, lưu trữ tài liệu, mã hóa (thay đổi 2026-10-16, R2-02 §5 #14, #15) |
+| C-07 | `people.EmployeeHired` (hire_type NEW/REHIRE/CONCURRENT, employee id, họ tên, email công việc, di động, ngày nhận việc, pháp nhân, cờ xem trước) | people | Khi phê duyệt (xem trước) và vào ngày nhận việc | Tự động tạo/kích hoạt lại người dùng (P-04); `EmployeeRehired` được gộp vào `hire_type` (thay đổi 2026-10-16, R2-02 §5 #9) |
+| C-08 | `people.TerminationScheduled` (access_revocation_date, LWD) và `people.EmployeeTerminated` | people | Nghỉ việc được phê duyệt / ngày chấm dứt | Lên lịch hạ quyền, thu hồi session, giao lại công việc & ủy quyền, chuyển sang `FORMER_EMPLOYEE` (P-04); People không gửi sự kiện yêu cầu cấp tài khoản (thay đổi 2026-10-16, R2-02 §5 #9) |
+| C-09 | `AssignmentChanged` (nhân viên, vị trí, đơn vị tổ chức, địa điểm, pháp nhân, quản lý, loại, ngạch bậc, ngày hiệu lực) | people | Điều chuyển / thăng chức | Tính lại phạm vi suy ra (SELF/LINE_MANAGER), xác định lại các bước workflow đang mở |
+| C-10 | Tra cứu phân công hiện tại: nhân viên → vị trí, đơn vị tổ chức, quản lý, pháp nhân, địa điểm, loại, ngạch bậc (tại ngày) | people | Đồng bộ khi xác định người phê duyệt, đánh giá phạm vi, xác định đối tượng thông báo | Cơ chế xác định người phê duyệt, phạm vi dữ liệu, đối tượng nhận |
+| C-11 | Mức lấp đầy vị trí (FTE đã lấp theo vị trí, người đảm nhiệm) | people | Theo yêu cầu / `AssignmentChanged` | Vị trí trống, sơ đồ tổ chức, kiểm tra kiểm soát vị trí |
+| C-12 | `people.ReorgMappingCompleted{package_id, moved, failed, fix list ref}` — kết quả thực hiện ánh xạ tái cơ cấu (BR-PPL-039, OUT-35) | people | Sau `ReorgActivated` và sau mỗi lần sửa và thử lại | Đặt gói `ACTIVE` / `ACTIVATED_WITH_ERRORS`, phát `core.ReorgPackageStatusChanged`, báo cáo lỗi (thay đổi 2026-10-16, GAP-053) |
+| C-13 | Dữ liệu trường trộn cho tài liệu (nhân viên, hợp đồng) | people / payroll / recruitment | Khi sinh tài liệu | Mẫu văn bản (BR-CORE-102) |
+| C-14 | Lịch làm việc & ngày lễ theo pháp nhân/địa điểm/nhân viên (API lịch `att`, ATT-P-16; T&A là chủ sở hữu duy nhất của lịch ngày lễ của tenant). Tenant không dùng T&A sử dụng mẫu ngày lễ quốc gia của legal pack (baseline, R2-18) | time-attendance | Tính SLA của workflow | SLA theo thời gian làm việc (BR-CORE-057) (thay đổi 2026-10-16, R2-02 §5 #2; R2-18) |
+| C-15 | Nghỉ phép / vắng mặt đã duyệt của người dùng (khoảng thời gian) | time-attendance | Khi đơn nghỉ được duyệt | Gợi ý/tự động kích hoạt ủy quyền phê duyệt (BR-CORE-055) |
+| C-16 | **Trạng thái khóa của pháp nhân** tại ngày (kỳ gần nhất mà bất kỳ nhóm lương nào của pháp nhân có kỳ lương ở trạng thái `APPROVED`/`PAID`/`CLOSED`), do payroll suy ra từ mọi nhóm lương của pháp nhân (IF-PAY-P-20) | payroll | Khi tái cơ cấu hồi tố / thay đổi thuộc tính pháp nhân | Cảnh báo/chặn thay đổi hồi tố (BR-CORE-015) (thay đổi 2026-10-16, GAP-049) |
+| C-17 | Yêu cầu tuyển dụng đang xử lý theo vị trí | recruitment | Theo yêu cầu | Pipeline vị trí (BR-CORE-024), phân tích tác động tái cơ cấu |
+| C-18 | Đăng ký process type, danh mục quyền, loại import, mã sự kiện thông báo, thực thể đích của trường tùy chỉnh, loại tài liệu | mọi module (people, time-attendance, payroll, recruitment, saas-platform) | Deploy / khởi động | Cấu hình các engine |
+| C-19 | Xác nhận callback của workflow (tác động nghiệp vụ đã áp dụng / thất bại) | mọi module | Sau `WorkflowCompleted` | Đóng instance hoặc tạo công việc xử lý lỗi |
+| C-20 | Validator import và commit/undo handler | mọi module | Trong job import | Import framework |
+| C-21 | Thông tin liên hệ của ứng viên cho thông báo bên ngoài (email/điện thoại, sự đồng ý) | recruitment | Thông báo cho ứng viên | Gửi tới người không phải người dùng |
+| C-22 | **Identity đã xác thực** (PR-03): identity người dùng, phương thức xác thực, mức MFA, SSO claim, step-up; API thu hồi session | saas-platform | Mọi request; khi hạ quyền người dùng | Ánh xạ identity → tài khoản người dùng tenant → vai trò và phạm vi; thu hồi session trong P-04 (mới 2026-10-16, R2-02 §5 #10) |
+| C-23 | **Legal Parameter Service** `getParam(key, scope, asOfDate)`: bảng ánh xạ đơn vị hành chính → vùng và các giá trị pháp lý khác; `saas.LegalParameterPackPublished` | saas-platform | Đồng bộ, theo ngày hiệu lực; khi công bố | Xác định vùng (BR-CORE-006/007), mức sàn lưu trữ (mới 2026-10-16, R2-02 §5 #1) |
+| C-24 | **Job scheduler / queue** (nhận biết tenant, hạn mức, tạm dừng theo trạng thái tenant, API tiến độ) | saas-platform | Runtime | Job kích hoạt theo ngày hiệu lực (NFR-CORE-015), bộ đếm SLA, job import (mới 2026-10-16, R2-02 §5 #16) |
+| C-25 | Ngân sách FTE của kế hoạch nhân sự đã duyệt và các vị trí đề xuất, được ghi qua API vị trí của Core (Phase 2) | recruitment | Khi kế hoạch được duyệt | Ngân sách FTE của vị trí vẫn là ngân sách định biên chính thức (BR-CORE-022) (mới 2026-10-16, R2-02 §5 #8) |
+| C-26 | API kiểm tra sự đồng ý, khóa chính sách lưu trữ, yêu cầu điều phối DSR | saas-platform | Runtime / DSR | Lớp lưu trữ (BR-CORE-104), xuất DSR P-25 (mới 2026-10-16, R2-02 §5 #27) |
 
-### 7.2 Provides
+### 7.2 Cung cấp
 
-| # | What | To module(s) | When | Notes |
+| # | Nội dung | Tới module | Khi nào | Ghi chú |
 |---|---|---|---|---|
-| P-01 | Legal entity master & as-of-date lookup: tax code (MST), SI unit code, address, legal rep, bank accounts (payer accounts, `legal_entity_bank_account`), fiscal year, tax authority, PIT declaration frequency, OA-OD rate decision, status | people, payroll, recruitment, time-attendance, saas-platform (billing party link) | Sync query; event `core.LegalEntityChanged` | Payroll declarations, contracts, offer letters (changed 2026-10-16, GAP-049; R2-02 §5 #5b, #23) |
-| P-02 | Location master: address, region, timezone, geo-fence (lat/long, radius), Wi-Fi/IP list, dependent tax code | time-attendance (check-in), payroll (region, branch PIT), people (work place on contract), recruitment (job location) | Sync query; `LocationChanged` | |
-| P-03 | **Minimum-wage region** of a location/entity as of date, resolved from the legal pack map; `core.LocationChanged` (subtype `LocationRegionChanged`) event | payroll (min-wage & SI floor checks), people (contract salary validation) | Sync; event | Amounts are legal-pack parameters (changed 2026-10-16, R2-02 §5 #1) |
-| P-04 | Org tree as of date; unit details; ancestors/descendants; unit manager; `OrgUnitChanged`, `ReorgActivated` (with mapping table) | people, time-attendance, payroll, recruitment | Sync; events | People executes employee mapping |
-| P-05 | Job titles (incl. hazardous flag & category), job families, grade catalogue (no salary ranges) | people, payroll, recruitment, time-attendance (extra leave for hazardous jobs) | Sync; `core.JobCatalogueChanged` | Salary bands come from payroll IF-PAY-P-02 (changed 2026-10-16, R2-02 §5 #7) |
-| P-06 | Positions: definition, budget FTE, status, reports-to, cost centre; position-control mode; `PositionChanged` | people (assignment validation), recruitment (requisition against vacancy) | Sync; event | |
-| P-07 | Cost centres & default cost centre per unit/position | payroll (costing/GL), people (assignment split) | Sync | |
-| P-08 | Employee category list | people, time-attendance, payroll, recruitment | Sync | |
-| P-09 | Current user context (tenant user account, employee id, tenant, locale, roles, scopes) built on the saas-platform authenticated identity (C-22). Authentication itself is saas-platform PR-03 | all modules, frontend | Every request | (changed 2026-10-16, R2-02 §5 #10) |
-| P-10 | **Authorisation & data-scope service**: `can(user, permission, record)`, scope filter predicate for queries, field-masking policy | all modules incl. reporting | Every request / query | Single enforcement point (BR-CORE-035) |
-| P-11 | `core.UserStatusChanged` (user, employee link, status ACTIVE / FORMER_EMPLOYEE / DEACTIVATED) — replaces `UserCreated` / `UserDeactivated` | saas-platform (credentials, sessions, SCIM), people (onboarding readiness item "user account") | On change | (changed 2026-10-16, R2-02 §5 #9) |
-| P-12 | **Workflow engine**: submit/withdraw API, task inbox, `WorkflowCompleted` callback with outcome & approval trail, SLA events | people (contracts, changes, separation, expenses, appraisal), time-attendance (leave, OT, attendance adjustment, shift swap), payroll (payroll run, adjustments, bank payment file), recruitment (requisition, offer), core (reorg, position, role grant) | Runtime | |
-| P-13 | Approval delegation lookup (who acts for whom, when) | all modules | Runtime | |
-| P-14 | **Notification centre**: send(event code, recipients, payload, optional encrypted attachment), templates, preferences, in-app inbox, delivery status (delivery via saas-platform adapters) | all modules (e.g. payslip ready, password-protected payslip PDF — R2-17, leave approved, contract expiring, interview invite) | Runtime | Modules call Core only (changed 2026-10-16, R2-02 §5 #14; R2-17) |
-| P-15 | Global master data: admin units (34 provinces + wards, historic units, mapping), countries/nationalities, ethnicities, religions, ID doc types, banks/branches with codes, currencies, education levels, relationships | people (addresses, ID, bank accounts, dependants), payroll (bank payment files), recruitment (candidate data), saas-platform (tenant address) | Sync | |
-| P-16 | Generic code lists & tenant custom lists | all modules | Sync | |
-| P-17 | Tenant/entity/location settings service | all modules | Sync | |
-| P-18 | Numbering service (employee code, contract no., decision no., payroll run no., requisition no.) | people, payroll, recruitment, time-attendance | Runtime | |
-| P-19 | Custom field framework | all modules | Runtime | |
-| P-20 | Audit service: record(event), query API; security event log | all modules; saas-platform (platform audit, break-glass) | Runtime | |
-| P-21 | Document service API: upload/download, virus scan, versioning, retention class, signed URLs; document templates → PDF; e-signature orchestration (connectors in saas-platform) | people (contracts, decisions, certificates, employee docs), payroll (payslip PDFs, declarations), recruitment (CVs, offer letters), time-attendance (leave evidence) | Runtime | Modules call Core only; storage is saas-platform PR-16 (changed 2026-10-16, R2-02 §5 #15/#15b) |
-| P-22 | Import engine incl. opening-balance import mode (changed 2026-10-16, D-09); exports are saas-platform PR-08 | all modules, saas-platform (opening-balance onboarding) | Runtime | (changed 2026-10-16, R2-02 §5 #12, #18) |
-| P-23 | Business-day/time calculator (wraps T&A calendar) | all modules for due dates | Runtime | Depends on C-14 |
-| P-24 | Tenant usage metrics: active users, legal entities, storage used, notifications sent per channel | saas-platform (billing, quota) | Daily | |
-| P-25 | Personal-data access log & export of a user's audit trail (for data subject requests) | saas-platform (DSR orchestration), people | On request | VN-05 (changed 2026-10-16, R2-02 §5 #27) |
-| P-26 | Exchange rates as of rate date (BR-CORE-088) | payroll (BR-PAY-013) | Sync | (new 2026-10-16, R2-02 §5 #19) |
-| P-27 | Audit store write API for saas-platform identity and operator events (BR-CORE-091) | saas-platform | Runtime | (new 2026-10-16, R2-02 §5 #13) |
+| P-01 | Master pháp nhân & tra cứu tại ngày: MST, mã đơn vị BHXH, địa chỉ, người đại diện theo pháp luật, tài khoản ngân hàng (tài khoản chi trả, `legal_entity_bank_account`), năm tài chính, cơ quan thuế, kỳ khai thuế TNCN, quyết định mức đóng BHTNLĐ-BNN, trạng thái | people, payroll, recruitment, time-attendance, saas-platform (liên kết bên thanh toán) | Truy vấn đồng bộ; sự kiện `core.LegalEntityChanged` | Khai báo của payroll, hợp đồng, thư mời nhận việc (thay đổi 2026-10-16, GAP-049; R2-02 §5 #5b, #23) |
+| P-02 | Master địa điểm: địa chỉ, vùng, múi giờ, geo-fence (lat/long, bán kính), danh sách Wi-Fi/IP, mã số thuế phụ thuộc | time-attendance (check-in), payroll (vùng, thuế TNCN chi nhánh), people (nơi làm việc trên hợp đồng), recruitment (địa điểm công việc) | Truy vấn đồng bộ; `LocationChanged` | |
+| P-03 | **Vùng lương tối thiểu** của địa điểm/pháp nhân tại ngày, xác định từ bảng ánh xạ của legal pack; sự kiện `core.LocationChanged` (subtype `LocationRegionChanged`) | payroll (kiểm tra lương tối thiểu & mức sàn BHXH), people (kiểm tra lương trên hợp đồng) | Đồng bộ; sự kiện | Mức lương là tham số của legal pack (thay đổi 2026-10-16, R2-02 §5 #1) |
+| P-04 | Cây tổ chức tại ngày; chi tiết đơn vị; cấp trên/cấp dưới; quản lý đơn vị; `OrgUnitChanged`, `ReorgActivated` (kèm bảng ánh xạ) | people, time-attendance, payroll, recruitment | Đồng bộ; sự kiện | People thực hiện ánh xạ nhân viên |
+| P-05 | Chức danh (bao gồm cờ & phân loại độc hại), nhóm công việc, danh mục ngạch bậc (không có khung lương) | people, payroll, recruitment, time-attendance (phép tăng thêm cho công việc độc hại) | Đồng bộ; `core.JobCatalogueChanged` | Khung lương lấy từ payroll IF-PAY-P-02 (thay đổi 2026-10-16, R2-02 §5 #7) |
+| P-06 | Vị trí: định nghĩa, ngân sách FTE, trạng thái, báo cáo cho, trung tâm chi phí; chế độ kiểm soát vị trí; `PositionChanged` | people (kiểm tra phân công), recruitment (yêu cầu tuyển dụng cho vị trí trống) | Đồng bộ; sự kiện | |
+| P-07 | Trung tâm chi phí & trung tâm chi phí mặc định theo đơn vị/vị trí | payroll (hạch toán chi phí/GL), people (phân bổ phân công) | Đồng bộ | |
+| P-08 | Danh mục loại nhân viên | people, time-attendance, payroll, recruitment | Đồng bộ | |
+| P-09 | Ngữ cảnh người dùng hiện tại (tài khoản người dùng tenant, employee id, tenant, locale, vai trò, phạm vi) xây dựng trên identity đã xác thực của saas-platform (C-22). Bản thân việc xác thực là PR-03 của saas-platform | mọi module, frontend | Mọi request | (thay đổi 2026-10-16, R2-02 §5 #10) |
+| P-10 | **Dịch vụ phân quyền & phạm vi dữ liệu**: `can(user, permission, record)`, predicate lọc phạm vi cho truy vấn, chính sách che giấu trường | mọi module bao gồm reporting | Mọi request / truy vấn | Điểm thực thi duy nhất (BR-CORE-035) |
+| P-11 | `core.UserStatusChanged` (người dùng, liên kết nhân viên, trạng thái ACTIVE / FORMER_EMPLOYEE / DEACTIVATED) — thay thế `UserCreated` / `UserDeactivated` | saas-platform (credential, session, SCIM), people (mục sẵn sàng onboarding "tài khoản người dùng") | Khi thay đổi | (thay đổi 2026-10-16, R2-02 §5 #9) |
+| P-12 | **Workflow engine**: API gửi/rút lại, hộp công việc, callback `WorkflowCompleted` kèm kết quả & vết phê duyệt, sự kiện SLA | people (hợp đồng, thay đổi, nghỉ việc, chi phí, đánh giá), time-attendance (nghỉ phép, làm thêm giờ, điều chỉnh công, đổi ca), payroll (kỳ lương, điều chỉnh, tệp chi trả ngân hàng), recruitment (yêu cầu tuyển dụng, offer), core (tái cơ cấu, vị trí, cấp vai trò) | Runtime | |
+| P-13 | Tra cứu ủy quyền phê duyệt (ai thực hiện thay ai, khi nào) | mọi module | Runtime | |
+| P-14 | **Trung tâm thông báo**: send(mã sự kiện, người nhận, payload, tệp đính kèm mã hóa tùy chọn), mẫu, tùy chọn, hộp thư trong ứng dụng, trạng thái gửi (gửi qua adapter của saas-platform) | mọi module (ví dụ phiếu lương sẵn sàng, phiếu lương PDF có mật khẩu — R2-17, đơn nghỉ được duyệt, hợp đồng sắp hết hạn, thư mời phỏng vấn) | Runtime | Các module chỉ gọi Core (thay đổi 2026-10-16, R2-02 §5 #14; R2-17) |
+| P-15 | Master data toàn cục: đơn vị hành chính (34 tỉnh + phường, đơn vị lịch sử, ánh xạ), quốc gia/quốc tịch, dân tộc, tôn giáo, loại giấy tờ tùy thân, ngân hàng/chi nhánh kèm mã, tiền tệ, trình độ học vấn, quan hệ | people (địa chỉ, giấy tờ tùy thân, tài khoản ngân hàng, người phụ thuộc), payroll (tệp chi trả ngân hàng), recruitment (dữ liệu ứng viên), saas-platform (địa chỉ tenant) | Đồng bộ | |
+| P-16 | Danh mục mã chung & danh mục tùy chỉnh của tenant | mọi module | Đồng bộ | |
+| P-17 | Dịch vụ cấu hình tenant/pháp nhân/địa điểm | mọi module | Đồng bộ | |
+| P-18 | Dịch vụ đánh số (mã nhân viên, số hợp đồng, số quyết định, số kỳ lương, số yêu cầu tuyển dụng) | people, payroll, recruitment, time-attendance | Runtime | |
+| P-19 | Framework trường tùy chỉnh | mọi module | Runtime | |
+| P-20 | Dịch vụ audit: record(event), API truy vấn; log sự kiện bảo mật | mọi module; saas-platform (audit nền tảng, break-glass) | Runtime | |
+| P-21 | API dịch vụ tài liệu: tải lên/tải xuống, quét virus, quản lý phiên bản, lớp lưu trữ, signed URL; mẫu văn bản → PDF; điều phối ký điện tử (connector ở saas-platform) | people (hợp đồng, quyết định, giấy xác nhận, tài liệu nhân viên), payroll (phiếu lương PDF, tờ khai), recruitment (CV, thư mời nhận việc), time-attendance (minh chứng nghỉ phép) | Runtime | Các module chỉ gọi Core; storage là PR-16 của saas-platform (thay đổi 2026-10-16, R2-02 §5 #15/#15b) |
+| P-22 | Import engine bao gồm chế độ import số dư đầu kỳ (thay đổi 2026-10-16, D-09); xuất dữ liệu là PR-08 của saas-platform | mọi module, saas-platform (onboarding số dư đầu kỳ) | Runtime | (thay đổi 2026-10-16, R2-02 §5 #12, #18) |
+| P-23 | Bộ tính ngày/giờ làm việc (bọc lịch của T&A) | mọi module để tính hạn | Runtime | Phụ thuộc C-14 |
+| P-24 | Chỉ số sử dụng của tenant: người dùng hoạt động, pháp nhân, dung lượng đã dùng, số thông báo đã gửi theo kênh | saas-platform (thanh toán, hạn mức) | Hằng ngày | |
+| P-25 | Log truy cập dữ liệu cá nhân & xuất audit trail của một người dùng (phục vụ yêu cầu của chủ thể dữ liệu) | saas-platform (điều phối DSR), people | Theo yêu cầu | VN-05 (thay đổi 2026-10-16, R2-02 §5 #27) |
+| P-26 | Tỷ giá tại ngày tỷ giá (BR-CORE-088) | payroll (BR-PAY-013) | Đồng bộ | (mới 2026-10-16, R2-02 §5 #19) |
+| P-27 | API ghi vào kho audit cho các sự kiện identity và operator của saas-platform (BR-CORE-091) | saas-platform | Runtime | (mới 2026-10-16, R2-02 §5 #13) |
 
 ---
 
-## 8. Reports & analytics
+## 8. Báo cáo & phân tích
 
-| # | Report | Audience | Content |
+| # | Báo cáo | Đối tượng | Nội dung |
 |---|---|---|---|
-| R-01 | Org structure report / chart as of date | HR, management | Tree with unit, manager, headcount (from people), vacancies |
-| R-02 | Org change history | HR, auditor | Reorg packages and unit-level changes in a period |
-| R-03 | Position register & vacancy | HR, C&B, recruitment | Budget vs occupied vs pipeline per unit/entity |
-| R-04 | Legal entity & location register | HR, finance | MST, SI code, region, addresses, effective history |
-| R-05 | User & access review | Admin, auditor | Users, roles, scopes, last login, dormant accounts, privileged roles, SoD conflicts — supports periodic access recertification |
-| R-06 | Login & security events | IT, auditor | Failed logins, MFA, lockouts, SSO errors |
-| R-07 | Workflow SLA & throughput | HR, management | Requests by process type, average approval time, SLA breaches, pending by approver |
-| R-08 | Pending approvals by approver / delegation in force | Managers, HR | |
-| R-09 | Notification delivery | Admin | Sent/failed per channel, Zalo ZNS cost estimate |
-| R-10 | Audit trail report | Auditor | Filtered changes with before/after |
-| R-11 | Personal-data access report | DPO / auditor | Who viewed/exported sensitive data |
-| R-12 | Import/export job log | Admin | Jobs, rows, errors |
-| R-13 | Master data change impact | Admin | Records referencing retired admin units/banks |
+| R-01 | Báo cáo / sơ đồ cơ cấu tổ chức tại ngày | HR, ban lãnh đạo | Cây gồm đơn vị, quản lý, headcount (từ people), vị trí trống |
+| R-02 | Lịch sử thay đổi tổ chức | HR, kiểm toán viên | Các gói tái cơ cấu và thay đổi ở cấp đơn vị trong một khoảng thời gian |
+| R-03 | Sổ đăng ký vị trí & vị trí trống | HR, C&B, recruitment | Ngân sách so với đã lấp so với đang tuyển theo đơn vị/pháp nhân |
+| R-04 | Sổ đăng ký pháp nhân & địa điểm | HR, tài chính | MST, mã BHXH, vùng, địa chỉ, lịch sử hiệu lực |
+| R-05 | Rà soát người dùng & quyền truy cập | Quản trị viên, kiểm toán viên | Người dùng, vai trò, phạm vi, lần đăng nhập cuối, tài khoản không hoạt động, vai trò đặc quyền, xung đột SoD — hỗ trợ tái chứng nhận quyền truy cập định kỳ |
+| R-06 | Sự kiện đăng nhập & bảo mật | IT, kiểm toán viên | Đăng nhập thất bại, MFA, khóa tài khoản, lỗi SSO |
+| R-07 | SLA & thông lượng workflow | HR, ban lãnh đạo | Yêu cầu theo process type, thời gian phê duyệt trung bình, vi phạm SLA, đang chờ theo người phê duyệt |
+| R-08 | Phê duyệt đang chờ theo người phê duyệt / ủy quyền đang hiệu lực | Quản lý, HR | |
+| R-09 | Tình trạng gửi thông báo | Quản trị viên | Đã gửi/lỗi theo kênh, ước tính chi phí Zalo ZNS |
+| R-10 | Báo cáo audit trail | Kiểm toán viên | Các thay đổi đã lọc kèm giá trị trước/sau |
+| R-11 | Báo cáo truy cập dữ liệu cá nhân | DPO / kiểm toán viên | Ai đã xem/xuất dữ liệu nhạy cảm |
+| R-12 | Log job import/export | Quản trị viên | Job, số dòng, lỗi |
+| R-13 | Tác động thay đổi master data | Quản trị viên | Các bản ghi tham chiếu đơn vị hành chính/ngân hàng đã ngừng sử dụng |
 
 ---
 
-## 9. Non-functional requirements
+## 9. Yêu cầu phi chức năng
 
-| ID | Requirement | Pri |
+| ID | Yêu cầu | Ưu tiên |
 |---|---|---|
-| NFR-CORE-001 | Tenant isolation: every Core table carries `tenant_id` (except global master data) and is protected by row-level security; no API returns cross-tenant data. Isolation tested automatically. | M |
-| NFR-CORE-002 | Authorisation/data-scope check adds ≤20 ms p95 per request; scope predicates must be index-friendly (e.g. materialised org paths/closure table). | M |
-| NFR-CORE-003 | Org tree "as of date" query for a 10,000-employee tenant with 2,000 units returns in ≤1 s p95. | M |
-| NFR-CORE-004 | Workflow engine: submit ≤500 ms p95; ≥50 submissions/s per platform node; no lost tasks (transactional outbox, at-least-once events, idempotent callbacks). | M |
-| NFR-CORE-005 | Notifications: in-app delivered ≤5 s; email/push/Zalo queued ≤1 min p95 at peak (e.g. payslip publishing for 10,000 employees completes ≤30 min). | M |
-| NFR-CORE-006 | Login availability 99.9% monthly; SSO token validation does not depend on synchronous IdP calls per request. | M |
-| NFR-CORE-007 | Passwords (held by saas-platform, R2-02 §5 #10) hashed with a modern adaptive algorithm (Argon2id/bcrypt); secrets and sensitive fields encrypted at rest with per-tenant keys (KMS); TLS 1.2+ in transit. | M |
-| NFR-CORE-008 | Audit log write is part of the business transaction or guaranteed via outbox; audit storage tamper-evident; audit query of 1 year for one record ≤3 s. | M |
-| NFR-CORE-009 | Import 50,000 rows validate ≤5 min; export 100,000 rows ≤5 min async. | S |
-| NFR-CORE-010 | Files: max upload configurable (default 20 MB), malware scan ≤60 s; signed URLs expire ≤15 min. | M |
-| NFR-CORE-011 | Localisation: all UI labels, templates, code list labels, validation messages in VI and EN; Vietnamese diacritics fully supported in search (accent-insensitive search) and exports (UTF-8, Excel-compatible). | M |
-| NFR-CORE-012 | Accessibility WCAG 2.1 AA for Core screens; responsive for mobile approval. | S |
-| NFR-CORE-013 | All Core configuration (roles, workflows, templates, settings, code lists) exportable/importable between environments of the same tenant (e.g. UAT → PROD). | S |
-| NFR-CORE-014 | Security: OWASP ASVS L2; brute-force protection; rate limiting per tenant/user/API client. | M |
-| NFR-CORE-015 | Effective-dated activation jobs run at 00:00 Asia/Ho_Chi_Minh and are idempotent and re-runnable. | M |
+| NFR-CORE-001 | Cô lập tenant: mọi bảng Core đều có `tenant_id` (trừ master data toàn cục) và được bảo vệ bằng row-level security; không API nào trả về dữ liệu liên tenant. Việc cô lập được kiểm thử tự động. | M |
+| NFR-CORE-002 | Kiểm tra phân quyền/phạm vi dữ liệu tăng thêm ≤20 ms p95 mỗi request; predicate phạm vi phải thân thiện với index (ví dụ materialised org path/closure table). | M |
+| NFR-CORE-003 | Truy vấn cây tổ chức "tại ngày" cho tenant 10,000 nhân viên với 2,000 đơn vị trả về trong ≤1 s p95. | M |
+| NFR-CORE-004 | Workflow engine: gửi ≤500 ms p95; ≥50 lượt gửi/s mỗi node nền tảng; không mất công việc (transactional outbox, sự kiện at-least-once, callback idempotent). | M |
+| NFR-CORE-005 | Thông báo: trong ứng dụng gửi tới ≤5 s; email/push/Zalo vào hàng đợi ≤1 phút p95 lúc cao điểm (ví dụ phát hành phiếu lương cho 10,000 nhân viên hoàn tất ≤30 phút). | M |
+| NFR-CORE-006 | Tính sẵn sàng của đăng nhập 99.9% hằng tháng; việc xác thực token SSO không phụ thuộc vào lời gọi đồng bộ tới IdP ở mỗi request. | M |
+| NFR-CORE-007 | Mật khẩu (do saas-platform nắm giữ, R2-02 §5 #10) được băm bằng thuật toán thích ứng hiện đại (Argon2id/bcrypt); secret và trường nhạy cảm được mã hóa khi lưu trữ bằng khóa theo tenant (KMS); TLS 1.2+ khi truyền. | M |
+| NFR-CORE-008 | Việc ghi audit log là một phần của giao dịch nghiệp vụ hoặc được đảm bảo qua outbox; kho audit có khả năng phát hiện giả mạo; truy vấn audit 1 năm cho một bản ghi ≤3 s. | M |
+| NFR-CORE-009 | Import 50,000 dòng kiểm tra hợp lệ ≤5 phút; xuất 100,000 dòng ≤5 phút bất đồng bộ. | S |
+| NFR-CORE-010 | Tệp: dung lượng tải lên tối đa cấu hình được (mặc định 20 MB), quét mã độc ≤60 s; signed URL hết hạn ≤15 phút. | M |
+| NFR-CORE-011 | Bản địa hóa: mọi nhãn UI, mẫu, nhãn danh mục mã, thông báo kiểm tra hợp lệ bằng VI và EN; hỗ trợ đầy đủ dấu tiếng Việt trong tìm kiếm (tìm kiếm không phân biệt dấu) và xuất dữ liệu (UTF-8, tương thích Excel). | M |
+| NFR-CORE-012 | Khả năng tiếp cận WCAG 2.1 AA cho các màn hình Core; responsive cho phê duyệt trên mobile. | S |
+| NFR-CORE-013 | Toàn bộ cấu hình Core (vai trò, workflow, mẫu, cấu hình, danh mục mã) có thể xuất/import giữa các môi trường của cùng một tenant (ví dụ UAT → PROD). | S |
+| NFR-CORE-014 | Bảo mật: OWASP ASVS L2; chống brute-force; giới hạn tần suất theo tenant/người dùng/API client. | M |
+| NFR-CORE-015 | Job kích hoạt theo ngày hiệu lực chạy lúc 00:00 Asia/Ho_Chi_Minh, idempotent và có thể chạy lại. | M |
 
 ---
 
-## 10. Assumptions, open questions, risks
+## 10. Giả định, câu hỏi mở, rủi ro
 
-### 10.1 Assumptions
-| # | Assumption |
+### 10.1 Giả định
+| # | Giả định |
 |---|---|
-| A-01 | A user belongs to one tenant; consultants serving several tenants get separate accounts (multi-tenant identity is a saas-platform topic). |
-| A-02 | An employee's legal employer is the legal entity of their assignment's org unit / position; people module stores it explicitly and Core validates consistency. |
-| A-03 | Minimum-wage **amounts**, the admin-unit → region map, SI caps and PIT rates live in the saas-platform Legal Parameter Service; Core only resolves the region of a location from the pack map (changed 2026-10-16, R2-02 §5 #1). |
-| A-04 | Public holidays and work calendars are mastered by time-attendance; Core consumes them for SLA. |
-| A-05 | Global master data (admin units, banks) is stored in Core and served by the Core admin API; the platform operator curates it through the saas-platform back-office release workflow (changed 2026-10-16, R2-02 §5 #28). |
-| A-07 | Baseline capabilities that are always on whatever modules a tenant buys (R2-18): Core, People basics, legal parameters, pay scales/bands, Excel attendance import. Core functions never depend on a non-subscribed module; without T&A the SLA calendar uses the legal pack's national holiday template (changed 2026-10-16, R2-18). |
-| A-06 | Zalo OA/ZNS is used with the tenant's own OA and ZNS account (tenant bears ZNS cost). |
+| A-01 | Một người dùng thuộc một tenant; tư vấn viên phục vụ nhiều tenant được cấp các tài khoản riêng (identity đa tenant là chủ đề của saas-platform). |
+| A-02 | Người sử dụng lao động theo pháp luật của một nhân viên là pháp nhân của đơn vị tổ chức / vị trí trong phân công của họ; module people lưu tường minh và Core kiểm tra tính nhất quán. |
+| A-03 | **Mức** lương tối thiểu, bảng ánh xạ đơn vị hành chính → vùng, mức trần BHXH và thuế suất TNCN nằm trong Legal Parameter Service của saas-platform; Core chỉ xác định vùng của một địa điểm từ bảng ánh xạ của pack (thay đổi 2026-10-16, R2-02 §5 #1). |
+| A-04 | Ngày lễ và lịch làm việc do time-attendance làm master; Core sử dụng chúng cho SLA. |
+| A-05 | Master data toàn cục (đơn vị hành chính, ngân hàng) được lưu trong Core và phục vụ qua admin API của Core; platform operator quản lý qua quy trình phát hành back-office của saas-platform (thay đổi 2026-10-16, R2-02 §5 #28). |
+| A-07 | Các năng lực baseline luôn bật bất kể tenant mua module nào (R2-18): Core, People cơ bản, tham số pháp lý, thang bảng lương/khung lương, import chấm công từ Excel. Chức năng Core không bao giờ phụ thuộc vào module chưa đăng ký; khi không có T&A, lịch SLA dùng mẫu ngày lễ quốc gia của legal pack (thay đổi 2026-10-16, R2-18). |
+| A-06 | Zalo OA/ZNS được dùng với OA và tài khoản ZNS riêng của tenant (tenant chịu chi phí ZNS). |
 
-### 10.2 Open questions
-| # | Question | Owner |
+### 10.2 Câu hỏi mở
+| # | Câu hỏi | Người phụ trách |
 |---|---|---|
-| Q-01 | Is the workflow engine built in-house or based on an embedded BPMN engine (Flowable/Camunda)? Affects designer UX and parallel-branch support. | Solution architect |
-| Q-02 | Does each legal entity always have its own SI unit code, or can branches declare SI separately (per-branch SI code)? Need consultant input; model currently allows branch-level codes. | BA Payroll / legal |
-| Q-03 | ~~Should the region table be overridable per tenant at all, or strictly platform-controlled?~~ **Closed 2026-10-16 (R2-02 §5 #1):** the map is a legal-pack parameter; tenant overrides only where the pack flags "law permits", governed by the Legal Parameter Service. | PM / legal |
-| Q-04 | Exact list of the post-merger wards/communes and the official code set (GSO code list) and its update cadence. | Platform operator `[verify-legal]` |
-| Q-05 | ~~Who owns "headcount plan" vs "position budget"?~~ **Closed 2026-10-16 (R2-02 §5 #8):** the Core position FTE budget is the authoritative seat budget; the recruitment staffing plan (Phase 2) writes FTE budgets and proposed positions to Core via API and owns the cost budget. In MVP positions must exist before requisitions. | BA Core + BA Recruitment |
-| Q-06 | E-signature/e-contract provider(s) to support in MVP? | PM |
-| Q-07 | Are group-level (cross-entity) org units required for MVP (e.g. a shared HR department serving several entities)? | Pilot tenant |
-| Q-08 | Data residency: must all tenant data and files stay in VN-hosted infrastructure? | saas-platform / legal |
-| Q-09 | ~~Is SCIM provisioning needed by the pilot?~~ **Moved 2026-10-16 (R2-02 §5 #10):** SCIM is a saas-platform requirement (BR-SAAS-042); SSO is not needed for the pilot (R2-04). | Pilot tenant |
-| Q-10 | ~~Should payslip notifications via Zalo include amounts?~~ **Closed 2026-10-16 (R2-17):** no amounts over Zalo/SMS; payslips go by e-mail as a password-protected PDF (BR-CORE-074 exception, BR-PAY-102) or via ESS. | PM / DPO |
+| Q-01 | Workflow engine được tự xây dựng hay dựa trên một BPMN engine nhúng (Flowable/Camunda)? Ảnh hưởng tới UX trình thiết kế và khả năng hỗ trợ nhánh song song. | Solution architect |
+| Q-02 | Mỗi pháp nhân luôn có mã đơn vị BHXH riêng, hay chi nhánh có thể khai báo BHXH riêng (mã BHXH theo chi nhánh)? Cần ý kiến chuyên gia tư vấn; mô hình hiện cho phép mã ở cấp chi nhánh. | BA Payroll / pháp lý |
+| Q-03 | ~~Bảng vùng có nên cho phép tenant ghi đè hay không, hay hoàn toàn do nền tảng kiểm soát?~~ **Đã đóng 2026-10-16 (R2-02 §5 #1):** bảng ánh xạ là tham số của legal pack; tenant chỉ được ghi đè ở những nơi pack đánh dấu "pháp luật cho phép", do Legal Parameter Service quản lý. | PM / pháp lý |
+| Q-04 | Danh sách chính xác các phường/xã sau sáp nhập và bộ mã chính thức (bảng mã của Tổng cục Thống kê) cùng tần suất cập nhật. | Platform operator `[verify-legal]` |
+| Q-05 | ~~Ai sở hữu "kế hoạch headcount" so với "ngân sách vị trí"?~~ **Đã đóng 2026-10-16 (R2-02 §5 #8):** ngân sách FTE vị trí của Core là ngân sách định biên chính thức; kế hoạch nhân sự của recruitment (Phase 2) ghi ngân sách FTE và vị trí đề xuất vào Core qua API và sở hữu ngân sách chi phí. Trong MVP vị trí phải tồn tại trước khi có yêu cầu tuyển dụng. | BA Core + BA Recruitment |
+| Q-06 | Nhà cung cấp chữ ký điện tử/hợp đồng điện tử nào cần hỗ trợ trong MVP? | PM |
+| Q-07 | Có cần đơn vị tổ chức cấp tập đoàn (liên pháp nhân) cho MVP không (ví dụ phòng HR dùng chung phục vụ nhiều pháp nhân)? | Tenant thí điểm |
+| Q-08 | Vị trí lưu trữ dữ liệu: toàn bộ dữ liệu và tệp của tenant có bắt buộc phải nằm trên hạ tầng đặt tại VN không? | saas-platform / pháp lý |
+| Q-09 | ~~Tenant thí điểm có cần cấp tài khoản qua SCIM không?~~ **Đã chuyển 2026-10-16 (R2-02 §5 #10):** SCIM là yêu cầu của saas-platform (BR-SAAS-042); tenant thí điểm không cần SSO (R2-04). | Tenant thí điểm |
+| Q-10 | ~~Thông báo phiếu lương qua Zalo có nên bao gồm số tiền không?~~ **Đã đóng 2026-10-16 (R2-17):** không gửi số tiền qua Zalo/SMS; phiếu lương được gửi qua e-mail dưới dạng PDF có mật khẩu (ngoại lệ BR-CORE-074, BR-PAY-102) hoặc qua ESS. | PM / DPO |
 
-### 10.3 Risks
-| # | Risk | Impact | Mitigation |
+### 10.3 Rủi ro
+| # | Rủi ro | Tác động | Giảm thiểu |
 |---|---|---|---|
-| R-01 | Administrative-unit merger data incomplete/changing; addresses in customers' opening-balance files use the old 63-province/district model (changed 2026-10-16, D-09) | Wrong addresses, region assignment, declarations | Keep historic units + mapping table; import report of unmapped addresses; platform-curated updates |
-| R-02 | Region mapping after merger differs from intuition (merged provinces contain multiple regions at ward level) | Underpayment vs minimum wage | Region at ward level, effective-dated, verified by consultant `[verify-legal]` |
-| R-03 | Data-scope engine becomes a performance bottleneck | Slow lists/reports | Closure tables, cached scope predicates, NFR-CORE-002 load tests |
-| R-04 | Workflow engine over-generalised; slow to deliver for MVP | MVP delay | MVP subset: sequential + any-of + delegation + SLA; parallel branches Phase 2 |
-| R-05 | Zalo ZNS template approval lead time and cost | Channel not ready at go-live | Email/in-app as MVP baseline; Zalo as S |
-| R-06 | Effective-dated reorg interplay with payroll retro and T&A | Incorrect costing/attendance | Legal-entity lock-state check (C-16, from payroll), back-date permission, events with effective dates |
-| R-07 | PDP law (2026) compliance obligations expand (DPIA, consent logs) | Legal exposure | Sensitivity flags, access audit, DSR support (P-25); legal review |
-| R-08 | Module teams bypass Core authorisation service with own checks | Data leaks across scopes | Architecture rule + automated tests on every API |
+| R-01 | Dữ liệu sáp nhập đơn vị hành chính chưa đầy đủ/đang thay đổi; địa chỉ trong tệp số dư đầu kỳ của khách hàng dùng mô hình 63 tỉnh/quận huyện cũ (thay đổi 2026-10-16, D-09) | Sai địa chỉ, gán vùng, khai báo | Giữ đơn vị lịch sử + bảng ánh xạ; báo cáo import các địa chỉ chưa ánh xạ; cập nhật do nền tảng quản lý |
+| R-02 | Ánh xạ vùng sau sáp nhập khác với trực giác (tỉnh sau sáp nhập chứa nhiều vùng ở cấp phường) | Trả lương thấp hơn mức tối thiểu | Vùng ở cấp phường, có hiệu lực theo ngày, được chuyên gia tư vấn xác minh `[verify-legal]` |
+| R-03 | Engine phạm vi dữ liệu trở thành nút thắt hiệu năng | Danh sách/báo cáo chậm | Closure table, cache predicate phạm vi, load test NFR-CORE-002 |
+| R-04 | Workflow engine bị tổng quát hóa quá mức; chậm bàn giao cho MVP | Trễ MVP | Tập con MVP: tuần tự + any-of + ủy quyền + SLA; nhánh song song ở Phase 2 |
+| R-05 | Thời gian phê duyệt mẫu Zalo ZNS và chi phí | Kênh chưa sẵn sàng khi go-live | Email/trong ứng dụng là baseline MVP; Zalo ở mức S |
+| R-06 | Tương tác giữa tái cơ cấu có hiệu lực theo ngày với hồi tố lương và T&A | Sai hạch toán chi phí/chấm công | Kiểm tra trạng thái khóa của pháp nhân (C-16, từ payroll), quyền hồi tố, sự kiện kèm ngày hiệu lực |
+| R-07 | Nghĩa vụ tuân thủ Luật BVDLCN (2026) mở rộng (DPIA, log sự đồng ý) | Rủi ro pháp lý | Cờ nhạy cảm, audit truy cập, hỗ trợ DSR (P-25); rà soát pháp lý |
+| R-08 | Các nhóm module bỏ qua dịch vụ phân quyền của Core và tự kiểm tra | Rò rỉ dữ liệu giữa các phạm vi | Quy tắc kiến trúc + kiểm thử tự động trên mọi API |

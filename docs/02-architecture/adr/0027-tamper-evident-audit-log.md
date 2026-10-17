@@ -1,34 +1,34 @@
-# ADR-0027: Tamper-evident audit log with asynchronous hash-chain sealing
+# ADR-0027: Audit log chống giả mạo với niêm phong hash-chain bất đồng bộ
 
-- **Status:** Proposed
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Security lead, Solution architect
-- **Related:** gap-analysis §5 #13; NFR-CORE-008, NFR-PPL-006, NFR-PAY-006, BR-SAAS-037; SA overview §audit; [DESIGN.md](../../../database/postgresql/DESIGN.md) §9.2; DDL `002_core.sql` (`audit.*`)
+- **Trạng thái:** Đề xuất
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, Security lead, Solution architect
+- **Liên quan:** gap-analysis §5 #13; NFR-CORE-008, NFR-PPL-006, NFR-PAY-006, BR-SAAS-037; SA overview §audit; [DESIGN.md](../../../database/postgresql/DESIGN.md) §9.2; DDL `002_core.sql` (`audit.*`)
 
-## Context
+## Bối cảnh
 
-Audit writes must be part of the business transaction (or guaranteed through an outbox), be tamper-evident, cover sensitive reads, and be queryable (one record over one year in ≤ 3 s). Retention runs to 10 years for payroll-related actions. A naive per-tenant hash chain computed inside each business transaction would serialise all writes of a tenant on the chain head, which is unacceptable at payroll and check-in peaks.
+Việc ghi audit phải là một phần của transaction nghiệp vụ (hoặc được đảm bảo qua outbox), có tính chống giả mạo (tamper-evident), bao phủ các lần đọc nhạy cảm, và truy vấn được (một bản ghi trong một năm trong ≤ 3 s). Thời hạn lưu kéo dài tới 10 năm đối với các thao tác liên quan đến bảng lương. Một hash chain theo tenant đơn giản được tính bên trong mỗi transaction nghiệp vụ sẽ tuần tự hoá mọi thao tác ghi của một tenant trên đầu chuỗi, điều không thể chấp nhận vào giờ cao điểm tính lương và chấm công.
 
-## Decision
+## Quyết định
 
-1. `audit.audit_event`: a separate `audit` schema (owned by Core), monthly range partitions, PK `(tenant_id, id, occurred_at)`, RLS. It holds the actor, on-behalf-of, operator, support grant, action, object, purpose, request/correlation ids, IP and a **masked diff** (`*_enc`/`*_bidx` appear only as `"<encrypted:changed>"`).
-2. **Writes** happen in the business transaction: explicitly by services for business actions and sensitive reads, and by the generic trigger `audit.tg_row_audit` on configuration and HR master tables. The table in the same database acts as its own outbox. Bulk loads (opening-balance import, ADR-0037) can switch to per-batch summary events (`app.audit_mode = 'BATCH'`, actor `IMPORT`).
-3. **Sealing is asynchronous.** `audit.seal_batch(tenant)` (role `yhrm_audit_sealer`, every few seconds) locks `audit.chain_head`, takes unsealed rows older than 2 s in id order, and writes `chain_seq`, `prev_hash` and `row_hash = sha256(prev_hash ‖ canonical(row))`. The chain order is the seal order.
-4. **Anchoring:** the daily chain head per tenant goes to `audit.chain_anchor` and to WORM object storage in DC2. `audit.verify_chain()` detects modification, deletion (sequence gap) and re-ordering.
-5. **Immutability:** app roles have `INSERT` only; the sealer can update seal columns only (column grant plus guard trigger); nobody has `DELETE`. Partitions are detached and archived to WORM Parquet after 24 months; payroll-related categories are kept 10 years.
+1. `audit.audit_event`: một schema `audit` riêng (do Core sở hữu), partition theo khoảng hằng tháng, PK `(tenant_id, id, occurred_at)`, RLS. Bảng chứa người thực hiện, thực hiện thay mặt cho, operator, support grant, hành động, đối tượng, mục đích, request/correlation id, IP và một **diff đã được che** (`*_enc`/`*_bidx` chỉ xuất hiện dưới dạng `"<encrypted:changed>"`).
+2. **Ghi** diễn ra trong transaction nghiệp vụ: được service ghi tường minh cho các hành động nghiệp vụ và lần đọc nhạy cảm, và bởi trigger chung `audit.tg_row_audit` trên các bảng cấu hình và dữ liệu gốc HR. Bảng nằm trong cùng database đóng vai trò outbox của chính nó. Nạp hàng loạt (import số dư đầu kỳ, ADR-0037) có thể chuyển sang event tóm tắt theo từng batch (`app.audit_mode = 'BATCH'`, người thực hiện `IMPORT`).
+3. **Niêm phong là bất đồng bộ.** `audit.seal_batch(tenant)` (role `yhrm_audit_sealer`, chạy mỗi vài giây) khoá `audit.chain_head`, lấy các dòng chưa niêm phong cũ hơn 2 s theo thứ tự id, và ghi `chain_seq`, `prev_hash` và `row_hash = sha256(prev_hash ‖ canonical(row))`. Thứ tự chuỗi là thứ tự niêm phong.
+4. **Neo (anchoring):** đầu chuỗi hằng ngày của mỗi tenant được ghi vào `audit.chain_anchor` và vào object storage WORM tại DC2. `audit.verify_chain()` phát hiện chỉnh sửa, xoá (khuyết sequence) và đổi thứ tự.
+5. **Bất biến:** app role chỉ có `INSERT`; sealer chỉ có thể update các cột niêm phong (column grant cộng guard trigger); không ai có `DELETE`. Partition được detach và lưu trữ sang Parquet WORM sau 24 tháng; các nhóm liên quan đến bảng lương được giữ 10 năm.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Synchronous chain per transaction | Serialises writes per tenant; payroll and bulk HR changes would queue on one row lock. |
-| Hash chain per row without a sequence | Cannot detect deletion of the newest rows or re-ordering. |
-| External immutable ledger (e.g. QLDB-like service) | Not available in VN-hosted providers; adds a dependency on the write path. |
-| Audit only in application logs | Not queryable per record, not transactional, and log retention differs. |
+| Chuỗi đồng bộ theo từng transaction | Tuần tự hoá thao tác ghi theo tenant; tính lương và thay đổi HR hàng loạt sẽ xếp hàng chờ trên một row lock. |
+| Hash chain theo từng dòng không có sequence | Không phát hiện được việc xoá các dòng mới nhất hoặc đổi thứ tự. |
+| Sổ cái bất biến bên ngoài (ví dụ dịch vụ kiểu QLDB) | Không có ở các nhà cung cấp đặt tại VN; thêm một phụ thuộc trên đường ghi. |
+| Chỉ audit trong log ứng dụng | Không truy vấn được theo bản ghi, không có tính transaction, và thời hạn lưu log khác. |
 
-## Consequences
+## Hệ quả
 
-- \+ No write serialisation. Tampering inside the DB is detectable, and tampering with the anchors needs WORM storage access too.
-- − A window of a few seconds holds unsealed rows (tamper evidence starts at sealing). This is acceptable and monitored by an unsealed-age alert.
-- − The DDL smoke test confirmed that sealing works and that a modified row is detected at its sequence number.
-- − Audit volume is large (~40 events per employee per month), so partitions, archival and the query index must be operated.
+- \+ Không tuần tự hoá thao tác ghi. Giả mạo bên trong DB có thể phát hiện được, và giả mạo các điểm neo còn cần quyền truy cập storage WORM.
+- − Có một khoảng thời gian vài giây chứa các dòng chưa niêm phong (khả năng phát hiện giả mạo bắt đầu từ lúc niêm phong). Điều này chấp nhận được và được giám sát bằng cảnh báo tuổi của dòng chưa niêm phong.
+- − DDL smoke test đã xác nhận việc niêm phong hoạt động và một dòng bị chỉnh sửa được phát hiện tại số sequence của nó.
+- − Khối lượng audit lớn (~40 event mỗi nhân viên mỗi tháng), nên phải vận hành partition, lưu trữ và index truy vấn.

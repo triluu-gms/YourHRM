@@ -1,31 +1,31 @@
-# ADR-0019: Saga protocols — period close with close hold, leaver, hire, reorganisation
+# ADR-0019: Giao thức saga — chốt kỳ với close hold, nghỉ việc, tuyển mới, tái cơ cấu
 
-- **Status:** Accepted (2026-10-16, X-03 — period-close payroll hold; X-06 new events)
-- **Date:** 2026-10-16
-- **Related:** gap-analysis §7, GAP-017/019/027/028/035/036/040/053/070, §9 A-4; ADR-0004, ADR-0009, ADR-0011; [architecture-overview](../architecture-overview.md) §7.3–7.4
+- **Trạng thái:** Đã chấp thuận (2026-10-16, X-03 — payroll hold khi chốt kỳ; X-06 event mới)
+- **Ngày:** 2026-10-16
+- **Liên quan:** gap-analysis §7, GAP-017/019/027/028/035/036/040/053/070, §9 A-4; ADR-0004, ADR-0009, ADR-0011; [architecture-overview](../architecture-overview.md) §7.3–7.4
 
-## Context
+## Bối cảnh
 
-Several business outcomes span modules with separate transactions: the T&A ↔ Payroll period close (versioned Attendance Results, CLOSED/LOCKED handshake, stale detection, retro, unlock), the leaver flow (T&A individual close, People termination, Payroll final settlement within a legal deadline), the hire (Recruitment/People → Core/T&A/Payroll readiness), and reorganisation (Core package → People mass change → Core activation). Gap-analysis §7.2 step 9 proposes that if T&A rejects the lock on approval, Payroll's approval is rolled back — an asynchronous rollback of a human approval.
+Một số kết quả nghiệp vụ trải dài qua nhiều module với các transaction riêng biệt: chốt kỳ T&A ↔ Payroll (Attendance Result có phiên bản, bắt tay CLOSED/LOCKED, phát hiện dữ liệu cũ, truy lĩnh/truy thu, mở khoá), luồng nghỉ việc (T&A chốt cá nhân, People chấm dứt hợp đồng, Payroll quyết toán cuối cùng trong hạn luật định), tuyển mới (Recruitment/People → mức sẵn sàng ở Core/T&A/Payroll), và tái cơ cấu (gói của Core → thay đổi hàng loạt ở People → kích hoạt ở Core). Gap-analysis §7.2 bước 9 đề xuất rằng nếu T&A từ chối khoá khi phê duyệt, phê duyệt của Payroll sẽ bị rollback — tức là một rollback bất đồng bộ đối với một phê duyệt của con người.
 
-## Decision
+## Quyết định
 
-1. **Style:** each saga is orchestrated by the module that owns the outcome, through a persisted **process manager** (state table, idempotent steps, timeouts via the scheduler), built on a small base in `shared/common`. Reactions in other modules are plain idempotent event handlers.
-2. **Period close — close hold:** when a payroll run is *submitted*, Payroll acquires a hold on the exact Attendance Result version via a synchronous, idempotent T&A API. While held, T&A refuses re-open unless Payroll releases the hold (run → `CALCULATED`, stale). On approval, T&A's `CLOSED → LOCKED` cannot fail because the version is guaranteed. Unlock (privileged, second approval) is the only `LOCKED → CLOSED` path; reversal leaves T&A untouched. New events: `att.AttendancePeriodHoldGranted/Released`. A nightly reconciliation job checks run/period consistency.
-3. **Leaver:** Payroll's `FinalSettlementProcess` starts on `people.TerminationScheduled` (deadline clock from termination date, legal pack key), waits for `att.LeaverAttendanceClosed` and `people.EmployeeTerminated` (or an HR override with reason), runs the off-cycle settlement, and publishes `pay.FinalSettlementStatusChanged`; alerts at 50/80/100% of deadline; cancelled by `people.TerminationCancelled`.
-4. **Hire:** People's `HireProcess` emits `people.EmployeeHired(preview)`, tracks readiness (user account, pay group, schedule, contract, bank, tax code) from downstream events, publishes `people.OnboardingReadinessChanged`, and emits the final `EmployeeHired` on the start date; `HireCancelled` compensates.
-5. **Reorg:** Core's `ReorgPackage` goes `PENDING_MAPPING → ACTIVE | ACTIVATED_WITH_ERRORS` based on `people.ReorgMappingCompleted`; publishes `core.ReorgPackageStatusChanged`.
-6. All saga messages carry correlation ids and business versions; all steps are idempotent; process state is visible in admin UIs.
+1. **Phong cách:** mỗi saga được điều phối bởi module sở hữu kết quả, thông qua một **process manager** được lưu bền (bảng trạng thái, các bước idempotent, timeout qua scheduler), xây trên một nền nhỏ trong `shared/common`. Phản ứng ở các module khác là các event handler idempotent thông thường.
+2. **Chốt kỳ — close hold:** khi một kỳ chạy lương được *submit*, Payroll giữ (hold) đúng phiên bản Attendance Result qua một API T&A đồng bộ, idempotent. Trong khi bị giữ, T&A từ chối mở lại trừ khi Payroll giải phóng hold (kỳ chạy → `CALCULATED`, stale). Khi phê duyệt, bước `CLOSED → LOCKED` của T&A không thể thất bại vì phiên bản đã được đảm bảo. Mở khoá (đặc quyền, cần phê duyệt lần hai) là con đường duy nhất `LOCKED → CLOSED`; đảo ngược không động đến T&A. Event mới: `att.AttendancePeriodHoldGranted/Released`. Một job đối soát hằng đêm kiểm tra tính nhất quán giữa kỳ chạy và kỳ công.
+3. **Nghỉ việc:** `FinalSettlementProcess` của Payroll bắt đầu khi có `people.TerminationScheduled` (đồng hồ hạn chót tính từ ngày chấm dứt, khoá legal pack), chờ `att.LeaverAttendanceClosed` và `people.EmployeeTerminated` (hoặc HR override kèm lý do), chạy quyết toán ngoài kỳ, và phát `pay.FinalSettlementStatusChanged`; cảnh báo ở mốc 50/80/100% hạn chót; bị huỷ bởi `people.TerminationCancelled`.
+4. **Tuyển mới:** `HireProcess` của People phát `people.EmployeeHired(preview)`, theo dõi mức sẵn sàng (tài khoản người dùng, nhóm lương, lịch làm việc, hợp đồng, ngân hàng, mã số thuế) từ các event phía sau, phát `people.OnboardingReadinessChanged`, và phát `EmployeeHired` cuối cùng vào ngày bắt đầu làm việc; `HireCancelled` bù trừ.
+5. **Tái cơ cấu:** `ReorgPackage` của Core chuyển `PENDING_MAPPING → ACTIVE | ACTIVATED_WITH_ERRORS` dựa trên `people.ReorgMappingCompleted`; phát `core.ReorgPackageStatusChanged`.
+6. Mọi message của saga đều mang correlation id và phiên bản nghiệp vụ; mọi bước đều idempotent; trạng thái process hiển thị trong giao diện quản trị.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-- **Approve-then-rollback (gap §7.2 step 9 as written):** works, but reverses a human approval asynchronously and confuses approvers; kept as fallback if BAs reject the hold.
-- **Pure choreography:** nobody owns overall status or deadlines; poor for the legal settlement deadline.
-- **Workflow engine / Temporal for sagas:** extra infrastructure; the in-house approval engine is for human approvals only (ADR-0007).
-- **Distributed transactions (XA) across schemas:** violates module autonomy and blocks extraction.
+- **Phê duyệt rồi rollback (gap §7.2 bước 9 như đã viết):** hoạt động được, nhưng đảo ngược một phê duyệt của con người một cách bất đồng bộ và gây bối rối cho người phê duyệt; giữ làm phương án dự phòng nếu BA từ chối hold.
+- **Choreography thuần:** không ai sở hữu trạng thái tổng thể hay hạn chót; kém phù hợp với hạn quyết toán luật định.
+- **Workflow engine / Temporal cho saga:** thêm hạ tầng; approval engine nội bộ chỉ dành cho phê duyệt của con người (ADR-0007).
+- **Distributed transaction (XA) giữa các schema:** vi phạm tính tự chủ của module và cản trở việc tách module.
 
-## Consequences
+## Hệ quả
 
-- + No approval rollbacks; explicit deadlines; observable process state.
-- − The T&A and Payroll BAs update their BRDs (gap §7) for the hold, accepted as X-03 on 2026-10-16; the three new events are added to catalogue v1.1 (X-06).
-- − Process-manager code per saga to build and test (contract + scenario tests).
+- + Không có rollback phê duyệt; hạn chót rõ ràng; trạng thái process quan sát được.
+- − BA của T&A và Payroll cập nhật BRD của họ (gap §7) cho cơ chế hold, đã được chấp thuận là X-03 ngày 2026-10-16; ba event mới được thêm vào catalogue v1.1 (X-06).
+- − Phải xây và kiểm thử code process manager cho từng saga (contract test + scenario test).

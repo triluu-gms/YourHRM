@@ -1,36 +1,36 @@
-# ADR-0003: Application-tier multi-tenancy — resolution, context propagation, routing, quotas
+# ADR-0003: Multi-tenancy ở tầng ứng dụng — xác định tenant, lan truyền context, routing, quota
 
-- **Status:** Accepted (2026-10-16, brief baseline 4 — shared pool + RLS + app guard, dedicated tier, VN hosting; X-07 `saas` schema). Decision 5 updated 2026-10-16 to the baseline set approved in **R2-18** (accepted)
-- **Date:** 2026-10-16
-- **Related:** Architecture brief B4; gap-analysis GAP-016, GAP-060, §9 A-1/A-7; [architecture-overview](../architecture-overview.md) §5; data-level isolation in the data architecture (DESIGN.md, ADR 0020–0039)
+- **Trạng thái:** Đã chấp nhận (2026-10-16, baseline 4 của bản định hướng — pool chung + RLS + app guard, gói dedicated, lưu trữ tại VN; X-07 schema `saas`). Quyết định 5 được cập nhật ngày 2026-10-16 theo tập baseline đã được phê duyệt trong **R2-18** (đã chấp nhận)
+- **Ngày:** 2026-10-16
+- **Liên quan:** Bản định hướng kiến trúc B4; gap-analysis GAP-016, GAP-060, §9 A-1/A-7; [architecture-overview](../architecture-overview.md) §5; cách ly ở mức dữ liệu trong kiến trúc dữ liệu (DESIGN.md, ADR 0020–0039)
 
-## Context
+## Bối cảnh
 
-The baseline is a shared pool (`tenant_id` + PostgreSQL RLS + application guard) with an Enterprise dedicated database selected by tenant routing. NFR-SAAS-005 requires ≥ 500 tenants, 200k employees, 5× growth and a noisy-tenant cap of 20% of pool capacity. Tenant context must survive HTTP, async execution, jobs, events, caches and object storage. Module subscriptions are sold separately, yet modules depend on each other's reference capabilities at runtime (GAP-060).
+Baseline là pool chung (`tenant_id` + PostgreSQL RLS + application guard) cùng cơ sở dữ liệu dedicated cho gói Enterprise được chọn qua tenant routing. NFR-SAAS-005 yêu cầu ≥ 500 tenant, 200k nhân viên, tăng trưởng 5 lần và giới hạn noisy-tenant ở mức 20% năng lực của pool. Tenant context phải được giữ nguyên qua HTTP, xử lý bất đồng bộ, job, event, cache và object storage. Thuê bao module được bán riêng, nhưng khi chạy các module lại phụ thuộc vào năng lực tham chiếu của nhau (GAP-060).
 
-## Decision
+## Quyết định
 
-1. **Resolution:** the `tid` claim of the validated access token is the only authority for user traffic; the host name (`{slug}.yourhrm.vn`, custom domain P2/P3) is a login hint and must match the claim. Device traffic (Phase 2, live connector) resolves tenant from the device credential (mTLS); in Phase 1 device data arrives only as imported files under a user session. Jobs and events carry `tenant_id` in the persisted record. Operators act on a tenant only with a time-boxed support grant.
-2. **Context:** an immutable `TenantContext` bound with `ScopedValue`, propagated to virtual threads/executors with Micrometer context propagation; code without a context fails fast. Every transaction executes `SET LOCAL app.tenant_id` (and user / support grant) for RLS; a Hibernate filter / jOOQ listener adds `tenant_id` predicates as the second line of defence. Cache keys and object keys are tenant-prefixed by wrappers that refuse unprefixed tenant data.
-3. **Routing:** `saas.tenant_placement` maps tenant → cluster (pool-NN or dedicated). An `AbstractRoutingDataSource` selects the cluster per transaction; a tenant never spans clusters. Pool clusters hold ~100k employees each **[spike]**. Moves between clusters use filtered logical replication outside days 25–5.
-4. **Entitlements & flags:** entitlements (`saas`) gate features and UIs via an `@Entitled` aspect; OpenFeature with an in-house provider serves release, ops and calc-behaviour flags by tenant/ring.
-5. **Baseline-always-on capabilities (R2-18, accepted 2026-10-16; GAP-060):** available to every tenant whatever modules it buys — **Core** (org, legal entities, users/roles, workflow, notifications, documents, import engine), **People basics** (person, employment, assignment, salary record; read APIs + import + master-record UI), **legal parameter packs** (LPS API), **pay scales/bands** (gap §5 #7; API + catalogue admin), and **Excel attendance import** producing a standard `CLOSED` Attendance Result so the period-close protocol is unchanged for Payroll-without-T&A tenants.
-   - **Entitlement design:** the baseline set is the platform table `saas.baseline_capability` (feature keys `baseline.core`, `baseline.people.master`, `baseline.legal_params`, `baseline.pay.scales_bands`, `baseline.att.excel_import`), shipped by the release job and changed only by a product decision. The entitlement resolver writes a `source = BASELINE` entitlement row per tenant and key; the DB allows such a row only as an enabled tenant-wide grant, and the one-row-per-feature-per-period exclusion prevents a plan or override from disabling it (DESIGN.md §7.1). `` checks and the `/me/capabilities` response treat these keys like any other, so no code path special-cases "baseline".
-   - **Runtime reference services** that other modules call are never gated by entitlements (only UIs and features are): the national holiday calendar and default schedule pattern through the T&A calendar API / Core `WorkingCalendarProvider` SPI, and the gross↔net simulator API used by People for NET salaries. They are exposed API-only to tenants without T&A or Payroll. (They are not in the R2-18 list as sellable capabilities; PM to confirm they need no separate listing.)
-   - The plan catalogue publishes the dependency matrix (e.g. Payroll requires People master + attendance import).
-6. **Noisy-neighbour controls:** per-tenant API token buckets (Bucket4j/Valkey), fair-share job queue with a 20% slot cap (ADR-0011), per-role statement timeouts, report concurrency limits, tenant fair share on the `events` delivery queue (Kafka keys by tenant from Phase 2, ADR-0004 rev. 2), per-tenant notification rates.
+1. **Xác định tenant:** claim `tid` của access token đã được xác thực là nguồn có thẩm quyền duy nhất cho lưu lượng của người dùng; tên host (`{slug}.yourhrm.vn`, custom domain P2/P3) chỉ là gợi ý đăng nhập và phải khớp với claim. Lưu lượng từ thiết bị (Phase 2, connector trực tuyến) xác định tenant từ credential của thiết bị (mTLS); ở Phase 1, dữ liệu thiết bị chỉ đến dưới dạng file import trong phiên làm việc của người dùng. Job và event mang `tenant_id` trong bản ghi được lưu. Operator chỉ thao tác trên một tenant khi có support grant giới hạn thời gian.
+2. **Context:** một `TenantContext` bất biến được bind bằng `ScopedValue`, lan truyền sang virtual thread/executor bằng Micrometer context propagation; code không có context sẽ fail fast. Mọi transaction thực thi `SET LOCAL app.tenant_id` (và user / support grant) cho RLS; một Hibernate filter / jOOQ listener thêm điều kiện `tenant_id` làm lớp phòng thủ thứ hai. Cache key và object key được gắn tiền tố tenant bởi các wrapper từ chối dữ liệu tenant không có tiền tố.
+3. **Routing:** `saas.tenant_placement` ánh xạ tenant → cluster (pool-NN hoặc dedicated). Một `AbstractRoutingDataSource` chọn cluster cho mỗi transaction; một tenant không bao giờ trải trên nhiều cluster. Mỗi pool cluster chứa khoảng 100k nhân viên **[spike]**. Việc di chuyển giữa các cluster dùng filtered logical replication, ngoài khoảng ngày 25–5.
+4. **Entitlement & flag:** entitlement (`saas`) kiểm soát tính năng và giao diện qua aspect `@Entitled`; OpenFeature với provider tự phát triển phục vụ các flag phát hành, vận hành và hành vi tính toán theo tenant/ring.
+5. **Năng lực baseline luôn bật (R2-18, chấp nhận ngày 2026-10-16; GAP-060):** có sẵn cho mọi tenant bất kể mua module nào — **Core** (tổ chức, pháp nhân, người dùng/vai trò, workflow, thông báo, tài liệu, import engine), **People cơ bản** (cá nhân, quan hệ lao động, phân công, hồ sơ lương; API đọc + import + giao diện hồ sơ gốc), **bộ tham số pháp lý** (LPS API), **thang/bậc lương** (gap §5 #7; API + quản trị danh mục), và **import chấm công Excel** tạo ra Attendance Result `CLOSED` chuẩn để giao thức khóa kỳ không thay đổi đối với tenant dùng Payroll mà không có T&A.
+   - **Thiết kế entitlement:** tập baseline là bảng nền tảng `saas.baseline_capability` (feature key `baseline.core`, `baseline.people.master`, `baseline.legal_params`, `baseline.pay.scales_bands`, `baseline.att.excel_import`), được phát hành bởi release job và chỉ thay đổi theo quyết định sản phẩm. Entitlement resolver ghi một dòng entitlement `source = BASELINE` cho mỗi tenant và key; DB chỉ cho phép dòng như vậy dưới dạng grant được bật trên toàn tenant, và ràng buộc exclusion một-dòng-cho-mỗi-tính-năng-mỗi-kỳ ngăn plan hoặc override vô hiệu hóa nó (DESIGN.md §7.1). Các kiểm tra `` và response `/me/capabilities` xử lý các key này như mọi key khác, nên không có luồng code nào xử lý đặc biệt cho "baseline".
+   - **Dịch vụ tham chiếu runtime** mà các module khác gọi không bao giờ bị kiểm soát bởi entitlement (chỉ giao diện và tính năng mới bị): lịch ngày lễ quốc gia và mẫu lịch làm việc mặc định qua T&A calendar API / SPI `WorkingCalendarProvider` của Core, và API mô phỏng gross↔net mà People dùng cho lương NET. Các dịch vụ này chỉ được cung cấp dưới dạng API cho tenant không có T&A hoặc Payroll. (Chúng không nằm trong danh sách R2-18 dưới dạng năng lực có thể bán; PM xác nhận chúng không cần liệt kê riêng.)
+   - Danh mục plan công bố ma trận phụ thuộc (ví dụ Payroll yêu cầu hồ sơ gốc People + import chấm công).
+6. **Kiểm soát noisy-neighbour:** token bucket API theo tenant (Bucket4j/Valkey), job queue chia sẻ công bằng với giới hạn 20% slot (ADR-0011), statement timeout theo role, giới hạn số báo cáo chạy đồng thời, chia sẻ công bằng theo tenant trên hàng đợi phân phối `events` (Kafka key theo tenant từ Phase 2, ADR-0004 rev. 2), giới hạn tốc độ thông báo theo tenant.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-- **Schema-per-tenant** in the pool: rejected — 500+ schemas × 6 modules multiplies migrations and catalog bloat; RLS gives equal isolation with shared plans.
-- **Database-per-tenant for everyone:** rejected for cost and operations at SME scale; kept for Enterprise.
-- **Tenant from request header/path:** rejected as the authority (spoofable); used only as a hint.
-- **ThreadLocal context:** rejected in favour of `ScopedValue`, which is safe with virtual threads and cannot leak across pooled threads.
+- **Schema-per-tenant** trong pool: bị loại — 500+ schema × 6 module nhân bội số migration và làm phình catalog; RLS cho mức cách ly tương đương với plan dùng chung.
+- **Database-per-tenant cho tất cả:** bị loại vì chi phí và vận hành ở quy mô SME; giữ lại cho Enterprise.
+- **Tenant lấy từ header/path của request:** bị loại làm nguồn có thẩm quyền (có thể giả mạo); chỉ dùng làm gợi ý.
+- **Context bằng ThreadLocal:** bị loại để dùng `ScopedValue`, an toàn với virtual thread và không thể rò rỉ qua các thread trong pool.
 
-## Consequences
+## Hệ quả
 
-- + Defence in depth (token → app guard → RLS); uniform behaviour for pool and dedicated tenants.
-- + Fairness is measurable and enforceable.
-- − Every data access path must run inside a transaction with context; raw JDBC outside the framework is banned by ArchUnit.
-- − Routing directory is critical: cached in two levels and replicated per cluster.
-- − Baseline capabilities mean some module code runs for tenants who did not buy the module; pricing must reflect this (PM).
+- + Phòng thủ nhiều lớp (token → app guard → RLS); hành vi đồng nhất cho tenant pool và dedicated.
+- + Tính công bằng có thể đo lường và cưỡng chế được.
+- − Mọi luồng truy cập dữ liệu phải chạy bên trong transaction có context; JDBC thô bên ngoài framework bị ArchUnit cấm.
+- − Thư mục routing là thành phần then chốt: được cache hai tầng và nhân bản theo từng cluster.
+- − Năng lực baseline nghĩa là một phần code của module chạy cho cả tenant không mua module đó; giá bán phải phản ánh điều này (PM).

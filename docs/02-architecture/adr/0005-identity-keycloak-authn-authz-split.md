@@ -1,38 +1,38 @@
-# ADR-0005: Keycloak as identity provider; SaaS authenticates, Core authorises
+# ADR-0005: Keycloak làm identity provider; SaaS xác thực, Core phân quyền
 
-- **Status:** Accepted (2026-10-16, brief baseline 1 "SaaS authenticates, Core authorises"; OD-8 former-employee e-mail OTP; **R2-04: SSO moved to Phase 2** — Phase 1 = Keycloak username/password + MFA by TOTP or e-mail OTP)
-- **Date:** 2026-10-16
-- **Related:** Architecture brief B1; gap-analysis GAP-002, GAP-003, GAP-016, GAP-035, GAP-036, §9 A-5; NFR-CORE-006/007; [architecture-overview](../architecture-overview.md) §6
+- **Trạng thái:** Đã chấp nhận (2026-10-16, baseline 1 của bản định hướng "SaaS xác thực, Core phân quyền"; OD-8 OTP qua e-mail cho cựu nhân viên; **R2-04: SSO chuyển sang Phase 2** — Phase 1 = username/password Keycloak + MFA bằng TOTP hoặc OTP qua e-mail)
+- **Ngày:** 2026-10-16
+- **Liên quan:** Bản định hướng kiến trúc B1; gap-analysis GAP-002, GAP-003, GAP-016, GAP-035, GAP-036, §9 A-5; NFR-CORE-006/007; [architecture-overview](../architecture-overview.md) §6
 
-## Context
+## Bối cảnh
 
-Authentication (credentials, MFA, SSO, sessions, API clients) is owned by the SaaS platform; authorisation (user accounts, roles, data scopes, masking) by Core. **Phase 1 (R2-04, 2026-10-16): Keycloak username + password with MFA by TOTP (authenticator app) or e-mail one-time code; no SSO at the pilot.** OIDC SSO (Google, Microsoft Entra ID) and SAML move to Phase 2; SCIM stays P3. One natural person may belong to several tenants (GAP-016). Former employees keep limited access without the tenant SSO (GAP-036). Candidates need passwordless access (P2). All identity data must stay in Vietnam; login availability SLO is 99.9% and token validation must not call the IdP per request.
+Xác thực (credential, MFA, SSO, session, API client) do nền tảng SaaS sở hữu; phân quyền (tài khoản người dùng, vai trò, phạm vi dữ liệu, masking) do Core sở hữu. **Phase 1 (R2-04, 2026-10-16): username + password Keycloak với MFA bằng TOTP (ứng dụng authenticator) hoặc mã dùng một lần qua e-mail; không có SSO ở pilot.** OIDC SSO (Google, Microsoft Entra ID) và SAML chuyển sang Phase 2; SCIM vẫn ở P3. Một thể nhân có thể thuộc nhiều tenant (GAP-016). Cựu nhân viên giữ quyền truy cập giới hạn mà không cần SSO của tenant (GAP-036). Ứng viên cần truy cập không mật khẩu (P2). Toàn bộ dữ liệu định danh phải lưu tại Việt Nam; SLO khả dụng của đăng nhập là 99,9% và việc kiểm tra token không được gọi IdP cho mỗi request.
 
-## Decision
+## Quyết định
 
-1. **Keycloak 26.x**, self-hosted in the VN clusters with its own replicated PostgreSQL database.
-2. **One realm `yourhrm`** using **Keycloak Organizations**: one Organization per tenant; a Keycloak user is the global identity; Organization membership links it to tenants; per-Organization identity-provider brokering (OIDC and SAML, **Phase 2**, R2-04). Enterprise dedicated tier may get its own realm.
-   - **Phase-1 authentication (R2-04):** username (work or personal e-mail) + password under a tenant-configurable password policy (Keycloak), brute-force protection, and **MFA by TOTP or by e-mail OTP** (Keycloak e-mail OTP authenticator, built-in or a vetted extension **[SP-8]**); MFA is mandatory for HR, C&B, finance, tenant admin and operator roles and tenant-configurable for ESS users. WebAuthn/passkeys are Phase 2 with SSO. Password reset and e-mail OTP use the VN-hosted e-mail relay; SMS OTP is P3.
-3. **Tokens:** short-lived (5 min) JWT access tokens with `sub`, `tid`, `org`, `acr`, `amr`, `sid`; **no roles/permissions in tokens**. Resource servers validate locally with cached JWKS.
-4. **Step-up** via ACR levels (`1` password/SSO, `2` MFA, `3` MFA within 5 min) requested with `acr_values`; sensitive operations demand `acr ≥ 2` or `3`.
-5. **Browser** uses a BFF (ADR-0014); the mobile app (Phase 2, OD-9) uses AppAuth + PKCE with refresh-token rotation; API clients (public API, Phase 2, ADR-0014) use client credentials, created by SaaS per tenant and mapped to permissions by Core.
-6. **Core** owns `user_account` (tenant-scoped) with `identity_id`; Core emits `core.UserStatusChanged`; SaaS reacts by enabling/disabling Organization membership, revoking sessions, and (P3) SCIM.
-7. **Former employees:** status `FORMER_EMPLOYEE` removes the SSO link (Phase 2, when SSO exists) and enables e-mail OTP login for a tenant-set period (default 24 months); accepted as OD-8, so a personal e-mail is captured at offboarding (GAP-036). SMS OTP is P3.
-8. **Candidates (P2):** passwordless magic links via signed single-use tokens or a separate external-subject realm **[spike]**.
+1. **Keycloak 26.x**, tự host trong các cluster tại VN với cơ sở dữ liệu PostgreSQL riêng được nhân bản.
+2. **Một realm `yourhrm`** sử dụng **Keycloak Organizations**: mỗi tenant một Organization; một Keycloak user là định danh toàn cục; tư cách thành viên Organization liên kết user với tenant; identity-provider brokering theo từng Organization (OIDC và SAML, **Phase 2**, R2-04). Gói Enterprise dedicated có thể có realm riêng.
+   - **Xác thực ở Phase 1 (R2-04):** username (e-mail công việc hoặc cá nhân) + password theo password policy do tenant cấu hình (Keycloak), bảo vệ chống brute-force, và **MFA bằng TOTP hoặc OTP qua e-mail** (authenticator OTP qua e-mail của Keycloak, có sẵn hoặc một extension đã được thẩm định **[SP-8]**); MFA bắt buộc đối với các role HR, C&B, tài chính, quản trị tenant và operator, và do tenant cấu hình đối với người dùng ESS. WebAuthn/passkey thuộc Phase 2 cùng SSO. Đặt lại mật khẩu và OTP qua e-mail dùng e-mail relay lưu trữ tại VN; OTP qua SMS thuộc P3.
+3. **Token:** JWT access token sống ngắn (5 phút) với `sub`, `tid`, `org`, `acr`, `amr`, `sid`; **không có role/quyền trong token**. Resource server kiểm tra cục bộ bằng JWKS được cache.
+4. **Step-up** qua các mức ACR (`1` password/SSO, `2` MFA, `3` MFA trong vòng 5 phút) được yêu cầu bằng `acr_values`; các thao tác nhạy cảm đòi hỏi `acr ≥ 2` hoặc `3`.
+5. **Trình duyệt** dùng BFF (ADR-0014); app mobile (Phase 2, OD-9) dùng AppAuth + PKCE với xoay vòng refresh token; API client (public API, Phase 2, ADR-0014) dùng client credentials, do SaaS tạo cho từng tenant và được Core ánh xạ sang quyền.
+6. **Core** sở hữu `user_account` (theo phạm vi tenant) với `identity_id`; Core phát `core.UserStatusChanged`; SaaS phản ứng bằng cách bật/tắt tư cách thành viên Organization, thu hồi session, và (P3) SCIM.
+7. **Cựu nhân viên:** trạng thái `FORMER_EMPLOYEE` gỡ liên kết SSO (Phase 2, khi đã có SSO) và bật đăng nhập bằng OTP qua e-mail trong khoảng thời gian do tenant đặt (mặc định 24 tháng); được chấp nhận theo OD-8, do đó e-mail cá nhân được thu thập khi nghỉ việc (GAP-036). OTP qua SMS thuộc P3.
+8. **Ứng viên (P2):** magic link không mật khẩu qua token ký số dùng một lần hoặc một realm riêng cho chủ thể bên ngoài **[spike]**.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-- **Hosted IdPs (Auth0, Entra External ID, Cognito):** identity data outside Vietnam; rejected for residency.
-- **Realm per tenant:** strong separation, but 500+ realms degrade Keycloak admin performance and complicate multi-tenant users; kept only for Enterprise.
-- **Zitadel / Ory:** capable and multi-tenant-native, but smaller local skill base and fewer SAML brokering references; reconsider if Organizations prove insufficient in SP-8.
-- **Spring Authorization Server (custom IdP):** too much security-critical code to own.
-- **Roles in tokens:** stale until expiry and bloated for users with many scopes; rejected.
+- **IdP dạng hosted (Auth0, Entra External ID, Cognito):** dữ liệu định danh nằm ngoài Việt Nam; bị loại vì yêu cầu lưu trữ dữ liệu trong nước.
+- **Mỗi tenant một realm:** tách biệt mạnh, nhưng 500+ realm làm giảm hiệu năng quản trị Keycloak và gây phức tạp cho người dùng thuộc nhiều tenant; chỉ giữ cho Enterprise.
+- **Zitadel / Ory:** mạnh và hỗ trợ multi-tenant native, nhưng nguồn kỹ năng trong nước ít hơn và ít tham chiếu về SAML brokering hơn; cân nhắc lại nếu Organizations tỏ ra không đủ trong SP-8.
+- **Spring Authorization Server (IdP tự xây):** quá nhiều code quan trọng về bảo mật phải tự sở hữu.
+- **Role trong token:** bị cũ cho đến khi hết hạn và phình to với người dùng có nhiều phạm vi; bị loại.
 
-## Consequences
+## Hệ quả
 
-- + Standards-based login, MFA and (Phase 2) SSO without building an IdP; VN-resident.
-- − Phase 1 without SSO: users of the pilot hold one more password; mitigated by e-mail-based self-service reset and TOTP/e-mail OTP. Adding SSO in Phase 2 is configuration per Organization (identity brokering), not a model change.
-- + Clear seam: SaaS never decides "what", Core never handles credentials.
-- − Keycloak becomes tier-0: HA (≥ 3 replicas), its DB in DR scope, upgrade discipline.
-- − Organizations feature maturity must be validated (SP-8).
-- − Every request needs a Core authorisation lookup (cached; ADR-0006).
+- + Đăng nhập, MFA và (Phase 2) SSO theo chuẩn mà không phải tự xây IdP; lưu trữ tại VN.
+- − Phase 1 không có SSO: người dùng của pilot phải giữ thêm một mật khẩu; giảm thiểu bằng tự đặt lại mật khẩu qua e-mail và TOTP/OTP qua e-mail. Bổ sung SSO ở Phase 2 là việc cấu hình theo từng Organization (identity brokering), không phải thay đổi mô hình.
+- + Ranh giới rõ ràng: SaaS không bao giờ quyết định "được làm gì", Core không bao giờ xử lý credential.
+- − Keycloak trở thành tier-0: HA (≥ 3 replica), DB của nó nằm trong phạm vi DR, kỷ luật nâng cấp.
+- − Độ trưởng thành của tính năng Organizations phải được kiểm chứng (SP-8).
+- − Mọi request cần tra cứu phân quyền của Core (có cache; ADR-0006).

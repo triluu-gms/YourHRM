@@ -1,40 +1,40 @@
-# ADR-0035: Global vs tenant-overridable reference data
+# ADR-0035: Dữ liệu tham chiếu global và dữ liệu tham chiếu tenant có thể override
 
-- **Status:** Accepted (2026-10-16, X-02 — read-only exception for global reference data, listed in ADR-0021)
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Core lead
-- **Related:** gap-analysis §5 #28 (Core owns global master data), §9 A-1 (RLS exemptions); NFR-CORE-001; ADR-0020, ADR-0022, ADR-0025, ADR-0036; [DESIGN.md](../../../database/postgresql/DESIGN.md) §3.5; DDL `core.code_value`, `core.v_code_value_effective`, `sys.enable_tenant_or_global_rls`
+- **Trạng thái:** Đã chấp thuận (2026-10-16, X-02 — ngoại lệ chỉ đọc cho dữ liệu tham chiếu global, liệt kê trong ADR-0021)
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, trưởng nhóm Core
+- **Liên quan:** gap-analysis §5 #28 (Core sở hữu master data global), §9 A-1 (miễn trừ RLS); NFR-CORE-001; ADR-0020, ADR-0022, ADR-0025, ADR-0036; [DESIGN.md](../../../database/postgresql/DESIGN.md) §3.5; DDL `core.code_value`, `core.v_code_value_effective`, `sys.enable_tenant_or_global_rls`
 
-## Context
+## Bối cảnh
 
-Some reference data is identical for all tenants and released by the platform: countries, currencies, admin units and their 2025 mapping, banks, and statutory code lists. Some lists are extendable or overridable per tenant (leave reasons, separation reasons, employee categories). Some catalogues are seeded per tenant from templates (roles, leave types, salary components). The model must keep RLS simple and FKs tenant-safe.
+Một số dữ liệu tham chiếu giống hệt nhau cho mọi tenant và được nền tảng phát hành: quốc gia, tiền tệ, đơn vị hành chính và bảng ánh xạ năm 2025 của chúng, ngân hàng, và các danh mục mã theo luật định. Một số danh mục có thể mở rộng hoặc override theo tenant (lý do nghỉ phép, lý do nghỉ việc, loại nhân viên). Một số danh mục được seed theo tenant từ template (role, loại nghỉ phép, thành phần lương). Mô hình phải giữ RLS đơn giản và FK an toàn với tenant.
 
-## Decision
+## Quyết định
 
-Four classes:
+Bốn loại:
 
-| Class | `tenant_id` | RLS | Examples | Write path |
+| Loại | `tenant_id` | RLS | Ví dụ | Đường ghi |
 |---|---|---|---|---|
-| **Pure global** | none | none; `SELECT` granted to app roles (Core tables); `saas.legal_param_*` only to the SaaS role, other modules use the Legal Parameter Service API | `core.country`, `currency`, `admin_unit`, `admin_unit_mapping`, `bank`, `bank_branch`, `code_list`; `saas.legal_param_*` | Platform release job (`core.MasterDataReleased`), replicated to all clusters |
-| **Global + tenant override** | `NOT NULL`; global rows use the sentinel `00000000-…-0000` | read own + sentinel; write own only (`sys.enable_tenant_or_global_rls`) | `core.code_value`, `core.exchange_rate`, `saas.retention_policy` | Tenant admin for own rows; release job for sentinel rows |
-| **Seeded from template** | `NOT NULL`, tenant rows only | standard | `core.role` (system roles), `att.leave_type`, `pay.salary_component`, holiday calendar copies | Provisioning seed APIs, with `template_version` kept for upgrades |
-| **Tenant-owned** | `NOT NULL` | standard | everything else | Module APIs |
+| **Global thuần tuý** | không có | không có; `SELECT` được cấp cho app role (bảng Core); `saas.legal_param_*` chỉ cho role SaaS, các module khác dùng API của Legal Parameter Service | `core.country`, `currency`, `admin_unit`, `admin_unit_mapping`, `bank`, `bank_branch`, `code_list`; `saas.legal_param_*` | Release job của nền tảng (`core.MasterDataReleased`), sao chép tới mọi cluster |
+| **Global + override của tenant** | `NOT NULL`; dòng global dùng sentinel `00000000-…-0000` | đọc dòng của mình + sentinel; chỉ ghi dòng của mình (`sys.enable_tenant_or_global_rls`) | `core.code_value`, `core.exchange_rate`, `saas.retention_policy` | Quản trị viên tenant cho dòng của mình; release job cho dòng sentinel |
+| **Seed từ template** | `NOT NULL`, chỉ có dòng tenant | chuẩn | `core.role` (role hệ thống), `att.leave_type`, `pay.salary_component`, bản sao lịch ngày lễ | Seed API khi khởi tạo tenant, giữ `template_version` để nâng cấp |
+| **Thuộc sở hữu tenant** | `NOT NULL` | chuẩn | mọi thứ còn lại | API của module |
 
-* Override resolution: `DISTINCT ON (list, code) … ORDER BY (tenant_id = sentinel)`, wrapped in `core.v_code_value_effective` (security-invoker view). Tenants may add values or deactivate them for themselves. Statutory lists (`is_statutory`) cannot be extended.
-* Other modules reference global data **by code**, never by surrogate id (ADR-0022).
-* **Direct read by other modules (X-02, accepted 2026-10-16):** module roles may `SELECT` the Core reference tables of the first two classes (and the tenant's own `saas.tenant` row). This is the only read exception to "no grant on another module's schema"; it is read-only and enumerated in ADR-0021, and is guarded by `sys.cross_schema_grant_violations()` (DB test) plus an ArchUnit rule. Seeded and tenant-owned catalogues are **not** covered: other modules read them through the owner's API or an event-fed projection.
-* **No FK may point at a global + tenant table by `id`**: FK checks bypass RLS, so a tenant could reference another tenant's row. Such references use the code (validated in the app), or the catalogue is seeded per tenant instead.
+* Phân giải override: `DISTINCT ON (list, code) … ORDER BY (tenant_id = sentinel)`, được bọc trong `core.v_code_value_effective` (view security-invoker). Tenant có thể thêm giá trị hoặc vô hiệu hoá chúng cho riêng mình. Danh mục luật định (`is_statutory`) không thể mở rộng.
+* Các module khác tham chiếu dữ liệu global **bằng mã**, không bao giờ bằng surrogate id (ADR-0022).
+* **Module khác đọc trực tiếp (X-02, chấp thuận 2026-10-16):** role của module được phép `SELECT` các bảng tham chiếu của Core thuộc hai loại đầu (và dòng `saas.tenant` của chính tenant). Đây là ngoại lệ đọc duy nhất đối với quy tắc "không có grant trên schema của module khác"; nó chỉ đọc và được liệt kê trong ADR-0021, và được bảo vệ bởi `sys.cross_schema_grant_violations()` (test DB) cộng một rule ArchUnit. Các danh mục được seed và danh mục thuộc sở hữu tenant **không** được bao gồm: module khác đọc chúng qua API của chủ sở hữu hoặc projection được cấp bởi event.
+* **Không FK nào được trỏ tới bảng global + tenant bằng `id`**: kiểm tra FK bỏ qua RLS, nên một tenant có thể tham chiếu tới dòng của tenant khác. Các tham chiếu như vậy dùng mã (được kiểm tra trong ứng dụng), hoặc danh mục được seed theo tenant.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| `tenant_id NULL` for global rows | NULL cannot be part of a PK; policies with `IS NULL` branches are error-prone. |
-| Copy all reference data into every tenant | 500 copies of the admin-unit table; releases (such as the 2025 admin restructure) would need 500 updates. |
-| Separate `ref` schema | Ownership is Core's (gap §5 #28); a separate schema adds a grant surface without benefit. |
+| `tenant_id NULL` cho dòng global | NULL không thể là một phần của PK; policy có nhánh `IS NULL` dễ sai. |
+| Sao chép toàn bộ dữ liệu tham chiếu vào mọi tenant | 500 bản sao của bảng đơn vị hành chính; các bản release (như đợt sắp xếp lại đơn vị hành chính 2025) sẽ cần 500 lần cập nhật. |
+| Schema `ref` riêng | Quyền sở hữu thuộc về Core (gap §5 #28); schema riêng thêm bề mặt grant mà không có lợi ích. |
 
-## Consequences
+## Hệ quả
 
-- \+ One release updates every tenant; tenants still customise where allowed.
-- − Upgrading seeded templates (new system role permissions, a new statutory salary component) needs a "template upgrade" job that respects tenant changes.
-- − The sentinel tenant id must never be provisioned as a real tenant (CHECK on `saas.tenant`).
+- \+ Một bản release cập nhật mọi tenant; tenant vẫn tuỳ biến được ở nơi được phép.
+- − Nâng cấp template đã seed (quyền mới của role hệ thống, một thành phần lương luật định mới) cần một job "nâng cấp template" tôn trọng các thay đổi của tenant.
+- − Sentinel tenant id không bao giờ được khởi tạo thành tenant thật (CHECK trên `saas.tenant`).

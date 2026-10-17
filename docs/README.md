@@ -1,13 +1,13 @@
-# Project documentation
+# Tài liệu dự án
 
-| Folder | Content |
+| Thư mục | Nội dung |
 |---|---|
-| `00-project-management/` | Project charter, roadmap, RAID log (risks, assumptions, issues, dependencies), status reports, meeting notes, sprint plans |
-| `01-requirements/` | BRD, SRS per module (`srs/<module>/`), user stories |
-| `02-architecture/` | Architecture overview, ADRs (`adr/NNNN-title.md`), diagrams |
-| `03-ux-design/` | Wireframes, mockups |
-| `04-testing/` | Test plan, test cases per module, UAT scripts & sign-off |
-| `05-deployment/` | Release notes, runbooks, rollback plans |
-| `06-user-guides/` | End-user and admin guides |
+| `00-project-management/` | Điều lệ dự án, lộ trình, RAID log (rủi ro, giả định, vấn đề, phụ thuộc), báo cáo tình trạng, biên bản họp, kế hoạch sprint |
+| `01-requirements/` | BRD, SRS theo module (`srs/<module>/`), user story |
+| `02-architecture/` | Tổng quan kiến trúc, ADR (`adr/NNNN-title.md`), sơ đồ |
+| `03-ux-design/` | Wireframe, mockup |
+| `04-testing/` | Kế hoạch kiểm thử, test case theo module, kịch bản UAT & nghiệm thu |
+| `05-deployment/` | Release note, runbook, kế hoạch rollback |
+| `06-user-guides/` | Hướng dẫn cho người dùng cuối và quản trị viên |
 
-Naming: `YYYY-MM-DD-topic.md` for dated documents (meeting notes, status reports).
+Quy tắc đặt tên: `YYYY-MM-DD-topic.md` cho tài liệu có ngày (biên bản họp, báo cáo tình trạng).

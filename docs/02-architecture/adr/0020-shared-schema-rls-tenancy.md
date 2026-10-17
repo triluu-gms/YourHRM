@@ -1,41 +1,41 @@
-# ADR-0020: Shared-schema multi-tenancy with RLS and a transaction-local tenant context
+# ADR-0020: Multi-tenancy dùng chung schema với RLS và tenant context cục bộ theo transaction
 
-- **Status:** Accepted (2026-10-16, brief baseline 4; X-07 `saas` schema approved; SP-2 still validates RLS performance)
-- **Date:** 2026-10-16
-- **Deciders:** Data architect (owner), Solution architect (consumes), PM
-- **Related:** Architecture brief B4; SaaS BRD Q2; NFR-CORE-001, NFR-PAY-005, NFR-ATT-010, NFR-REC-001, NFR-SAAS-005; ADR-0003 (application tenancy), ADR-0021, ADR-0035, ADR-0036; [DESIGN.md](../../../database/postgresql/DESIGN.md) §3; DDL `000_extensions_roles.sql` (`sys.enable_tenant_rls`)
+- **Trạng thái:** Đã chấp thuận (2026-10-16, baseline 4 của brief; X-07 schema `saas` được duyệt; SP-2 vẫn kiểm chứng hiệu năng RLS)
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect (chủ sở hữu), Solution architect (bên sử dụng), PM
+- **Liên quan:** Architecture brief B4; SaaS BRD Q2; NFR-CORE-001, NFR-PAY-005, NFR-ATT-010, NFR-REC-001, NFR-SAAS-005; ADR-0003 (tenancy ở tầng ứng dụng), ADR-0021, ADR-0035, ADR-0036; [DESIGN.md](../../../database/postgresql/DESIGN.md) §3; DDL `000_extensions_roles.sql` (`sys.enable_tenant_rls`)
 
-## Context
+## Bối cảnh
 
-The PM baseline fixes a shared pool with `tenant_id` on every row, PostgreSQL RLS and an application guard, plus a dedicated-database tier. SaaS Q2 still asked whether schema-per-tenant would be better. The shared tier must hold ≥ 500 tenants and 200k employees at launch and scale 5× (NFR-SAAS-005). Every module requires isolation that is "tested automatically" and holds in background jobs and exports. Connections go through PgBouncer in transaction mode, so session state cannot be trusted.
+Baseline của PM chốt một pool dùng chung với `tenant_id` trên mọi dòng, PostgreSQL RLS và một lớp bảo vệ ở ứng dụng, cùng với một tier database riêng. SaaS Q2 vẫn đặt câu hỏi liệu schema-per-tenant có tốt hơn không. Tier dùng chung phải chứa ≥ 500 tenant và 200k nhân viên khi ra mắt và mở rộng được 5× (NFR-SAAS-005). Mọi module đều yêu cầu cách ly được "kiểm thử tự động" và vẫn đúng trong background job và khi xuất dữ liệu. Kết nối đi qua PgBouncer ở chế độ transaction, nên không thể tin cậy trạng thái session.
 
-## Decision
+## Quyết định
 
-1. **Shared schema, shared tables.** Every tenant-owned table has `tenant_id uuid NOT NULL`, which leads its PK `(tenant_id, id)` and every secondary index.
-2. **RLS is enabled and forced** on every tenant-owned table, with one standard policy applied by `sys.enable_tenant_rls()`:
+1. **Dùng chung schema, dùng chung bảng.** Mọi bảng thuộc sở hữu tenant có `tenant_id uuid NOT NULL`, đứng đầu PK `(tenant_id, id)` và mọi index phụ.
+2. **RLS được bật và ép buộc (forced)** trên mọi bảng thuộc sở hữu tenant, với một policy chuẩn duy nhất được áp bởi `sys.enable_tenant_rls()`:
    `FOR ALL TO yhrm_app USING (tenant_id = (SELECT sys.current_tenant_id())) WITH CHECK (same)`.
-   The scalar subquery is evaluated once per statement (InitPlan), so the predicate stays index-friendly.
-3. **The context is transaction-local.** The first statement of every transaction is `set_config('app.tenant_id', …, true)` (equivalent to `SET LOCAL`), together with `app.user_id`, `app.request_id`, `app.purpose`, `app.support_grant_id` and `app.mask_level`. `sys.current_tenant_id()` returns `NULLIF(current_setting('app.tenant_id', true), '')::uuid`.
-4. **Fail closed.** With no context the predicate is NULL, so reads return no rows and writes are rejected. Every DB access runs inside a transaction, and code paths without a tenant (cron dispatchers) never touch tenant tables.
-5. **RLS is for tenant isolation only.** User data scope is enforced by Core's scope predicates in the application (ADR-0006), against denormalised `legal_entity_id`/`org_unit_id` columns.
-6. **Technical roles** (outbox relay, audit sealer) get explicit `USING (true)` policies for the operations they need, never `BYPASSRLS`. Only `yhrm_owner` (migrations) and the time-boxed break-glass role bypass RLS.
-7. **Release-blocking test:** for every table in a module schema, a two-tenant fixture asserts zero cross-tenant visibility and rejected cross-tenant writes per app role. A catalogue check fails the build when a table has no `tenant_id` + RLS and is not allow-listed as global.
+   Scalar subquery được đánh giá một lần mỗi câu lệnh (InitPlan), nên predicate vẫn tận dụng được index.
+3. **Context cục bộ theo transaction.** Câu lệnh đầu tiên của mọi transaction là `set_config('app.tenant_id', …, true)` (tương đương `SET LOCAL`), cùng với `app.user_id`, `app.request_id`, `app.purpose`, `app.support_grant_id` và `app.mask_level`. `sys.current_tenant_id()` trả về `NULLIF(current_setting('app.tenant_id', true), '')::uuid`.
+4. **Fail closed.** Khi không có context, predicate là NULL, nên đọc không trả về dòng nào và ghi bị từ chối. Mọi truy cập DB đều chạy trong một transaction, và các luồng code không có tenant (cron dispatcher) không bao giờ chạm vào bảng tenant.
+5. **RLS chỉ dùng cho cách ly tenant.** Phạm vi dữ liệu của người dùng được ép buộc bởi scope predicate của Core trong ứng dụng (ADR-0006), dựa trên các cột phi chuẩn hoá `legal_entity_id`/`org_unit_id`.
+6. **Role kỹ thuật** (outbox relay, audit sealer) nhận policy `USING (true)` tường minh cho các thao tác chúng cần, không bao giờ dùng `BYPASSRLS`. Chỉ `yhrm_owner` (migration) và role break-glass có giới hạn thời gian mới bỏ qua RLS.
+7. **Test chặn release:** với mọi bảng trong schema của module, một fixture hai tenant khẳng định không có khả năng nhìn thấy chéo tenant và ghi chéo tenant bị từ chối, theo từng app role. Một kiểm tra catalogue làm build thất bại khi một bảng không có `tenant_id` + RLS và không nằm trong allow-list bảng global.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Schema-per-tenant | 500+ tenants × ~400 tables means about 200k relations: catalogue bloat, slow migrations (every release × 500 schemas), and no cross-tenant platform queries (billing headcount, legal-pack impact). Per-tenant restore is better, but it is achieved through logical export (DESIGN §3.7). |
-| Database-per-tenant for everyone | Connection and ops cost multiplies. Kept only for the Enterprise tier (ADR-0036). |
-| Application-only filtering (Hibernate filter / jOOQ listener) | One forgotten predicate leaks data. It is kept as the **second** line of defence (ADR-0003), not the only one. |
-| Session-level `SET app.tenant_id` | Unsafe with PgBouncer transaction pooling: the context leaks to the next client. |
-| `current_user` per tenant (DB role per tenant) | Role explosion, no pooling across tenants, grants per tenant. |
+| Schema-per-tenant | 500+ tenant × ~400 bảng nghĩa là khoảng 200k relation: catalogue phình to, migration chậm (mỗi release × 500 schema), và không có truy vấn nền tảng chéo tenant (headcount tính phí, tác động của legal pack). Khôi phục theo tenant tốt hơn, nhưng điều này đạt được qua logical export (DESIGN §3.7). |
+| Database-per-tenant cho tất cả | Chi phí kết nối và vận hành nhân lên. Chỉ giữ cho tier Enterprise (ADR-0036). |
+| Chỉ lọc ở ứng dụng (Hibernate filter / jOOQ listener) | Quên một predicate là rò rỉ dữ liệu. Được giữ làm lớp phòng thủ **thứ hai** (ADR-0003), không phải lớp duy nhất. |
+| `SET app.tenant_id` mức session | Không an toàn với transaction pooling của PgBouncer: context rò rỉ sang client tiếp theo. |
+| `current_user` theo tenant (DB role theo tenant) | Bùng nổ số role, không pooling được giữa các tenant, grant theo từng tenant. |
 
-## Consequences
+## Hệ quả
 
-- \+ Isolation is enforced by the database, including ad-hoc SQL by support tools and bugs in jobs.
-- \+ One schema to migrate. The dedicated tier uses the same DDL.
-- − Every query pays a policy predicate; SP-2 must show < 10 % p95 overhead **[spike]**.
-- − Developers must always run inside `@Transactional` (read-only included) with the context set. ArchUnit rules and the `sys.assert_tenant()` check enforce this.
-- − Partitions are not protected by the parent's policies when accessed directly, so app roles get grants on parent tables only.
-- − Bulk cross-tenant maintenance (backfills) runs as the migration owner and must be reviewed as privileged code.
+- \+ Cách ly được database ép buộc, kể cả với SQL ad-hoc của công cụ hỗ trợ và lỗi trong job.
+- \+ Chỉ một schema cần migrate. Tier riêng dùng cùng DDL.
+- − Mọi truy vấn đều chịu chi phí của policy predicate; SP-2 phải cho thấy overhead p95 < 10 % **[spike]**.
+- − Developer phải luôn chạy bên trong `@Transactional` (kể cả read-only) với context đã được thiết lập. Rule ArchUnit và kiểm tra `sys.assert_tenant()` ép buộc điều này.
+- − Partition không được bảo vệ bởi policy của bảng cha khi truy cập trực tiếp, nên app role chỉ được grant trên bảng cha.
+- − Bảo trì hàng loạt chéo tenant (backfill) chạy dưới quyền migration owner và phải được review như code đặc quyền.

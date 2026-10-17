@@ -1,34 +1,34 @@
 # YourHRM
 
-build a new HRM system on PostgreSQL database, Java Spring Boot Framework business logic, reporting system,  moderm and professional frontend covering Vietnam-specific payroll, overtime, insurance and PIT rules.
+Xây dựng hệ thống HRM mới trên cơ sở dữ liệu PostgreSQL, nghiệp vụ trên Java Spring Boot Framework, hệ thống báo cáo, frontend hiện đại và chuyên nghiệp, đáp ứng các quy định đặc thù của Việt Nam về tính lương, làm thêm giờ, bảo hiểm và thuế TNCN.
 
-Fit database and application architecture with multi-tenant allow build SaaS Application.
+Kiến trúc cơ sở dữ liệu và ứng dụng hỗ trợ multi-tenant, cho phép xây dựng ứng dụng SaaS.
 
-## Repository layout
+## Cấu trúc repository
 
-| Folder | Purpose | Owner |
+| Thư mục | Mục đích | Phụ trách |
 |---|---|---|
-| `docs/` | Project management, requirements, architecture, UX, testing, deployment, user guides | PM / BA / Architect |
-| `database/postgresql/` | Target data model: DDL, seed data, schema tests, `DESIGN.md` | DB / Architect |
-| `backend/` | API and business logic, one module per domain | Backend team |
-| `frontend/` | Web UI, one module per domain | Frontend team |
-| `tests/` | Cross-system tests: end-to-end, performance | QA |
-| `infra/` | Docker, CI/CD pipelines, per-environment configuration | DevOps |
-| `scripts/` | Developer and ops helper scripts | All |
+| `docs/` | Quản lý dự án, yêu cầu, kiến trúc, UX, kiểm thử, triển khai, hướng dẫn sử dụng | PM / BA / Architect |
+| `database/postgresql/` | Mô hình dữ liệu đích: DDL, dữ liệu seed, kiểm thử schema, `DESIGN.md` | DB / Architect |
+| `backend/` | API và nghiệp vụ, mỗi domain một module | Nhóm Backend |
+| `frontend/` | Giao diện web, mỗi domain một module | Nhóm Frontend |
+| `tests/` | Kiểm thử liên hệ thống: end-to-end, hiệu năng | QA |
+| `infra/` | Docker, pipeline CI/CD, cấu hình theo từng môi trường | DevOps |
+| `scripts/` | Script hỗ trợ cho developer và vận hành | Tất cả |
 
-## Functional modules
+## Các module chức năng
 
-Modules are aligned with the PostgreSQL schemas, so code, docs and tests use the same names.
-Sample schemas bellow:
-| Module | DB schema | Scope |
+Các module được đặt tương ứng với các schema PostgreSQL, để code, tài liệu và kiểm thử dùng chung một tên gọi.
+Ví dụ các schema dưới đây:
+| Module | DB schema | Phạm vi |
 |---|---|---|
-| `core` | `core` | Company, org tree, positions, users / roles / permissions, workflow & approvals, notifications, settings, audit |
-| `people` | `hr` | Person & employee records, assignments, contracts, onboarding / separation, appraisal, training, expenses |
-| `time-attendance` | `att` | Holidays, shifts, rosters, check-ins, attendance, overtime, leave |
-| `payroll` | `pay` | Salary components & structures, insurance, PIT, payroll runs, payslips, bank payments |
-| `recruitment` | `rec` | Staffing plans, requisitions, job openings, applicants, interviews, offers |
+| `core` | `core` | Công ty, cây tổ chức, vị trí, người dùng / vai trò / quyền, quy trình & phê duyệt, thông báo, thiết lập, audit |
+| `people` | `hr` | Hồ sơ cá nhân & nhân viên, phân công, hợp đồng, tiếp nhận / nghỉ việc, đánh giá, đào tạo, chi phí |
+| `time-attendance` | `att` | Ngày lễ, ca làm việc, lịch phân ca, check-in, chấm công, làm thêm giờ, nghỉ phép |
+| `payroll` | `pay` | Thành phần & cơ cấu lương, bảo hiểm, thuế TNCN, kỳ tính lương, phiếu lương, chi trả qua ngân hàng |
+| `recruitment` | `rec` | Kế hoạch nhân sự, yêu cầu tuyển dụng, vị trí đang tuyển, ứng viên, phỏng vấn, thư mời nhận việc |
 
-## Getting started
+## Bắt đầu
 
 
-> Never commit `.env` files. Credentials for the legacy Oracle database stay local only.
+> Không bao giờ commit file `.env`. Thông tin đăng nhập cơ sở dữ liệu Oracle cũ chỉ được lưu ở máy cục bộ.

@@ -1,67 +1,67 @@
-# ADR-0021: Database roles and privilege model
+# ADR-0021: Mô hình role và đặc quyền database
 
-- **Status:** Accepted (2026-10-16, X-02 — with the read-only reference-data exception listed below; **the complete exception list, including the tenant override rows of `core.code_value`/`core.exchange_rate` and the plumbing grants on `saas.job` and `audit.audit_event`, accepted in R2-11**). Relay grant on `saas.enqueue_event_delivery()` (R2-01, Phase-1 event bus): Proposed with ADR-0004 rev. 2
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Solution architect, Security lead
-- **Related:** Architecture brief B3 (modules never touch each other's tables); SA overview §4 "no cross-schema SQL"; BR-SAAS-033/036; NFR-SAAS-008; ADR-0017 (OpenBao dynamic credentials); ADR-0020, ADR-0022; [DESIGN.md](../../../database/postgresql/DESIGN.md) §2.3, §3.4; DDL `000_extensions_roles.sql`
+- **Trạng thái:** Đã chấp thuận (2026-10-16, X-02 — với ngoại lệ dữ liệu tham chiếu chỉ đọc liệt kê bên dưới; **danh sách ngoại lệ đầy đủ, bao gồm các dòng override của tenant trong `core.code_value`/`core.exchange_rate` và các grant hạ tầng trên `saas.job` và `audit.audit_event`, được chấp thuận trong R2-11**). Grant cho relay trên `saas.enqueue_event_delivery()` (R2-01, event bus Phase 1): Đề xuất cùng với ADR-0004 rev. 2
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, Solution architect, Security lead
+- **Liên quan:** Architecture brief B3 (các module không bao giờ chạm vào bảng của nhau); SA overview §4 "không có SQL chéo schema"; BR-SAAS-033/036; NFR-SAAS-008; ADR-0017 (thông tin xác thực động OpenBao); ADR-0020, ADR-0022; [DESIGN.md](../../../database/postgresql/DESIGN.md) §2.3, §3.4; DDL `000_extensions_roles.sql`
 
-## Context
+## Bối cảnh
 
-The modular monolith must not let module X read module Y's tables. Operators must have no default access to tenant data (BR-SAAS-033). Break-glass access needs two approvers and a 4-hour limit (BR-SAAS-036). Migrations need to own objects and run cross-tenant backfills. The outbox relay, audit sealer and reporting CDC need narrowly scoped cross-tenant access.
+Modular monolith không được để module X đọc bảng của module Y. Operator không được có quyền truy cập mặc định vào dữ liệu tenant (BR-SAAS-033). Truy cập break-glass cần hai người phê duyệt và giới hạn 4 giờ (BR-SAAS-036). Migration cần sở hữu các object và chạy backfill chéo tenant. Outbox relay, audit sealer và reporting CDC cần quyền truy cập chéo tenant với phạm vi hẹp.
 
-## Decision
+## Quyết định
 
-| Role | Login | BYPASSRLS | Purpose / grants |
+| Role | Login | BYPASSRLS | Mục đích / grant |
 |---|---|---|---|
-| `yhrm_owner` | no | yes | Owns every object; used via `SET ROLE` by the migrator only |
-| `yhrm_migrator` | yes | no | Flyway in CI/CD; member of `yhrm_owner` |
-| `yhrm_app` | no | **no** | Group role targeted by all RLS policies |
-| `yhrm_app_{saas,core,hr,att,pay,rec}` | yes | no | One per module, member of `yhrm_app`. DML on **its own schema only**; `INSERT` on `audit.audit_event`; `SELECT` on Core **global** reference tables; `INSERT` on `saas.job` |
-| `yhrm_platform` | yes | no | Operator back-office: platform tables in `saas`, **no grant on module schemas** |
-| `yhrm_relay` | yes | no | Outbox polling relay: `SELECT`, `UPDATE (published_at)` on every `outbox_event` via `USING (true)` policies; Phase 1: `EXECUTE` on the SECURITY DEFINER function `saas.enqueue_event_delivery()` (inserts pointer-only delivery jobs, ADR-0004 rev. 2) |
-| `yhrm_cdc` | yes | no | `REPLICATION`; reporting-store feed only (Phase 1 native logical replication with column lists, Phase-2 option Debezium; ADR-0012 Amendment 1) |
-| `yhrm_audit_sealer` | yes | no | `UPDATE` on audit seal columns only |
-| `yhrm_reporting_ro` | yes | no | RLS-bound read of masking views for real-time statutory reports |
-| `yhrm_ops_ro` | yes | no | `pg_monitor`; no table data |
-| `yhrm_breakglass` | no | yes | Granted to a named DBA for ≤ 4 h on two-person approval; pgaudit logs all statements |
+| `yhrm_owner` | không | có | Sở hữu mọi object; chỉ migrator dùng qua `SET ROLE` |
+| `yhrm_migrator` | có | không | Flyway trong CI/CD; thành viên của `yhrm_owner` |
+| `yhrm_app` | không | **không** | Group role là đích của mọi RLS policy |
+| `yhrm_app_{saas,core,hr,att,pay,rec}` | có | không | Mỗi module một role, thành viên của `yhrm_app`. DML **chỉ trên schema của chính nó**; `INSERT` trên `audit.audit_event`; `SELECT` trên các bảng tham chiếu **global** của Core; `INSERT` trên `saas.job` |
+| `yhrm_platform` | có | không | Back-office của operator: các bảng nền tảng trong `saas`, **không có grant trên schema của module** |
+| `yhrm_relay` | có | không | Outbox polling relay: `SELECT`, `UPDATE (published_at)` trên mọi `outbox_event` qua policy `USING (true)`; Phase 1: `EXECUTE` trên hàm SECURITY DEFINER `saas.enqueue_event_delivery()` (chèn các delivery job chỉ chứa con trỏ, ADR-0004 rev. 2) |
+| `yhrm_cdc` | có | không | `REPLICATION`; chỉ dùng cho luồng cấp dữ liệu reporting store (Phase 1 dùng native logical replication với column list, tuỳ chọn Phase 2 là Debezium; ADR-0012 Amendment 1) |
+| `yhrm_audit_sealer` | có | không | `UPDATE` chỉ trên các cột seal của audit |
+| `yhrm_reporting_ro` | có | không | Đọc có ràng buộc RLS trên masking view cho báo cáo theo quy định thời gian thực |
+| `yhrm_ops_ro` | có | không | `pg_monitor`; không có dữ liệu bảng |
+| `yhrm_breakglass` | không | có | Cấp cho một DBA được chỉ định trong ≤ 4 h khi có phê duyệt hai người; pgaudit ghi log mọi câu lệnh |
 
-- Passwords are never in DDL. Login roles get dynamic credentials from OpenBao (ADR-0017).
-- Each module uses its own Hikari pool and login role, so the DB enforces module boundaries even inside one JVM.
-- `PUBLIC` loses `CREATE` on `public`; procedures used by migrations are not executable by `PUBLIC`.
-- Cross-tenant work that apps need (job claiming) goes through **`SECURITY DEFINER` functions** owned by `yhrm_owner` with a fixed `search_path` (for example `saas.claim_jobs`), not through broad policies.
+- Mật khẩu không bao giờ nằm trong DDL. Login role nhận thông tin xác thực động từ OpenBao (ADR-0017).
+- Mỗi module dùng Hikari pool và login role riêng, nên DB ép buộc ranh giới module ngay cả bên trong một JVM.
+- `PUBLIC` mất quyền `CREATE` trên `public`; các procedure dùng cho migration không thể được `PUBLIC` thực thi.
+- Công việc chéo tenant mà ứng dụng cần (nhận job) đi qua **hàm `SECURITY DEFINER`** do `yhrm_owner` sở hữu với `search_path` cố định (ví dụ `saas.claim_jobs`), không qua các policy rộng.
 
-### Cross-schema exception list (X-02, accepted 2026-10-16; list confirmed in R2-11)
+### Danh sách ngoại lệ chéo schema (X-02, chấp thuận 2026-10-16; danh sách được xác nhận trong R2-11)
 
-A module app role has **no grant on another module's schema**, with exactly these exceptions. Anything not listed is a build failure.
+App role của một module **không có grant trên schema của module khác**, ngoại trừ chính xác các ngoại lệ sau. Bất cứ thứ gì không có trong danh sách đều làm build thất bại.
 
-| Schema.object | Privilege | Granted to | Why |
+| Schema.object | Đặc quyền | Cấp cho | Lý do |
 |---|---|---|---|
-| `core.country`, `core.currency`, `core.admin_unit`, `core.admin_unit_mapping`, `core.bank`, `core.bank_branch`, `core.code_list` | `SELECT` | `yhrm_app` (all modules) | Pure global reference data (X-02), immutable between platform releases |
-| `core.code_value`, `core.v_code_value_effective`, `core.exchange_rate` | `SELECT` | `yhrm_app` | Global rows + the tenant's own reference overrides (RLS: own + sentinel rows); read-only reference data (X-02) |
-| `saas.tenant` | `SELECT` | `yhrm_app` | The tenant's own row only (policy `tenant_self_read`; locale, time zone, state) — SaaS global reference (X-02) |
-| `saas.job` | `SELECT`, `INSERT` | `yhrm_app` | Platform plumbing, not a data read: transactional job enqueue (ADR-0011) |
-| `audit.audit_event` | `INSERT` | `yhrm_app` | Platform plumbing: append-only audit in the business transaction (ADR-0027) |
+| `core.country`, `core.currency`, `core.admin_unit`, `core.admin_unit_mapping`, `core.bank`, `core.bank_branch`, `core.code_list` | `SELECT` | `yhrm_app` (mọi module) | Dữ liệu tham chiếu global thuần tuý (X-02), bất biến giữa các bản release nền tảng |
+| `core.code_value`, `core.v_code_value_effective`, `core.exchange_rate` | `SELECT` | `yhrm_app` | Dòng global + override tham chiếu riêng của tenant (RLS: dòng của mình + dòng sentinel); dữ liệu tham chiếu chỉ đọc (X-02) |
+| `saas.tenant` | `SELECT` | `yhrm_app` | Chỉ dòng của chính tenant (policy `tenant_self_read`; locale, múi giờ, trạng thái) — tham chiếu global của SaaS (X-02) |
+| `saas.job` | `SELECT`, `INSERT` | `yhrm_app` | Hạ tầng nền tảng, không phải đọc dữ liệu: enqueue job trong transaction (ADR-0011) |
+| `audit.audit_event` | `INSERT` | `yhrm_app` | Hạ tầng nền tảng: audit chỉ-ghi-thêm trong transaction nghiệp vụ (ADR-0027) |
 
-Not in the list (and therefore forbidden): any `UPDATE`/`DELETE` across schemas, any read of another module's tenant data, salary or payroll amounts, and the legal-parameter tables (`saas.legal_param_*` are read by other modules through the Legal Parameter Service API only).
+Không có trong danh sách (do đó bị cấm): mọi `UPDATE`/`DELETE` chéo schema, mọi thao tác đọc dữ liệu tenant của module khác, số tiền lương hay bảng lương, và các bảng tham số pháp lý (`saas.legal_param_*` chỉ được các module khác đọc qua API của Legal Parameter Service).
 
-**Guards (both release-blocking):**
-1. **DB test:** `SELECT count(*) FROM sys.cross_schema_grant_violations()` must return 0 after migrations (function in `002_core.sql`; it reads `pg_class.relacl` and compares with the allow-list above).
-2. **ArchUnit / jOOQ rule:** SQL or generated jOOQ classes of module X may reference schema Y only for the objects above; the rule's allow-list is generated from the same list.
+**Lớp bảo vệ (cả hai đều chặn release):**
+1. **Test DB:** `SELECT count(*) FROM sys.cross_schema_grant_violations()` phải trả về 0 sau migration (hàm trong `002_core.sql`; đọc `pg_class.relacl` và so sánh với allow-list ở trên).
+2. **Rule ArchUnit / jOOQ:** SQL hoặc class jOOQ sinh ra của module X chỉ được tham chiếu schema Y đối với các object ở trên; allow-list của rule được sinh từ cùng danh sách này.
 
-Adding an entry needs an amendment of this ADR and of ADR-0035.
+Thêm một mục cần sửa đổi ADR này và ADR-0035.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| One application role for the whole monolith | The module boundary would be by convention only, and a single SQL injection would expose every schema. |
-| Per-module **schemas** but a shared role | Same as above. |
-| Give operators read-only DB access with RLS | Bypasses support-grant scoping and masking in the application (BR-SAAS-034); operators work through the app. |
-| `BYPASSRLS` for the relay/sealer | Over-privileged; narrow policies achieve the same. |
+| Một application role cho toàn bộ monolith | Ranh giới module chỉ còn là quy ước, và một lỗi SQL injection duy nhất sẽ làm lộ mọi schema. |
+| **Schema** theo module nhưng dùng chung role | Giống như trên. |
+| Cấp cho operator quyền đọc DB với RLS | Bỏ qua phạm vi support-grant và che dữ liệu trong ứng dụng (BR-SAAS-034); operator làm việc qua ứng dụng. |
+| `BYPASSRLS` cho relay/sealer | Đặc quyền quá mức; các policy hẹp đạt được cùng kết quả. |
 
-## Consequences
+## Hệ quả
 
-- \+ Module boundaries and least privilege are enforced by grants and testable in CI.
-- − There are six connection pools per app instance. PgBouncer keeps server connections bounded (`default_pool_size` per db/user pair).
-- − In-process cross-module calls never share a DB transaction, which is intended (consistency via outbox and sagas, ADR-0019).
-- − Exception: module roles read Core/SaaS global reference tables directly. Accepted as X-02 (2026-10-16) on the condition that the exception list above is explicit and guarded by the DB test and the ArchUnit rule.
+- \+ Ranh giới module và least privilege được ép buộc bằng grant và kiểm thử được trong CI.
+- − Mỗi instance ứng dụng có sáu connection pool. PgBouncer giữ số server connection trong giới hạn (`default_pool_size` theo cặp db/user).
+- − Lời gọi chéo module trong cùng process không bao giờ dùng chung một DB transaction, đây là chủ đích (nhất quán qua outbox và saga, ADR-0019).
+- − Ngoại lệ: role của module đọc trực tiếp các bảng tham chiếu global của Core/SaaS. Được chấp thuận là X-02 (2026-10-16) với điều kiện danh sách ngoại lệ ở trên được nêu tường minh và được bảo vệ bởi test DB và rule ArchUnit.

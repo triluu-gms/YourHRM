@@ -1,42 +1,42 @@
-# ADR-0024: Effective dating and partial bi-temporality
+# ADR-0024: Ngày hiệu lực và bi-temporality một phần
 
-- **Status:** Proposed
-- **Date:** 2026-10-16
-- **Deciders:** Data architect, Solution architect, People and Payroll leads
-- **Related:** gap-analysis §9 A-3; NFR-PPL-001 ("as of X, as known on Y"), NFR-CORE-003 (as-of org tree), BR-PAY-072/076 (retro); ADR-0009, ADR-0025; [DESIGN.md](../../../database/postgresql/DESIGN.md) §5; DDL `sys.tg_bitemporal_guard`, `hr.assignment`, `hr.salary_record`
+- **Trạng thái:** Đề xuất
+- **Ngày:** 2026-10-16
+- **Người quyết định:** Data architect, Solution architect, trưởng nhóm People và Payroll
+- **Liên quan:** gap-analysis §9 A-3; NFR-PPL-001 ("tại ngày X, theo hiểu biết tại ngày Y"), NFR-CORE-003 (cây tổ chức tại một ngày), BR-PAY-072/076 (truy lĩnh/truy thu); ADR-0009, ADR-0025; [DESIGN.md](../../../database/postgresql/DESIGN.md) §5; DDL `sys.tg_bitemporal_guard`, `hr.assignment`, `hr.salary_record`
 
-## Context
+## Bối cảnh
 
-Almost every HR master is effective-dated. People must answer "as of date X, as known on date Y" for assignments, salary and contracts. Payroll must detect back-dated changes after a run (retro) and reproduce runs for 10 years. Core must return the org tree as of any date in ≤ 1 s. A single pattern is needed, with enforcement in the DB and a shared library in the app.
+Hầu hết dữ liệu gốc HR đều có ngày hiệu lực. People phải trả lời được "tại ngày X, theo hiểu biết tại ngày Y" cho phân công, lương và hợp đồng. Payroll phải phát hiện các thay đổi hồi tố sau một kỳ chạy (truy lĩnh/truy thu) và tái tạo các kỳ chạy trong 10 năm. Core phải trả về cây tổ chức tại bất kỳ ngày nào trong ≤ 1 s. Cần một mẫu thống nhất, được ép buộc trong DB và có thư viện dùng chung trong ứng dụng.
 
-## Decision
+## Quyết định
 
-1. **Pattern A (valid time)** for most masters: `valid_from date`, `valid_to date` (exclusive, NULL = open), a generated `valid_during daterange '[)'`, and an `EXCLUDE USING gist (tenant_id WITH =, <key> WITH =, valid_during WITH &&)` (`btree_gist`). The structure is an anchor table (identity) plus a version table (attributes). Corrections are in-place updates captured by the audit log.
-2. **Pattern B (bi-temporal)** for `hr.assignment`, `hr.salary_record` and the legal parameters (packs give transaction time by version, ADR-0025). Pattern A plus `recorded_at`, `superseded_at`, `superseded_by` and `correction_reason`. The exclusion constraint applies `WHERE superseded_at IS NULL`. Rows are **never updated in place**; the trigger `sys.tg_bitemporal_guard()` allows only stamping `superseded_*` and forbids `DELETE`.
-3. **Query conventions:**
-   * current knowledge: `superseded_at IS NULL AND valid_during @> :d`;
-   * as known on `:k`: `recorded_at <= :k AND (superseded_at IS NULL OR superseded_at > :k)`;
-   * period overlap: `valid_during && daterange(:start, :end, '[]')`.
+1. **Mẫu A (valid time)** cho hầu hết dữ liệu gốc: `valid_from date`, `valid_to date` (không bao gồm, NULL = mở), một cột sinh `valid_during daterange '[)'`, và một `EXCLUDE USING gist (tenant_id WITH =, <key> WITH =, valid_during WITH &&)` (`btree_gist`). Cấu trúc gồm một bảng anchor (định danh) cộng một bảng version (thuộc tính). Các hiệu chỉnh là update tại chỗ và được audit log ghi lại.
+2. **Mẫu B (bi-temporal)** cho `hr.assignment`, `hr.salary_record` và các tham số pháp lý (pack cung cấp transaction time theo phiên bản, ADR-0025). Là Mẫu A cộng thêm `recorded_at`, `superseded_at`, `superseded_by` và `correction_reason`. Exclusion constraint áp dụng `WHERE superseded_at IS NULL`. Các dòng **không bao giờ được update tại chỗ**; trigger `sys.tg_bitemporal_guard()` chỉ cho phép đóng dấu `superseded_*` và cấm `DELETE`.
+3. **Quy ước truy vấn:**
+   * hiểu biết hiện tại: `superseded_at IS NULL AND valid_during @> :d`;
+   * theo hiểu biết tại `:k`: `recorded_at <= :k AND (superseded_at IS NULL OR superseded_at > :k)`;
+   * giao nhau theo kỳ: `valid_during && daterange(:start, :end, '[]')`.
 
-   Each has a partial B-tree index for the hot path.
-4. Retro detection: Payroll compares `recorded_at` with the run's People watermark.
-5. Org trees: `core.org_unit_version.path ltree` per version with a GiST index; subtree = `path <@ :root`.
-6. All temporal writes go through the shared Java `temporal-kit` (supersede, split, merge, close). Hand-written temporal updates fail code review.
-7. Contracts, employments and dependants with *inclusive* business end dates use generated `daterange(start, end, '[]')`, which PostgreSQL canonicalises to `[)`.
+   Mỗi quy ước có một partial B-tree index cho đường truy vấn nóng.
+4. Phát hiện hồi tố: Payroll so sánh `recorded_at` với watermark People của kỳ chạy.
+5. Cây tổ chức: `core.org_unit_version.path ltree` theo từng version với GiST index; cây con = `path <@ :root`.
+6. Mọi thao tác ghi theo thời gian đều đi qua thư viện Java dùng chung `temporal-kit` (supersede, split, merge, close). Update theo thời gian viết tay sẽ bị loại khi code review.
+7. Hợp đồng, quan hệ lao động và người phụ thuộc có ngày kết thúc nghiệp vụ *bao gồm* dùng cột sinh `daterange(start, end, '[]')`, được PostgreSQL chuẩn hoá thành `[)`.
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-| Option | Why not |
+| Phương án | Lý do không chọn |
 |---|---|
-| Separate `_history` tables filled by triggers | Two shapes to query, and "as known on" requires a union. Corrections are hard to express. |
-| Full bi-temporality everywhere | Doubles complexity and volume for data nobody queries "as known on" (locations, job titles); the audit log covers those. |
-| SQL:2011 temporal tables / `temporal_tables` extension | Not native in PostgreSQL 16/17; the extension is unmaintained and not available on CNPG images by default. |
-| `valid_to` inclusive | Contiguous ranges need `+1 day` arithmetic everywhere; off-by-one bugs. |
+| Bảng `_history` riêng được trigger điền dữ liệu | Hai hình dạng dữ liệu phải truy vấn, và "theo hiểu biết tại" cần union. Khó biểu diễn hiệu chỉnh. |
+| Bi-temporality đầy đủ ở mọi nơi | Tăng gấp đôi độ phức tạp và khối lượng cho dữ liệu không ai truy vấn "theo hiểu biết tại" (địa điểm, chức danh); audit log đã bao phủ các dữ liệu đó. |
+| Bảng temporal SQL:2011 / extension `temporal_tables` | Không có sẵn trong PostgreSQL 16/17; extension không còn được bảo trì và mặc định không có trên image CNPG. |
+| `valid_to` bao gồm | Các khoảng liên tiếp cần phép tính `+1 day` ở khắp nơi; lỗi lệch một đơn vị. |
 
-## Consequences
+## Hệ quả
 
-- \+ Overlaps are impossible by construction. Payroll reproduction and retro have a precise source.
-- \+ One pattern, one library, one set of query idioms.
-- − Bi-temporal tables grow with every correction; volume is small (salary/assignment history).
-- − Stored generated columns are NULL in `NEW` inside BEFORE triggers, so the guard excludes `valid_during` (found in the DDL smoke test).
-- − No pre-go-live history is loaded (D-09, no Oracle migration). Opening data is the version valid at the go-live date G, with `recorded_at` = load time and `source = 'OPENING_LOAD'`; "as known on" before the load returns the opening view (ADR-0037).
+- \+ Chồng lấn là bất khả thi theo thiết kế. Tái tạo bảng lương và truy lĩnh/truy thu có nguồn chính xác.
+- \+ Một mẫu, một thư viện, một bộ cách viết truy vấn.
+- − Bảng bi-temporal tăng theo mỗi lần hiệu chỉnh; khối lượng nhỏ (lịch sử lương/phân công).
+- − Cột sinh dạng stored là NULL trong `NEW` bên trong BEFORE trigger, nên guard loại trừ `valid_during` (phát hiện trong DDL smoke test).
+- − Không nạp lịch sử trước go-live (D-09, không migration từ Oracle). Dữ liệu đầu kỳ là version có hiệu lực tại ngày go-live G, với `recorded_at` = thời điểm nạp và `source = 'OPENING_LOAD'`; truy vấn "theo hiểu biết tại" trước thời điểm nạp trả về góc nhìn đầu kỳ (ADR-0037).

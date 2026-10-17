@@ -1,37 +1,37 @@
-# ADR-0013: Frontend — React, TypeScript, Ant Design; no micro-frontends; responsive ESS web in Phase 1, React Native in Phase 2
+# ADR-0013: Frontend — React, TypeScript, Ant Design; không dùng micro-frontend; ESS web responsive ở Phase 1, React Native ở Phase 2
 
-- **Status:** Accepted (2026-10-16, OD-2; Phase-1 scope per OD-9)
-- **Date:** 2026-10-16
-- **Related:** decision-log OD-2, OD-9, X-04; gap-analysis GAP-026 (ESS shell); NFR-SAAS-011/012/013/022, NFR-CORE-011, NFR-REC-002; [architecture-overview](../architecture-overview.md) §11
+- **Trạng thái:** Đã chấp thuận (2026-10-16, OD-2; phạm vi Phase 1 theo OD-9)
+- **Ngày:** 2026-10-16
+- **Liên quan:** decision-log OD-2, OD-9, X-04; gap-analysis GAP-026 (ESS shell); NFR-SAAS-011/012/013/022, NFR-CORE-011, NFR-REC-002; [architecture-overview](../architecture-overview.md) §11
 
-## Context
+## Bối cảnh
 
-The product needs a data-dense admin UI (HR, C&B, managers, tenant admins), a responsive ESS/MSS (≥ 360 px) where each module owns its pages inside a SaaS-owned shell, full vi/en localisation, WCAG 2.1 AA, and in Phase 2 a native mobile app (GPS/Wi-Fi/selfie check-in, push) and an SEO-friendly career site. One frontend team works on one release train.
+Sản phẩm cần một giao diện quản trị dày đặc dữ liệu (HR, C&B, quản lý, quản trị viên tenant), một ESS/MSS responsive (≥ 360 px) trong đó mỗi module sở hữu các trang của mình bên trong một shell do SaaS sở hữu, bản địa hoá đầy đủ vi/en, đạt WCAG 2.1 AA, và ở Phase 2 là một ứng dụng di động native (chấm công qua GPS/Wi-Fi/selfie, push) cùng một trang tuyển dụng thân thiện SEO. Một đội frontend làm việc trên một release train.
 
-Sponsor decisions (2026-10-16): React + TypeScript + Ant Design (OD-2). **No mobile features in Phase 1** (OD-9, X-04): no PWA, no web/GPS/selfie check-in; Phase-1 attendance comes from time devices and Excel import.
+Quyết định của nhà tài trợ (2026-10-16): React + TypeScript + Ant Design (OD-2). **Không có tính năng di động ở Phase 1** (OD-9, X-04): không PWA, không chấm công qua web/GPS/selfie; dữ liệu chấm công Phase 1 lấy từ máy chấm công và import Excel.
 
-## Decision
+## Quyết định
 
 1. **React 19 + TypeScript 5**, Vite, TanStack Query + TanStack Router, React Hook Form + Zod, react-i18next (ICU).
-2. **Ant Design 5** themed with YourHRM tokens, wrapped by our own components in `frontend/src/shared/components` (DataTable, EffectiveDatedForm, OrgTreePicker, MoneyInput VND, MaskedField, ApprovalTimeline…); Storybook + visual regression + axe checks.
-3. **No micro-frontends.** One codebase with two shells/entry points (Admin web, ESS/MSS web); domain folders mirror backend modules and are lazy-loaded; module boundaries enforced by lint rules; ESS pages registered per module in a shell registry.
-4. **API client generated** from OpenAPI 3.1 (orval).
-5. **Phase 1 ESS/MSS = responsive web only** (≥ 360 px, works in mobile browsers): no service worker/installable PWA, no offline cache of personal data, **no check-in from the browser**.
-6. **Phase 2 — all mobile features:** React Native (Expo) app reusing the API client, i18n bundles and tokens, with GPS/Wi-Fi/selfie check-in, push and biometric unlock. Whether a PWA is also offered is decided in Phase 2.
-7. **Career site (Phase 2):** SSR app (React Router 7 framework mode).
+2. **Ant Design 5** được tuỳ biến theme bằng token của YourHRM, bọc bởi các component riêng trong `frontend/src/shared/components` (DataTable, EffectiveDatedForm, OrgTreePicker, MoneyInput VND, MaskedField, ApprovalTimeline…); Storybook + kiểm thử hồi quy giao diện + kiểm tra axe.
+3. **Không dùng micro-frontend.** Một codebase với hai shell/entry point (Admin web, ESS/MSS web); các thư mục domain phản chiếu module backend và được lazy-load; ranh giới module được ép buộc bằng lint rule; các trang ESS được đăng ký theo module trong một shell registry.
+4. **API client được sinh tự động** từ OpenAPI 3.1 (orval).
+5. **ESS/MSS Phase 1 = chỉ web responsive** (≥ 360 px, chạy trên trình duyệt di động): không service worker/PWA cài đặt được, không cache offline dữ liệu cá nhân, **không chấm công từ trình duyệt**.
+6. **Phase 2 — toàn bộ tính năng di động:** ứng dụng React Native (Expo) tái sử dụng API client, gói i18n và token, có chấm công GPS/Wi-Fi/selfie, push và mở khoá sinh trắc học. Việc có cung cấp thêm PWA hay không sẽ được quyết định ở Phase 2.
+7. **Trang tuyển dụng (Phase 2):** ứng dụng SSR (React Router 7 framework mode).
 
-## Alternatives considered
+## Các phương án đã cân nhắc
 
-- **Angular 20 + PrimeNG/Material:** strong for enterprise forms and opinionated structure; viable. Rejected by OD-2 (team/hiring fit and React Native reuse).
-- **Vue 3:** good DX; smaller enterprise component ecosystem for dense tables in vi.
-- **Micro-frontends (Module Federation):** independent deployability not needed with one team; adds runtime complexity and inconsistent UX.
-- **Flutter for mobile:** excellent UI, but a second language and no code sharing with web.
-- **MUI / shadcn:** MUI's data grid advanced features are commercial; shadcn needs more in-house components for enterprise tables.
-- **PWA web check-in in Phase 1:** rejected by OD-9 (all mobile features move to Phase 2).
+- **Angular 20 + PrimeNG/Material:** mạnh cho form doanh nghiệp và có cấu trúc rõ ràng; khả thi. Bị loại theo OD-2 (phù hợp đội ngũ/tuyển dụng và tái sử dụng với React Native).
+- **Vue 3:** DX tốt; hệ sinh thái component doanh nghiệp cho bảng dữ liệu dày đặc bằng tiếng Việt nhỏ hơn.
+- **Micro-frontend (Module Federation):** không cần khả năng deploy độc lập khi chỉ có một đội; tăng độ phức tạp runtime và UX thiếu nhất quán.
+- **Flutter cho di động:** UI xuất sắc, nhưng thêm một ngôn ngữ thứ hai và không chia sẻ code với web.
+- **MUI / shadcn:** các tính năng nâng cao của data grid MUI là thương mại; shadcn cần tự xây nhiều component hơn cho bảng doanh nghiệp.
+- **Chấm công web qua PWA ở Phase 1:** bị loại theo OD-9 (mọi tính năng di động chuyển sang Phase 2).
 
-## Consequences
+## Hệ quả
 
-- + Large VN talent pool; rich components with vi_VN locale; code sharing web ↔ mobile in Phase 2.
-- + Smaller Phase-1 scope: no offline/PWA security work, no GPS/selfie privacy (DPIA) work before Phase 2.
-- − Ant Design's look must be themed to avoid a generic appearance; bundle size managed by tree-shaking and route splitting.
-- − Pilot employees cannot clock in from a phone in Phase 1; sites without time devices must use Excel attendance import.
+- + Nguồn nhân lực tại VN dồi dào; component phong phú có locale vi_VN; chia sẻ code web ↔ mobile ở Phase 2.
+- + Phạm vi Phase 1 nhỏ hơn: không có công việc bảo mật offline/PWA, không có công việc quyền riêng tư GPS/selfie (DPIA) trước Phase 2.
+- − Giao diện Ant Design phải được tuỳ biến theme để tránh vẻ ngoài chung chung; kích thước bundle được kiểm soát bằng tree-shaking và tách route.
+- − Nhân viên pilot không thể chấm công từ điện thoại ở Phase 1; các địa điểm không có máy chấm công phải dùng import chấm công bằng Excel.

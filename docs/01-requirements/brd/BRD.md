@@ -1,492 +1,493 @@
-# YourHRM — Business Requirements Document (Master)
+# YourHRM — Tài liệu Yêu cầu Nghiệp vụ (Bản tổng)
 
-> **How to read this document.** This is the consolidated, product-level BRD. It states *why* YourHRM exists, *what* it must achieve, *what* is in and out of scope by phase, and *how* the modules work together end to end. Detailed requirements live in the six module BRDs and are only referenced here — never restated.
+> **Cách đọc tài liệu này.** Đây là BRD tổng hợp ở cấp sản phẩm. Tài liệu nêu *vì sao* YourHRM tồn tại, *cần đạt được gì*, *những gì thuộc và không thuộc phạm vi* theo từng giai đoạn, và *cách* các module phối hợp với nhau từ đầu đến cuối. Yêu cầu chi tiết nằm trong sáu BRD module và chỉ được tham chiếu ở đây — không bao giờ nhắc lại.
 
-## 1. Document control
+## 1. Kiểm soát tài liệu
 
-| Item | Value |
+| Hạng mục | Giá trị |
 |---|---|
-| Document | `docs/01-requirements/brd/BRD.md` — Master Business Requirements Document |
-| Version | 0.3 (R3) (draft) |
-| Date | 2026-10-16 |
-| Status | Draft for review — Phase 0 |
-| Author | Lead Business Analyst |
-| Reviewers | Executive sponsor — TBD · Pilot customer HR/C&B lead — TBD · PM — TBD · Solution architect — TBD · VN labour/tax consultant — TBD |
-| Approval | Pending |
-| Source documents | [Project charter](../../00-project-management/project-charter.md) · [Decision log](../../00-project-management/decision-log.md) · [MVP scope re-rating](mvp-scope.md) · [01 Core](modules/01-core.md) · [02 People](modules/02-people.md) · [03 Time & Attendance](modules/03-time-attendance.md) · [04 Payroll](modules/04-payroll.md) · [05 Recruitment](modules/05-recruitment.md) · [06 SaaS Platform](modules/06-saas-platform.md) · [Gap analysis](gap-analysis.md) |
+| Tài liệu | `docs/01-requirements/brd/BRD.md` — Tài liệu Yêu cầu Nghiệp vụ tổng |
+| Phiên bản | 0.3 (R3) (bản nháp) |
+| Ngày | 2026-10-16 |
+| Trạng thái | Bản nháp để review — Phase 0 |
+| Tác giả | Lead Business Analyst |
+| Người review | Nhà tài trợ điều hành — TBD · Trưởng bộ phận HR/C&B của khách hàng pilot — TBD · PM — TBD · Solution architect — TBD · Chuyên gia tư vấn lao động/thuế VN — TBD |
+| Phê duyệt | Đang chờ |
+| Tài liệu nguồn | [Điều lệ dự án](../../00-project-management/project-charter.md) · [Nhật ký quyết định](../../00-project-management/decision-log.md) · [Đánh giá lại phạm vi MVP](mvp-scope.md) · [01 Core](modules/01-core.md) · [02 People](modules/02-people.md) · [03 Time & Attendance](modules/03-time-attendance.md) · [04 Payroll](modules/04-payroll.md) · [05 Recruitment](modules/05-recruitment.md) · [06 SaaS Platform](modules/06-saas-platform.md) · [Gap analysis](gap-analysis.md) |
 
-**Conventions** (charter §4): requirement IDs `BR-<MOD>-NNN` / `NFR-<MOD>-NNN` with `MOD ∈ CORE, PPL, ATT, PAY, REC, SAAS`; priority is MoSCoW, where `M` = needed for MVP / first paying tenant. Every legal value is an **effective-dated parameter**, never hard-coded, and is marked `[verify-legal]` until confirmed by a Vietnam labour/tax consultant.
+**Quy ước** (điều lệ dự án §4): mã yêu cầu `BR-<MOD>-NNN` / `NFR-<MOD>-NNN` với `MOD ∈ CORE, PPL, ATT, PAY, REC, SAAS`; độ ưu tiên theo MoSCoW, trong đó `M` = cần cho MVP / tenant trả phí đầu tiên. Mọi giá trị pháp lý là **tham số có hiệu lực theo thời gian**, không bao giờ hard-code, và được đánh dấu `[verify-legal]` cho đến khi được chuyên gia tư vấn lao động/thuế Việt Nam xác nhận.
 
-| Version | Date | Change |
+| Phiên bản | Ngày | Thay đổi |
 |---|---|---|
-| 0.1 | 2026-10-16 | First consolidation of module BRDs v0.1 |
-| 0.2 | 2026-10-16 | Applies the sponsor decisions X-04, OD-9, D-09 and D-10 ([decision log](../../00-project-management/decision-log.md)). (1) MVP cut to "core features of each module". Every BR/NFR is re-rated P1/P2/P3 in [mvp-scope.md](mvp-scope.md); that phase overrides MoSCoW for scope. (2) No mobile features in Phase 1: no native app, PWA, GPS/selfie or web check-in, and no push. Pilot attendance comes from time devices and Excel import. ESS stays as a responsive web app. (3) No Oracle migration or parallel run. A generic opening-balance import (Excel templates) is used instead, and the go-live criteria now rely on opening-balance reconciliation. (4) Billable employee = active person at month end per legal entity. Updated §2–§6, §9–§11. |
-| 0.3 | 2026-10-16 | Applies the round 2 sponsor decisions R2-01 – R2-19 ([decision log](../../00-project-management/decision-log.md) §7, §7.1, §7.2; [mvp-scope.md](mvp-scope.md) v0.2 §11). (1) Option B stretch cuts applied: 27 of 29 BRs move to P2. BR-PAY-102 (password-protected PDF payslip, R2-17) and BR-ATT-037 (admin manual timesheet entry, R2-01) stay P1. (2) **No live external integration in Phase 1.** The time-device connector, Zalo/SMS/push, e-sign, VNeID, accounting and bank APIs, job boards, public API/webhooks and the integration hub move to P2. Pilot attendance = Excel import (incl. a device-export-file template), manual entry and correction requests. Notifications = e-mail and in-app. Statutory and finance outputs are file exports. (3) BR-ATT-063 (SI claim data, minimal) and BR-SAAS-073 (one-month payroll comparison) move to P1. (4) Tết policy rules → P2; the bonus/off-cycle run stays P1. Basic concurrent employment across legal entities stays P1. (5) Baseline (always-on) capabilities defined (R2-18). **P1 = 254 BRs + 58 NFRs** (was 281 + 61). Updated §2, §5, §6, §8–§11. |
-| 0.3 (sync) | 2026-10-16 | R2-02 final scope sync. 9 new BA requirements rated: 7 P1 (BR-PPL-023, BR-PAY-065, 085, 086 partly, 087, BR-SAAS-090, 091) and 2 P2 (BR-CORE-088, BR-PPL-039). 5 rows removed after their ownership moved (BR-CORE-038, 039, 042, 113, BR-SAAS-027); their P1 capabilities are confirmed in BR-SAAS-038/039/043/046 (P1, baseline). BR-CORE-086 is now MoSCoW M, still P2. Holiday-calendar/schedule API (ATT-P-16) and gross↔net simulator marked as always-on API services. Phase is now set only in mvp-scope.md §9 (banner in every module BRD). Vendor e-invoicing stays P1 pending a sponsor decision (mvp-scope.md §11.4 R2-C1). **P1 = 259 BRs + 58 NFRs.** Updated §9 and RK5. |
-| 0.3 (R3) | 2026-10-16 | Applies round 3 ([decision log](../../00-project-management/decision-log.md) §8, R3-01 – R3-11). The vendor's own subscription e-invoicing (BR-SAAS-014/015) moves to P2: vendor finance invoices from its existing tool using the usage report (R3-01). BR-ATT-075 leaver early close (R3-06), BR-PPL-019 minimal qualification field (R3-07) and BR-SAAS-037 minimal operator-access log (R3-08) return to P1. E-PIT certificates in P1 are data plus an unsigned PDF that the customer signs and issues (R3-02). The multi-contract insurance rule is a legal parameter per insurance type, defaulting to the first contract for SI/UI/HI and each employer for OA-OD, `[verify-legal]` (R3-03). The payslip password is set by the employee only (R3-04). Employees without e-mail get printed PDF payslips and have no ESS in P1 (R3-05). Custom attributes in opening-balance files are mapped during validation (R3-09). **P1 = 260 BRs + 58 NFRs.** Updated §2, §5.1 #39, §9, §10.1, §10.3, A6, RK5 and RK12. |
+| 0.1 | 2026-10-16 | Bản tổng hợp đầu tiên từ các BRD module v0.1 |
+| 0.2 | 2026-10-16 | Áp dụng các quyết định của nhà tài trợ X-04, OD-9, D-09 và D-10 ([nhật ký quyết định](../../00-project-management/decision-log.md)). (1) MVP cắt còn "tính năng lõi của mỗi module". Mọi BR/NFR được đánh giá lại P1/P2/P3 trong [mvp-scope.md](mvp-scope.md); giai đoạn đó được ưu tiên hơn MoSCoW khi xác định phạm vi. (2) Không có tính năng mobile ở Phase 1: không app native, PWA, check-in GPS/selfie hay web, và không có push. Dữ liệu chấm công của pilot lấy từ máy chấm công và import Excel. ESS vẫn là web app responsive. (3) Không chuyển đổi từ Oracle hay chạy song song. Thay vào đó dùng chức năng import số dư đầu kỳ tổng quát (mẫu Excel), và tiêu chí go-live giờ dựa trên đối soát số dư đầu kỳ. (4) Nhân viên tính phí = người đang làm việc tại cuối tháng theo từng pháp nhân. Cập nhật §2–§6, §9–§11. |
+| 0.3 | 2026-10-16 | Áp dụng các quyết định vòng 2 của nhà tài trợ R2-01 – R2-19 ([nhật ký quyết định](../../00-project-management/decision-log.md) §7, §7.1, §7.2; [mvp-scope.md](mvp-scope.md) v0.2 §11). (1) Áp dụng các cắt giảm mở rộng của Phương án B: 27 trên 29 BR chuyển sang P2. BR-PAY-102 (phiếu lương PDF có mật khẩu, R2-17) và BR-ATT-037 (quản trị viên nhập bảng công thủ công, R2-01) vẫn ở P1. (2) **Không có tích hợp ngoài trực tuyến ở Phase 1.** Connector máy chấm công, Zalo/SMS/push, ký số, VNeID, API kế toán và ngân hàng, trang tuyển dụng, public API/webhook và integration hub chuyển sang P2. Dữ liệu chấm công của pilot = import Excel (bao gồm mẫu cho file xuất từ thiết bị), nhập thủ công và yêu cầu điều chỉnh công. Thông báo = e-mail và trong ứng dụng. Đầu ra theo luật định và tài chính là các file xuất. (3) BR-ATT-063 (dữ liệu hồ sơ hưởng BHXH, tối thiểu) và BR-SAAS-073 (so sánh bảng lương một tháng) chuyển sang P1. (4) Quy tắc chính sách Tết → P2; kỳ tính thưởng/ngoài kỳ vẫn ở P1. Quan hệ lao động đồng thời cơ bản ở nhiều pháp nhân vẫn ở P1. (5) Định nghĩa các năng lực baseline (luôn bật) (R2-18). **P1 = 254 BR + 58 NFR** (trước là 281 + 61). Cập nhật §2, §5, §6, §8–§11. |
+| 0.3 (sync) | 2026-10-16 | Đồng bộ phạm vi cuối cùng theo R2-02. 9 yêu cầu BA mới được đánh giá: 7 P1 (BR-PPL-023, BR-PAY-065, 085, 086 một phần, 087, BR-SAAS-090, 091) và 2 P2 (BR-CORE-088, BR-PPL-039). 5 dòng bị loại bỏ sau khi chuyển quyền sở hữu (BR-CORE-038, 039, 042, 113, BR-SAAS-027); năng lực P1 của chúng được xác nhận trong BR-SAAS-038/039/043/046 (P1, baseline). BR-CORE-086 giờ là MoSCoW M, vẫn ở P2. API lịch ngày lễ/lịch làm việc (ATT-P-16) và trình mô phỏng gross↔net được đánh dấu là dịch vụ API luôn bật. Giai đoạn giờ chỉ được thiết lập trong mvp-scope.md §9 (banner trong mọi BRD module). Hóa đơn điện tử của nhà cung cấp vẫn ở P1 chờ quyết định của nhà tài trợ (mvp-scope.md §11.4 R2-C1). **P1 = 259 BR + 58 NFR.** Cập nhật §9 và RK5. |
+| 0.3 (R3) | 2026-10-16 | Áp dụng vòng 3 ([nhật ký quyết định](../../00-project-management/decision-log.md) §8, R3-01 – R3-11). Hóa đơn điện tử cho thuê bao của chính nhà cung cấp (BR-SAAS-014/015) chuyển sang P2: bộ phận tài chính của nhà cung cấp xuất hóa đơn từ công cụ hiện có dựa trên báo cáo sử dụng (R3-01). BR-ATT-075 khóa sớm cho người nghỉ việc (R3-06), BR-PPL-019 trường trình độ chuyên môn tối thiểu (R3-07) và BR-SAAS-037 log truy cập tối thiểu của operator (R3-08) quay lại P1. Chứng từ khấu trừ thuế TNCN điện tử ở P1 là dữ liệu cộng với một PDF chưa ký mà khách hàng tự ký và phát hành (R3-02). Quy tắc bảo hiểm cho nhiều hợp đồng là một tham số pháp lý theo từng loại bảo hiểm, mặc định theo hợp đồng đầu tiên cho BHXH/BHTN/BHYT và theo từng người sử dụng lao động cho BHTNLĐ-BNN, `[verify-legal]` (R3-03). Mật khẩu phiếu lương chỉ do nhân viên đặt (R3-04). Nhân viên không có e-mail nhận phiếu lương PDF in sẵn và không có ESS ở P1 (R3-05). Thuộc tính tùy chỉnh trong file số dư đầu kỳ được ánh xạ trong bước kiểm tra hợp lệ (R3-09). **P1 = 260 BR + 58 NFR.** Cập nhật §2, §5.1 #39, §9, §10.1, §10.3, A6, RK5 và RK12. |
 
 ---
 
-## 2. Executive summary
+## 2. Tóm tắt điều hành
 
-**Problem.** Vietnamese employers run HR and payroll on legacy on-premise systems (such as the Oracle HR database of our pilot customer) or on spreadsheets. Vietnamese payroll is difficult to get right. It combines compulsory insurance (BHXH/BHYT/BHTN) with caps and exemptions, progressive PIT with family deductions, overtime and night-work premiums, regional minimum wages, and frequent legal change. In 2025–2026 alone this includes the SI Law 2024, PIT Law 2025 with new deductions and brackets, the Employment Law 2025, the PDP Law 2025, new regional minimum wages and the merger of provinces. Each change means spreadsheet rework, compliance risk and slow month-end close. Groups with several legal entities duplicate effort per entity.
+**Vấn đề.** Các doanh nghiệp Việt Nam đang vận hành nhân sự và tiền lương trên các hệ thống on-premise cũ (như cơ sở dữ liệu Oracle HR của khách hàng pilot) hoặc trên bảng tính. Tính lương ở Việt Nam rất khó làm đúng. Nó kết hợp bảo hiểm bắt buộc (BHXH/BHYT/BHTN) với mức trần và miễn trừ, thuế TNCN lũy tiến với giảm trừ gia cảnh, phụ cấp làm thêm giờ và làm đêm, lương tối thiểu vùng, và các thay đổi pháp lý thường xuyên. Chỉ riêng giai đoạn 2025–2026 đã có Luật BHXH 2024, Luật Thuế TNCN 2025 với các mức giảm trừ và bậc thuế mới, Luật Việc làm 2025, Luật Bảo vệ dữ liệu cá nhân 2025, mức lương tối thiểu vùng mới và việc sáp nhập tỉnh. Mỗi thay đổi đồng nghĩa với việc làm lại bảng tính, rủi ro tuân thủ và khóa sổ cuối tháng chậm. Các tập đoàn có nhiều pháp nhân phải làm lặp lại công việc cho từng pháp nhân.
 
-**Product.** YourHRM is a multi-tenant HRM SaaS built on PostgreSQL and Java Spring Boot. It covers the employer structure and access (Core), the employee lifecycle (People), Time & Attendance, Vietnamese Payroll with SI and PIT, and Recruitment. A commercial SaaS platform layer adds tenant lifecycle, billing, identity, reporting, integration, opening-balance import and a responsive web ESS. A native mobile app and live integrations (time devices, Zalo/SMS, e-sign, bank and accounting APIs) follow in Phase 2. Phase 1 exchanges data with outside systems through file exports and Excel imports only.
+**Sản phẩm.** YourHRM là một nền tảng HRM SaaS multi-tenant xây dựng trên PostgreSQL và Java Spring Boot. Sản phẩm bao quát cơ cấu và quyền truy cập của doanh nghiệp (Core), vòng đời nhân viên (People), Chấm công (Time & Attendance), Tính lương theo quy định Việt Nam với BHXH và thuế TNCN, và Tuyển dụng. Một lớp nền tảng SaaS thương mại bổ sung vòng đời tenant, tính phí, định danh, báo cáo, tích hợp, import số dư đầu kỳ và ESS dạng web responsive. App mobile native và các tích hợp trực tuyến (máy chấm công, Zalo/SMS, ký số, API ngân hàng và kế toán) sẽ có ở Phase 2. Phase 1 trao đổi dữ liệu với các hệ thống bên ngoài chỉ qua xuất file và import Excel.
 
-**Target customers.** Vietnamese organisations with roughly 20 to 10,000 employees per tenant. This covers SMEs, mid-market companies and multi-entity groups, including labour-intensive sectors (manufacturing, garment, retail) that need shifts, device check-in and the 300-hour overtime regime. All tenant data is hosted in Vietnam.
+**Khách hàng mục tiêu.** Các tổ chức Việt Nam có khoảng 20 đến 10.000 nhân viên mỗi tenant. Bao gồm SME, doanh nghiệp quy mô vừa và các tập đoàn nhiều pháp nhân, kể cả các ngành thâm dụng lao động (sản xuất, may mặc, bán lẻ) cần ca làm việc, chấm công bằng thiết bị và chế độ làm thêm 300 giờ. Toàn bộ dữ liệu tenant được lưu trữ tại Việt Nam.
 
-**Differentiators.**
+**Điểm khác biệt.**
 
-| # | Differentiator | What it means for the customer |
+| # | Điểm khác biệt | Ý nghĩa đối với khách hàng |
 |---|---|---|
-| D1 | **Vietnam compliance by default** | Statutory SI/HI/UI/OA-OD, trade union fee, PIT (resident, non-resident, casual 10%), OT/night rules, leave entitlements, labour-contract rules and statutory outputs (D02-LT, 05/KK-TNCN, 05/QTT-TNCN, e-withholding certificates, labour-usage report) are delivered pre-configured. |
-| D2 | **Effective-dated legal parameters** | The vendor centrally maintains and versions all rates, caps, brackets, deductions, minimum wages and holidays. Each period is calculated with the parameter set in force at that time, and retro pay is recomputed correctly. Each result records the parameter version used (NFR-SAAS-016/017, BR-PAY-010). |
-| D3 | **Multi-entity by design** | One tenant can hold 1..n legal entities (pháp nhân), each with its own MST, SI unit code and minimum-wage region. The tenant can have concurrent employment across entities and group-level reporting. |
-| D4 | **True SaaS** | Shared and dedicated tiers with DB-enforced isolation, VN data residency, zero-downtime releases, per-tenant feature toggles, VN e-invoicing of subscriptions (from P2; R3-01), and standard Excel opening-balance import, so that any customer can go live mid-year without a migration project. |
+| D1 | **Tuân thủ quy định Việt Nam mặc định** | BHXH/BHYT/BHTN/BHTNLĐ-BNN theo luật định, kinh phí công đoàn, thuế TNCN (cư trú, không cư trú, vãng lai 10%), quy tắc làm thêm giờ/làm đêm, số ngày phép được hưởng, quy định về hợp đồng lao động và các đầu ra theo luật định (D02-LT, 05/KK-TNCN, 05/QTT-TNCN, chứng từ khấu trừ điện tử, báo cáo tình hình sử dụng lao động) được cung cấp sẵn cấu hình. |
+| D2 | **Tham số pháp lý có hiệu lực theo thời gian** | Nhà cung cấp duy trì tập trung và quản lý phiên bản mọi tỷ lệ, mức trần, bậc thuế, giảm trừ, lương tối thiểu và ngày lễ. Mỗi kỳ được tính với bộ tham số có hiệu lực tại thời điểm đó, và truy lĩnh/truy thu được tính lại chính xác. Mỗi kết quả ghi nhận phiên bản tham số đã dùng (NFR-SAAS-016/017, BR-PAY-010). |
+| D3 | **Đa pháp nhân từ thiết kế** | Một tenant có thể chứa 1..n pháp nhân, mỗi pháp nhân có MST, mã đơn vị BHXH và vùng lương tối thiểu riêng. Tenant có thể có quan hệ lao động đồng thời ở nhiều pháp nhân và báo cáo cấp tập đoàn. |
+| D4 | **SaaS thực thụ** | Gói dùng chung và gói dedicated với cách ly được cưỡng chế ở DB, lưu trữ dữ liệu tại VN, phát hành không downtime, bật/tắt tính năng theo tenant, hóa đơn điện tử VN cho thuê bao (từ P2; R3-01), và import số dư đầu kỳ bằng Excel chuẩn, để mọi khách hàng có thể go-live giữa năm mà không cần dự án chuyển đổi dữ liệu. |
 
 ---
 
-## 3. Business objectives & success metrics
+## 3. Mục tiêu kinh doanh & chỉ số thành công
 
-Targets are proposed for sponsor approval. Baselines will be measured at the pilot customer during discovery.
+Các mục tiêu được đề xuất để nhà tài trợ phê duyệt. Số liệu baseline sẽ được đo tại khách hàng pilot trong giai đoạn khảo sát.
 
-| # | Objective | KPI | Target | Source / evidence |
+| # | Mục tiêu | KPI | Chỉ tiêu | Nguồn / bằng chứng |
 |---|---|---|---|---|
-| O1 | Faster, predictable payroll close | Elapsed time from T&A period lock to approved payroll run | ≤ 3 working days (pilot baseline TBD) | Payroll §7.3 timing; run status timestamps |
-| O1 | | Hands-on admin time for a 500-employee monthly run without exceptions | < 30 min | NFR-PAY-012 |
-| O1 | | Calculation time for a 10,000-employee run | ≤ 15 min | NFR-SAAS-002, NFR-PAY-001 |
-| O2 | Statutory accuracy | Variance against consultant-verified golden scenarios (≥ 200 cases) | 0 VND on every release and parameter change | NFR-PAY-008 |
-| O2 | | Opening-balance reconciliation against the customer's control totals (YTD income/PIT, SI history, leave, loans) | 0 unexplained differences before the first payroll run | BR-SAAS-072 |
-| O2 | | SI and PIT declaration files accepted by VSS/eTax at first submission | ≥ 98% | NFR-PAY-010 |
-| O3 | Legal agility | Legal parameter pack published before the effective date (when the law gives ≥ 30 days' notice) | ≥ 7 calendar days before; otherwise ≤ 10 working days after issuance | NFR-SAAS-016 |
-| O4 | Fast tenant onboarding | Operator provisioning of a working tenant | ≤ 10 min | BR-SAAS-003 |
-| O4 | | Pilot contract-to-go-live (opening-balance import, no parallel run) | ≤ 16 weeks | BR-SAAS-071, 072, 088 |
-| O4 | | Standard SME (≤ 300 employees, template import) contract-to-first-payroll | ≤ 4 weeks (MVP assisted), ≤ 2 weeks (Phase 2 wizard) | BR-SAAS-069, 074 |
-| O5 | Employee & manager self-service | Leave, OT and correction requests submitted via ESS/MSS rather than on paper | ≥ 90% by month 3 after go-live | ESS usage report |
-| O5 | | Median approval cycle time for leave requests | ≤ 1 business day | Core R-07 workflow SLA report |
-| O6 | Trust & security | Cross-tenant data incidents | 0; isolation tests block release | BR-SAAS-021/023, NFR-SAAS-001 |
-| O6 | | Monthly availability | ≥ 99.5% (Enterprise ≥ 99.9%) | NFR-SAAS-001 |
-| O7 | Commercial traction | Paying tenants live 12 months after MVP GA | Pilot + TBD (sponsor to set) | Month-end billable count (BR-SAAS-012); automated usage metering (BR-SAAS-013) is P2 |
+| O1 | Khóa sổ lương nhanh hơn, dự đoán được | Thời gian từ lúc khóa kỳ chấm công đến khi kỳ tính lương được phê duyệt | ≤ 3 ngày làm việc (baseline pilot TBD) | Payroll §7.3 về thời gian; timestamp trạng thái kỳ tính lương |
+| O1 | | Thời gian thao tác của quản trị viên cho một kỳ lương tháng 500 nhân viên không có ngoại lệ | < 30 phút | NFR-PAY-012 |
+| O1 | | Thời gian tính cho một kỳ 10.000 nhân viên | ≤ 15 phút | NFR-SAAS-002, NFR-PAY-001 |
+| O2 | Độ chính xác theo luật định | Chênh lệch so với các golden scenario đã được chuyên gia tư vấn kiểm chứng (≥ 200 trường hợp) | 0 VND ở mọi bản phát hành và mọi lần thay đổi tham số | NFR-PAY-008 |
+| O2 | | Đối soát số dư đầu kỳ với số tổng kiểm soát của khách hàng (thu nhập/thuế TNCN lũy kế từ đầu năm, lịch sử BHXH, phép, khoản vay) | 0 chênh lệch không giải thích được trước kỳ tính lương đầu tiên | BR-SAAS-072 |
+| O2 | | File kê khai BHXH và thuế TNCN được BHXH Việt Nam/eTax chấp nhận ngay lần nộp đầu tiên | ≥ 98% | NFR-PAY-010 |
+| O3 | Linh hoạt pháp lý | Bộ tham số pháp lý được công bố trước ngày hiệu lực (khi luật cho thời gian báo trước ≥ 30 ngày) | ≥ 7 ngày theo lịch trước đó; nếu không thì ≤ 10 ngày làm việc sau khi ban hành | NFR-SAAS-016 |
+| O4 | Onboarding tenant nhanh | Operator khởi tạo một tenant hoạt động được | ≤ 10 phút | BR-SAAS-003 |
+| O4 | | Từ ký hợp đồng đến go-live cho pilot (import số dư đầu kỳ, không chạy song song) | ≤ 16 tuần | BR-SAAS-071, 072, 088 |
+| O4 | | Từ ký hợp đồng đến kỳ lương đầu tiên cho SME chuẩn (≤ 300 nhân viên, import theo mẫu) | ≤ 4 tuần (MVP có hỗ trợ), ≤ 2 tuần (wizard ở Phase 2) | BR-SAAS-069, 074 |
+| O5 | Tự phục vụ cho nhân viên & quản lý | Yêu cầu nghỉ phép, làm thêm giờ và điều chỉnh công được gửi qua ESS/MSS thay vì trên giấy | ≥ 90% sau 3 tháng kể từ go-live | Báo cáo sử dụng ESS |
+| O5 | | Thời gian trung vị của chu trình phê duyệt đơn nghỉ phép | ≤ 1 ngày làm việc | Báo cáo SLA workflow Core R-07 |
+| O6 | Tin cậy & bảo mật | Sự cố dữ liệu xuyên tenant | 0; test cách ly chặn bản phát hành | BR-SAAS-021/023, NFR-SAAS-001 |
+| O6 | | Độ khả dụng hằng tháng | ≥ 99,5% (Enterprise ≥ 99,9%) | NFR-SAAS-001 |
+| O7 | Tăng trưởng thương mại | Số tenant trả phí đang hoạt động sau 12 tháng kể từ MVP GA | Pilot + TBD (nhà tài trợ đặt) | Số lượng tính phí cuối tháng (BR-SAAS-012); đo lường sử dụng tự động (BR-SAAS-013) thuộc P2 |
 
 ---
 
-## 4. Stakeholders & personas
+## 4. Các bên liên quan & persona
 
-Module BRDs §2 define the detailed actors. This table consolidates them into product-level personas.
+Mục §2 của các BRD module định nghĩa chi tiết các tác nhân. Bảng này hợp nhất chúng thành các persona ở cấp sản phẩm.
 
-| Persona | Vietnamese term | Primary goals | Main modules |
+| Persona | Thuật ngữ tiếng Việt | Mục tiêu chính | Module chính |
 |---|---|---|---|
-| Tenant HR administrator | Quản trị nhân sự | Maintain org, positions and employee records; run contracts and decisions; produce statutory labour reports | Core, People |
-| C&B / payroll officer | Chuyên viên C&B / tiền lương | Configure components; run accurate payroll on time; file SI/PIT; reconcile | Payroll, T&A |
-| Payroll / C&B manager, chief accountant | Kế toán trưởng | Approve runs and payments; receive GL journals; reconcile SI/PIT payables | Payroll |
-| Line manager | Quản lý trực tiếp | Approve leave, OT and changes; review team timesheets; appraise; hire | Core (workflow), T&A, People, Recruitment |
-| Employee | Nhân viên (ESS) | Request leave/OT and attendance corrections (check-in from the mobile app is P2); view payslips and PIT certificates; maintain profile and dependants; give consent | T&A, Payroll, People, SaaS (ESS) |
-| Recruiter / hiring manager | Chuyên viên tuyển dụng | Post jobs; manage the pipeline; make offers within band; hand over hires with no re-keying | Recruitment |
-| Candidate | Ứng viên | Apply; schedule interviews; accept the offer; pre-board; exercise data rights | Recruitment |
-| Tenant IT admin / tenant owner | Quản trị hệ thống khách hàng / Chủ tài khoản | Configure SSO/MFA, roles, integrations and devices; manage the subscription; approve support access | Core, SaaS |
-| Platform operator (support, onboarding, billing, SRE) | Nhà cung cấp | Provision tenants; guide opening-balance imports; bill; support under consent; run the platform | SaaS |
-| Regulatory content owner | Chuyên gia pháp lý / lương | Publish tested legal parameter packs and statutory templates | SaaS, Payroll, T&A |
-| Accountant / finance | Kế toán | Pay advances and expenses; import payroll journals into MISA/Fast/SAP; receive subscription e-invoices | Payroll, People, SaaS |
-| Auditor (internal/external), labour inspector | Kiểm toán / thanh tra lao động | Read-only evidence: audit trail, payroll registers, OT caps, leave granted | Core (audit), all modules |
-| DPO / privacy officer | Người phụ trách bảo vệ DLCN | Consent register, DSRs, DPIA and breach handling | SaaS, People, Recruitment |
-| Executive sponsor | Ban điều hành | Business case, KPIs, go/no-go | — |
+| Quản trị viên HR của tenant | Quản trị nhân sự | Duy trì tổ chức, vị trí và hồ sơ nhân viên; xử lý hợp đồng và quyết định; lập báo cáo lao động theo luật định | Core, People |
+| Chuyên viên C&B / tiền lương | Chuyên viên C&B / tiền lương | Cấu hình thành phần lương; tính lương chính xác, đúng hạn; kê khai BHXH/thuế TNCN; đối soát | Payroll, T&A |
+| Trưởng bộ phận lương / C&B, kế toán trưởng | Kế toán trưởng | Phê duyệt kỳ lương và chi trả; nhận bút toán GL; đối soát các khoản phải nộp BHXH/thuế TNCN | Payroll |
+| Quản lý trực tiếp | Quản lý trực tiếp | Phê duyệt nghỉ phép, làm thêm giờ và các thay đổi; rà soát bảng công của nhóm; đánh giá; tuyển dụng | Core (workflow), T&A, People, Recruitment |
+| Nhân viên | Nhân viên (ESS) | Gửi yêu cầu nghỉ phép/làm thêm giờ và điều chỉnh công (check-in từ app mobile thuộc P2); xem phiếu lương và chứng từ khấu trừ thuế TNCN; cập nhật hồ sơ và người phụ thuộc; đưa ra sự đồng ý | T&A, Payroll, People, SaaS (ESS) |
+| Chuyên viên tuyển dụng / quản lý tuyển dụng | Chuyên viên tuyển dụng | Đăng tin tuyển dụng; quản lý pipeline; đưa ra offer trong khung lương; bàn giao nhân sự mới mà không phải nhập lại | Recruitment |
+| Ứng viên | Ứng viên | Ứng tuyển; đặt lịch phỏng vấn; chấp nhận offer; chuẩn bị trước khi nhận việc; thực hiện quyền đối với dữ liệu | Recruitment |
+| Quản trị IT của tenant / chủ tenant | Quản trị hệ thống khách hàng / Chủ tài khoản | Cấu hình SSO/MFA, vai trò, tích hợp và thiết bị; quản lý thuê bao; phê duyệt truy cập hỗ trợ | Core, SaaS |
+| Operator nền tảng (hỗ trợ, onboarding, tính phí, SRE) | Nhà cung cấp | Khởi tạo tenant; hướng dẫn import số dư đầu kỳ; tính phí; hỗ trợ khi được đồng ý; vận hành nền tảng | SaaS |
+| Người sở hữu nội dung pháp lý | Chuyên gia pháp lý / lương | Công bố các bộ tham số pháp lý và mẫu biểu theo luật định đã được kiểm thử | SaaS, Payroll, T&A |
+| Kế toán / tài chính | Kế toán | Chi tạm ứng và chi phí; import bút toán lương vào MISA/Fast/SAP; nhận hóa đơn điện tử thuê bao | Payroll, People, SaaS |
+| Kiểm toán viên (nội bộ/bên ngoài), thanh tra lao động | Kiểm toán / thanh tra lao động | Bằng chứng chỉ đọc: audit trail, sổ lương, giới hạn làm thêm giờ, số ngày phép đã cấp | Core (audit), tất cả các module |
+| DPO / cán bộ bảo vệ dữ liệu | Người phụ trách bảo vệ DLCN | Sổ đăng ký sự đồng ý, DSR, DPIA và xử lý vi phạm dữ liệu | SaaS, People, Recruitment |
+| Nhà tài trợ điều hành | Ban điều hành | Business case, KPI, quyết định go/no-go | — |
 
 ---
 
-## 5. Scope
+## 5. Phạm vi
 
-### 5.1 Capability map
+### 5.1 Bản đồ năng lực
 
-**Phase rule (changed in v0.2 and v0.3).** MVP = Phase 1 (P1). Each requirement's phase is set in **[mvp-scope.md](mvp-scope.md)**. That re-rating applies the sponsor decisions X-04, OD-9, D-09, D-10 and round 2 (R2-01 – R2-19). It **overrides** both the old MoSCoW → phase mapping (M → MVP, S → P2, C → P3) and the module phase tags until the module BRDs are synced (mvp-scope.md §12). In short, Phase 1 is:
-- the core features of each module, delivered as a **responsive web app** (admin + ESS)
-- everything statutory for VN payroll and labour compliance
-- the opening-balance import
-- **no live external integration**: data leaves and enters by file export and Excel import, and notifications go by e-mail and in-app only (R2-01).
+**Quy tắc giai đoạn (thay đổi ở v0.2 và v0.3).** MVP = Phase 1 (P1). Giai đoạn của mỗi yêu cầu được thiết lập trong **[mvp-scope.md](mvp-scope.md)**. Việc đánh giá lại đó áp dụng các quyết định của nhà tài trợ X-04, OD-9, D-09, D-10 và vòng 2 (R2-01 – R2-19). Nó **được ưu tiên hơn** cả cách ánh xạ MoSCoW → giai đoạn cũ (M → MVP, S → P2, C → P3) lẫn nhãn giai đoạn trong các module cho đến khi các BRD module được đồng bộ (mvp-scope.md §12). Tóm lại, Phase 1 gồm:
+- các tính năng lõi của mỗi module, triển khai dưới dạng **web app responsive** (quản trị + ESS)
+- mọi nội dung theo luật định cho tính lương và tuân thủ lao động tại VN
+- import số dư đầu kỳ
+- **không có tích hợp ngoài trực tuyến**: dữ liệu ra vào bằng xuất file và import Excel, và thông báo chỉ gửi qua e-mail và trong ứng dụng (R2-01).
 
-**No mobile features are in Phase 1.** That means no native app, PWA, push, or GPS/selfie/Wi-Fi/web check-in. Recruitment is a P2 module as a whole (charter §6), but its data contracts with Core, People and Payroll are frozen in Phase 0. The Phase column below summarises the result.
+**Không có tính năng mobile nào ở Phase 1.** Nghĩa là không có app native, PWA, push, hay check-in bằng GPS/selfie/Wi-Fi/web. Tuyển dụng là một module P2 nói chung (điều lệ dự án §6), nhưng các hợp đồng dữ liệu của nó với Core, People và Payroll được chốt ở Phase 0. Cột Giai đoạn bên dưới tóm tắt kết quả.
 
-**Baseline capabilities (R2-18).** Whatever modules a tenant buys, these are always on: Core, People basics (person, employment, assignment, salary record), legal parameters, pay scales/bands and the component catalogue, and Excel attendance import. The ID list is in mvp-scope.md §3.4.
+**Năng lực baseline (R2-18).** Bất kể tenant mua module nào, các năng lực sau luôn được bật: Core, People cơ bản (cá nhân, quan hệ lao động, phân công, hồ sơ lương), tham số pháp lý, thang/bậc lương và danh mục thành phần lương, và import chấm công Excel. Danh sách ID nằm trong mvp-scope.md §3.4.
 
-| # | Capability | Module | Phase | Detail |
+| # | Năng lực | Module | Giai đoạn | Chi tiết |
 |---|---|---|---|---|
-| 1 | Legal entities (MST, SI unit code, region), branches/locations with geo-fence | Core | MVP (geo-fence data only used by P2 check-in) | [01 §4.1](modules/01-core.md#41-company-legal-entities-locations) |
-| 2 | Effective-dated org tree, reorganisation packages, positions, grades, cost centres | Core | MVP (reorganisation packages, positions as budgeted seats, interactive org chart: P2; matrix lines: P3) | [01 §4.2–4.3](modules/01-core.md#42-organisation-structure) |
-| 3 | Users, RBAC, data scopes, field masking, local login + MFA, OIDC SSO (Google/Entra) | Core / SaaS | MVP: local login + MFA (OIDC and SAML SSO: P2; SCIM: P3) | [01 §4.4](modules/01-core.md#44-users-roles-permissions-data-scope-sso), [06 §4.D](modules/06-saas-platform.md#4d-identity--authentication) |
-| 4 | Workflow & approval engine (conditions, delegation, SLA, escalation) | Core | MVP: engine with vendor-seeded, sequential approval routes and HR reassignment. No-code route designer, any-of/all-of and parallel steps, approver re-resolution on reorg, approval delegation, SLA escalation, mobile/email/Zalo approval: P2 (R2-19) | [01 §4.5](modules/01-core.md#45-workflow--approval-engine) |
-| 5 | Notifications: in-app and email | Core | MVP: in-app + e-mail with vendor-maintained VI/EN templates (tenant template overrides: P2, R2-19; push, Zalo ZNS, SMS: P2, R2-01) | [01 §4.6](modules/01-core.md#46-notifications) |
-| 6 | VN master data (34 provinces/wards with old→new mapping), code lists, settings, numbering | Core | MVP (tenant custom code lists: P2, R2-19) | [01 §4.7](modules/01-core.md#47-settings--master-data) |
-| 7 | Tamper-evident audit log; document service and templates → PDF | Core | MVP (e-sign adapter P2) | [01 §4.8–4.9](modules/01-core.md#48-audit-log) |
-| 8 | Import/export framework incl. opening-balance import mode and templates (D-09; no legacy migration) | Core / SaaS | MVP | [01 §4.10](modules/01-core.md#410-import--export), [06 §4.G](modules/06-saas-platform.md#4g-data-migration--onboarding) |
-| 9 | Person vs employment (rehire, concurrent), personal data, dependants, bank, SI number | People | MVP, incl. basic concurrent employment across legal entities: primary employment for PIT family deduction, single SI employer (R2-16). Rehire seniority choice, emergency contacts, education records: P2 (R2-19) | [02 §4.1–4.2](modules/02-people.md#41-person--employment) |
-| 10 | Effective-dated assignments, transfers, promotions; salary history | People | MVP (secondment, mass change, step progression: P2) | [02 §4.3–4.4](modules/02-people.md#43-assignments--organisation-placement) |
-| 11 | Labour contracts, probation, appendices, suspension, conversion rules | People | MVP (e-labour contract P2, becomes MVP if mandated) | [02 §4.5](modules/02-people.md#45-labour-contracts) |
-| 12 | Onboarding/offboarding checklists; separation, notice, severance eligibility | People | Separation, notice, severance: MVP. Checklists and pre-hire portal: P2 | [02 §4.6–4.7](modules/02-people.md#46-onboarding--offboarding) |
-| 13 | Discipline & rewards (statutory procedure) | People | P2 (offline procedure with uploaded documents in MVP; sponsor to re-confirm) | [02 §4.8](modules/02-people.md#48-discipline--rewards) |
-| 14 | Appraisal (KPI/OKR, calibration) | People | P2 (probation outcome is recorded with the contract in MVP) | [02 §4.9](modules/02-people.md#49-appraisal--performance) |
-| 15 | Training, training bonds | People | P2 | [02 §4.10](modules/02-people.md#410-training) |
-| 16 | Expense claims & cash advances | People | P2 (pending People Q5) | [02 §4.11](modules/02-people.md#411-expense-claims--advances) |
-| 17 | ESS/MSS, HR decisions & letters, labour book, semi-annual labour report, PDP controls | People | MVP, responsive web (MSS team views, HR letters, ESS personal-data change requests, document repository: P2; R2-19) | [02 §4.12–4.15](modules/02-people.md#412-ess--mss) |
-| 18 | Holiday calendars (VN pack incl. lunar Tết, substitute days) | T&A | MVP | [03 §4.1](modules/03-time-attendance.md#41-holiday-calendars) |
-| 19 | Work schedules and shifts (fixed, 5/5.5/6-day, night) | T&A | MVP (rotating, split shifts: P2) | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
-| 20 | Rosters, shift swaps, roster validation | T&A | P2 | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
-| 21 | Punch capture: Excel/file import, manual entry and correction | T&A / SaaS | MVP: Excel import of punches and timesheets incl. a **device-export-file (CSV/Excel) template**, admin manual entry, ESS correction requests. **Live device connector, offline buffer and punch-rate targets: P2 (R2-01). Web, PWA and mobile GPS/Wi-Fi/selfie check-in: P2 (OD-9)** | [03 §4.3](modules/03-time-attendance.md#43-check-in-sources-and-raw-punches) |
-| 22 | Daily timesheet processing, corrections (giải trình) | T&A | MVP (late/early tolerance policies, OT detection policies, effective-dated policy assignment per group: P2; one policy set per legal entity, OT by pre-approval; R2-19) | [03 §4.4](modules/03-time-attendance.md#44-daily-timesheet-processing) |
-| 23 | Overtime: requests, detection, VN categories, 40/200/300h caps | T&A | MVP | [03 §4.5](modules/03-time-attendance.md#45-overtime) |
-| 24 | Leave types, balances, accrual, seniority, carry-forward, encashment days, SI claim data for sick/maternity leave (minimal, R2-07) | T&A | MVP (cancel/shorten leave with retro: P2, R2-19) | [03 §4.6](modules/03-time-attendance.md#46-leave-management) |
-| 25 | Business trips / WFH (timesheet effect) | T&A | P2 as a request flow (R2-19); in MVP recorded as attendance codes | [03 §4.7](modules/03-time-attendance.md#47-business-trips-and-remote-work) |
-| 26 | Period close, Attendance Result hand-off, retro deltas | T&A | MVP (early close for one employee: P2, R2-19) | [03 §4.8, §7.3](modules/03-time-attendance.md#48-period-close-payroll-hand-off-and-retro) |
-| 27 | Component catalogue, formula engine, effective-dated legal parameters | Payroll | MVP (VN starter templates, multi-currency: P2) | [04 §4.1](modules/04-payroll.md#41-configuration-parameters--components) |
-| 28 | Gross/Net, gross-up, proration, OT/night pay | Payroll | MVP | [04 §4.2](modules/04-payroll.md#42-gross--net-and-earnings-calculation) |
-| 29 | SI/HI/UI/OA-OD, trade union fee, D02-LT files, C12-TS reconciliation | Payroll | MVP, as files for upload via the customer's I-VAN (retro SI adjustments, SI arrears, SI benefit-claim processing, I-VAN API: P2) | [04 §4.3](modules/04-payroll.md#43-compulsory-insurance--trade-union) |
-| 30 | PIT: resident/non-resident/casual, 08/CK, 05/KK, 05/QTT, e-certificates | Payroll | MVP: PIT XML for eTax/HTKK as file export; e-certificate XML/PDF (signing route open, mvp-scope.md §11.4 R2-C3) | [04 §4.4](modules/04-payroll.md#44-personal-income-tax) |
-| 31 | Monthly and off-cycle runs (13th month, Tết), retro pay, final settlement, lock/approve | Payroll | MVP — monthly frequency only (A2). Bonus/off-cycle runs with correct PIT: MVP. Tết/13th-month eligibility and proration rules, subset/simulation runs: P2 (R2-14, R2-19) | [04 §4.5](modules/04-payroll.md#45-payroll-runs-lifecycle--control) |
-| 32 | Advances and deductions | Payroll | MVP incl. interest-free employee loans for opening balances (loan interest, salary-advance request flow: P2; advances via the Advance run type) | [04 §4.6](modules/04-payroll.md#46-loans-advances--deductions) |
-| 33 | Payslips (ESS, protected PDF) | Payroll | MVP: ESS web view and password-protected PDF by e-mail (R2-17) | [04 §4.7](modules/04-payroll.md#47-payslips--ess) |
-| 34 | Bank payment files, GL journal export, cost allocation | Payroll / SaaS | MVP as file exports: bank payment file, GL journal in Excel, cost by default cost centre (host-to-host banking, accounting API push, payment-file status import, split cost allocation: P2) | [04 §4.8](modules/04-payroll.md#48-payment-accounting--cost-allocation) |
-| 35 | Staffing plans, requisitions, openings, multi-posting | Recruitment | P2 | [05 §4.1–4.3](modules/05-recruitment.md#41-staffing--headcount-plan) |
-| 36 | Candidates, CV parsing, pipeline, interviews, assessments | Recruitment | P2 | [05 §4.4–4.6](modules/05-recruitment.md#44-candidates-applications-cv-parsing-talent-pool) |
-| 37 | Offers (band check, NET offers via gross-up), pre-boarding, hire hand-off | Recruitment | P2 (hand-off contract frozen in Phase 0) | [05 §4.7–4.8](modules/05-recruitment.md#47-offers) |
-| 38 | Referrals; recruitment analytics & candidate privacy | Recruitment | P2 / P3 | [05 §4.9–4.10](modules/05-recruitment.md#49-referrals) |
-| 39 | Tenant lifecycle, plans, entitlements, feature flags, PEPM billing, VN e-invoice, dunning, offboarding | SaaS | MVP: module subscription, contract price, month-end billable count per legal entity (D-10) from a manual headcount report, no e-invoicing in the product: vendor finance issues the VN e-invoices from its own e-invoice tool using the usage report (R3-01). Subscription e-invoicing (BR-SAAS-014/015), usage metering, feature-flag service, plans/price books, dunning automation, offboarding export/deletion, self-service sign-up, payment gateway: P2 | [06 §4.A](modules/06-saas-platform.md#4a-tenant-lifecycle--commercial) |
-| 40 | Shared tier + RLS isolation, VN residency, vi/en, custom fields | SaaS | MVP (custom fields, dedicated tier, sandbox, white-label, custom domain: P2) | [06 §4.B](modules/06-saas-platform.md#4b-tenancy-isolation-residency--customisation) |
-| 41 | Operator back-office, consent-based support access | SaaS | MVP (impersonation, automated two-person break-glass, tenant-visible operator-access log: P2; log exported on request, R2-19) | [06 §4.C](modules/06-saas-platform.md#4c-operator-back-office--support-access) |
-| 42 | Reporting framework, separate reporting store, statutory report framework | SaaS | MVP (separate reporting store, report designer, dashboards, HR analytics: P2) | [06 §4.E](modules/06-saas-platform.md#4e-reporting--analytics) |
-| 43 | Integration hub; bank, eTax and time-device integrations | SaaS | MVP: **file exports only** (bank payment file, VSS declaration file, PIT XML for eTax, GL journal in Excel) and Excel imports. All live integrations — time-device connector, Zalo/SMS/push, e-sign, VNeID, accounting and bank APIs, integration hub, public API, webhooks, VSS I-VAN API, job boards: P2 (R2-01) | [06 §4.F](modules/06-saas-platform.md#4f-integration) |
-| 44 | Responsive ESS web | SaaS | MVP (native mobile app and **all** mobile features: P2) | [06 §4.H](modules/06-saas-platform.md#4h-mobile--ess-channel) |
-| 45 | PDP compliance: data inventory, consent, DSR, retention, DPIA, breach, ISO 27001 alignment | SaaS | MVP | [06 §4.I](modules/06-saas-platform.md#4i-compliance-privacy--security) |
-| 46 | Marketplace integrations, AI assistants, regional (non-VN) expansion | — | P3 | Charter §6 |
+| 1 | Pháp nhân (MST, mã đơn vị BHXH, vùng), chi nhánh/địa điểm có geo-fence | Core | MVP (dữ liệu geo-fence chỉ dùng cho check-in ở P2) | [01 §4.1](modules/01-core.md#41-company-legal-entities-locations) |
+| 2 | Cây tổ chức có hiệu lực theo thời gian, gói tái cơ cấu, vị trí, ngạch/bậc, trung tâm chi phí | Core | MVP (gói tái cơ cấu, vị trí như định biên có ngân sách, sơ đồ tổ chức tương tác: P2; quan hệ báo cáo ma trận: P3) | [01 §4.2–4.3](modules/01-core.md#42-organisation-structure) |
+| 3 | Người dùng, RBAC, phạm vi dữ liệu, masking trường dữ liệu, đăng nhập nội bộ + MFA, OIDC SSO (Google/Entra) | Core / SaaS | MVP: đăng nhập nội bộ + MFA (OIDC và SAML SSO: P2; SCIM: P3) | [01 §4.4](modules/01-core.md#44-users-roles-permissions-data-scope-sso), [06 §4.D](modules/06-saas-platform.md#4d-identity--authentication) |
+| 4 | Workflow & approval engine (điều kiện, ủy quyền, SLA, escalation) | Core | MVP: engine với các luồng phê duyệt tuần tự do nhà cung cấp tạo sẵn và HR phân công lại. Trình thiết kế luồng no-code, bước any-of/all-of và song song, xác định lại người phê duyệt khi tái cơ cấu, ủy quyền phê duyệt, escalation theo SLA, phê duyệt qua mobile/email/Zalo: P2 (R2-19) | [01 §4.5](modules/01-core.md#45-workflow--approval-engine) |
+| 5 | Thông báo: trong ứng dụng và email | Core | MVP: trong ứng dụng + e-mail với mẫu VI/EN do nhà cung cấp duy trì (tenant override mẫu: P2, R2-19; push, Zalo ZNS, SMS: P2, R2-01) | [01 §4.6](modules/01-core.md#46-notifications) |
+| 6 | Dữ liệu danh mục VN (34 tỉnh/phường xã với ánh xạ cũ→mới), danh mục mã, thiết lập, đánh số | Core | MVP (danh mục mã tùy chỉnh của tenant: P2, R2-19) | [01 §4.7](modules/01-core.md#47-settings--master-data) |
+| 7 | Audit log chống giả mạo; dịch vụ tài liệu và mẫu → PDF | Core | MVP (adapter ký số P2) | [01 §4.8–4.9](modules/01-core.md#48-audit-log) |
+| 8 | Framework import/export bao gồm chế độ và mẫu import số dư đầu kỳ (D-09; không chuyển đổi dữ liệu cũ) | Core / SaaS | MVP | [01 §4.10](modules/01-core.md#410-import--export), [06 §4.G](modules/06-saas-platform.md#4g-data-migration--onboarding) |
+| 9 | Cá nhân và quan hệ lao động (tái tuyển dụng, đồng thời), dữ liệu cá nhân, người phụ thuộc, ngân hàng, số sổ BHXH | People | MVP, bao gồm quan hệ lao động đồng thời cơ bản ở nhiều pháp nhân: quan hệ lao động chính cho giảm trừ gia cảnh thuế TNCN, một đơn vị đóng BHXH (R2-16). Lựa chọn tính thâm niên khi tái tuyển dụng, liên hệ khẩn cấp, hồ sơ học vấn: P2 (R2-19) | [02 §4.1–4.2](modules/02-people.md#41-person--employment) |
+| 10 | Phân công có hiệu lực theo thời gian, điều chuyển, thăng chức; lịch sử lương | People | MVP (biệt phái, thay đổi hàng loạt, nâng bậc: P2) | [02 §4.3–4.4](modules/02-people.md#43-assignments--organisation-placement) |
+| 11 | Hợp đồng lao động, thử việc, phụ lục, tạm hoãn, quy tắc chuyển đổi | People | MVP (hợp đồng lao động điện tử P2, trở thành MVP nếu bắt buộc) | [02 §4.5](modules/02-people.md#45-labour-contracts) |
+| 12 | Checklist tiếp nhận/nghỉ việc; chấm dứt, báo trước, điều kiện hưởng trợ cấp thôi việc | People | Chấm dứt, báo trước, trợ cấp thôi việc: MVP. Checklist và cổng thông tin trước khi nhận việc: P2 | [02 §4.6–4.7](modules/02-people.md#46-onboarding--offboarding) |
+| 13 | Kỷ luật & khen thưởng (thủ tục theo luật định) | People | P2 (thủ tục ngoài hệ thống với tài liệu được tải lên ở MVP; nhà tài trợ xác nhận lại) | [02 §4.8](modules/02-people.md#48-discipline--rewards) |
+| 14 | Đánh giá (KPI/OKR, hiệu chỉnh) | People | P2 (kết quả thử việc được ghi nhận cùng hợp đồng ở MVP) | [02 §4.9](modules/02-people.md#49-appraisal--performance) |
+| 15 | Đào tạo, cam kết đào tạo | People | P2 | [02 §4.10](modules/02-people.md#410-training) |
+| 16 | Đề nghị thanh toán chi phí & tạm ứng | People | P2 (chờ People Q5) | [02 §4.11](modules/02-people.md#411-expense-claims--advances) |
+| 17 | ESS/MSS, quyết định & văn bản HR, sổ quản lý lao động, báo cáo lao động 6 tháng, kiểm soát bảo vệ dữ liệu cá nhân | People | MVP, web responsive (view nhóm trên MSS, văn bản HR, yêu cầu thay đổi dữ liệu cá nhân trên ESS, kho tài liệu: P2; R2-19) | [02 §4.12–4.15](modules/02-people.md#412-ess--mss) |
+| 18 | Lịch ngày lễ (bộ dữ liệu VN gồm Tết âm lịch, ngày nghỉ bù) | T&A | MVP | [03 §4.1](modules/03-time-attendance.md#41-holiday-calendars) |
+| 19 | Lịch làm việc và ca (cố định, 5/5,5/6 ngày, ca đêm) | T&A | MVP (ca xoay vòng, ca gãy: P2) | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
 
-### 5.2 Out of scope (all phases unless noted)
+| 20 | Lịch phân ca, đổi ca, kiểm tra hợp lệ lịch phân ca | T&A | P2 | [03 §4.2](modules/03-time-attendance.md#42-work-schedules-and-rosters) |
+| 21 | Thu nhận dữ liệu chấm công: import Excel/file, nhập thủ công và điều chỉnh | T&A / SaaS | MVP: import Excel dữ liệu chấm công và bảng công, bao gồm **mẫu file xuất từ thiết bị (CSV/Excel)**, quản trị viên nhập thủ công, yêu cầu điều chỉnh công trên ESS. **Connector thiết bị trực tuyến, bộ đệm offline và mục tiêu tốc độ tiếp nhận dữ liệu chấm công: P2 (R2-01). Check-in qua web, PWA và mobile GPS/Wi-Fi/selfie: P2 (OD-9)** | [03 §4.3](modules/03-time-attendance.md#43-check-in-sources-and-raw-punches) |
+| 22 | Xử lý bảng công hằng ngày, giải trình | T&A | MVP (chính sách dung sai đi muộn/về sớm, chính sách phát hiện làm thêm giờ, gán chính sách có hiệu lực theo thời gian cho từng nhóm: P2; một bộ chính sách cho mỗi pháp nhân, làm thêm giờ theo phê duyệt trước; R2-19) | [03 §4.4](modules/03-time-attendance.md#44-daily-timesheet-processing) |
+| 23 | Làm thêm giờ: yêu cầu, phát hiện, các loại theo quy định VN, giới hạn 40/200/300 giờ | T&A | MVP | [03 §4.5](modules/03-time-attendance.md#45-overtime) |
+| 24 | Loại nghỉ phép, số dư, tích lũy, thâm niên, chuyển phép, số ngày phép thanh toán bằng tiền, dữ liệu hồ sơ hưởng BHXH cho nghỉ ốm/thai sản (tối thiểu, R2-07) | T&A | MVP (hủy/rút ngắn nghỉ phép có tính lại hồi tố: P2, R2-19) | [03 §4.6](modules/03-time-attendance.md#46-leave-management) |
+| 25 | Công tác / WFH (ảnh hưởng đến bảng công) | T&A | P2 dưới dạng luồng yêu cầu (R2-19); ở MVP ghi nhận bằng mã chấm công | [03 §4.7](modules/03-time-attendance.md#47-business-trips-and-remote-work) |
+| 26 | Khóa kỳ, bàn giao Attendance Result, chênh lệch hồi tố | T&A | MVP (khóa sớm cho một nhân viên: P2, R2-19) | [03 §4.8, §7.3](modules/03-time-attendance.md#48-period-close-payroll-hand-off-and-retro) |
+| 27 | Danh mục thành phần lương, formula engine, tham số pháp lý có hiệu lực theo thời gian | Payroll | MVP (mẫu khởi tạo VN, đa tiền tệ: P2) | [04 §4.1](modules/04-payroll.md#41-configuration-parameters--components) |
+| 28 | Gross/Net, gross-up, tính theo tỷ lệ, tiền làm thêm giờ/làm đêm | Payroll | MVP | [04 §4.2](modules/04-payroll.md#42-gross--net-and-earnings-calculation) |
+| 29 | BHXH/BHYT/BHTN/BHTNLĐ-BNN, kinh phí công đoàn, file D02-LT, đối chiếu C12-TS | Payroll | MVP, dưới dạng file để tải lên qua I-VAN của khách hàng (điều chỉnh BHXH hồi tố, nợ BHXH, xử lý hồ sơ hưởng chế độ BHXH, API I-VAN: P2) | [04 §4.3](modules/04-payroll.md#43-compulsory-insurance--trade-union) |
+| 30 | Thuế TNCN: cư trú/không cư trú/vãng lai, 08/CK, 05/KK, 05/QTT, chứng từ điện tử | Payroll | MVP: XML thuế TNCN cho eTax/HTKK dưới dạng file xuất; chứng từ điện tử XML/PDF (phương thức ký còn mở, mvp-scope.md §11.4 R2-C3) | [04 §4.4](modules/04-payroll.md#44-personal-income-tax) |
+| 31 | Kỳ tính lương tháng và ngoài kỳ (tháng 13, Tết), truy lĩnh/truy thu, quyết toán khi nghỉ việc, khóa/phê duyệt | Payroll | MVP — chỉ tần suất hằng tháng (A2). Kỳ tính thưởng/ngoài kỳ với thuế TNCN chính xác: MVP. Quy tắc điều kiện hưởng và tính theo tỷ lệ cho Tết/tháng 13, kỳ tính cho một nhóm/mô phỏng: P2 (R2-14, R2-19) | [04 §4.5](modules/04-payroll.md#45-payroll-runs-lifecycle--control) |
+| 32 | Tạm ứng và khấu trừ | Payroll | MVP bao gồm khoản vay không lãi của nhân viên cho số dư đầu kỳ (lãi vay, luồng yêu cầu tạm ứng lương: P2; tạm ứng qua loại kỳ Advance) | [04 §4.6](modules/04-payroll.md#46-loans-advances--deductions) |
+| 33 | Phiếu lương (ESS, PDF được bảo vệ) | Payroll | MVP: xem trên web ESS và PDF có mật khẩu qua e-mail (R2-17) | [04 §4.7](modules/04-payroll.md#47-payslips--ess) |
+| 34 | File chi trả ngân hàng, xuất bút toán GL, phân bổ chi phí | Payroll / SaaS | MVP dưới dạng file xuất: file chi trả ngân hàng, bút toán GL dạng Excel, chi phí theo trung tâm chi phí mặc định (ngân hàng host-to-host, đẩy qua API kế toán, import trạng thái file chi trả, phân bổ chi phí tách nhiều trung tâm: P2) | [04 §4.8](modules/04-payroll.md#48-payment-accounting--cost-allocation) |
+| 35 | Kế hoạch nhân sự, yêu cầu tuyển dụng, vị trí đang tuyển, đăng tin đa kênh | Recruitment | P2 | [05 §4.1–4.3](modules/05-recruitment.md#41-staffing--headcount-plan) |
+| 36 | Ứng viên, phân tích CV, pipeline, phỏng vấn, đánh giá năng lực | Recruitment | P2 | [05 §4.4–4.6](modules/05-recruitment.md#44-candidates-applications-cv-parsing-talent-pool) |
+| 37 | Offer (kiểm tra khung lương, offer NET qua gross-up), chuẩn bị trước khi nhận việc, bàn giao nhân sự mới | Recruitment | P2 (hợp đồng bàn giao được chốt ở Phase 0) | [05 §4.7–4.8](modules/05-recruitment.md#47-offers) |
+| 38 | Giới thiệu ứng viên; phân tích tuyển dụng & quyền riêng tư của ứng viên | Recruitment | P2 / P3 | [05 §4.9–4.10](modules/05-recruitment.md#49-referrals) |
+| 39 | Vòng đời tenant, gói dịch vụ, entitlement, feature flag, tính phí PEPM, hóa đơn điện tử VN, nhắc nợ, offboarding | SaaS | MVP: thuê bao module, giá theo hợp đồng, số lượng tính phí cuối tháng theo từng pháp nhân (D-10) từ báo cáo headcount thủ công, không xuất hóa đơn điện tử trong sản phẩm: bộ phận tài chính của nhà cung cấp phát hành hóa đơn điện tử VN từ công cụ hóa đơn điện tử riêng dựa trên báo cáo sử dụng (R3-01). Hóa đơn điện tử thuê bao (BR-SAAS-014/015), đo lường sử dụng, dịch vụ feature flag, gói dịch vụ/bảng giá, tự động nhắc nợ, xuất/xóa dữ liệu khi offboarding, tự đăng ký, cổng thanh toán: P2 | [06 §4.A](modules/06-saas-platform.md#4a-tenant-lifecycle--commercial) |
+| 40 | Gói dùng chung + cách ly bằng RLS, lưu trữ tại VN, vi/en, custom field | SaaS | MVP (custom field, gói dedicated, sandbox, white-label, custom domain: P2) | [06 §4.B](modules/06-saas-platform.md#4b-tenancy-isolation-residency--customisation) |
+| 41 | Back-office cho operator, truy cập hỗ trợ dựa trên sự đồng ý | SaaS | MVP (giả lập người dùng, break-glass hai người tự động, log truy cập của operator mà tenant xem được: P2; log được xuất khi có yêu cầu, R2-19) | [06 §4.C](modules/06-saas-platform.md#4c-operator-back-office--support-access) |
+| 42 | Framework báo cáo, kho dữ liệu báo cáo tách riêng, framework báo cáo theo luật định | SaaS | MVP (kho dữ liệu báo cáo tách riêng, trình thiết kế báo cáo, dashboard, phân tích nhân sự: P2) | [06 §4.E](modules/06-saas-platform.md#4e-reporting--analytics) |
+| 43 | Integration hub; tích hợp ngân hàng, eTax và máy chấm công | SaaS | MVP: **chỉ xuất file** (file chi trả ngân hàng, file kê khai BHXH, XML thuế TNCN cho eTax, bút toán GL dạng Excel) và import Excel. Toàn bộ tích hợp trực tuyến — connector máy chấm công, Zalo/SMS/push, ký số, VNeID, API kế toán và ngân hàng, integration hub, public API, webhook, API I-VAN của BHXH, trang tuyển dụng: P2 (R2-01) | [06 §4.F](modules/06-saas-platform.md#4f-integration) |
+| 44 | ESS web responsive | SaaS | MVP (app mobile native và **toàn bộ** tính năng mobile: P2) | [06 §4.H](modules/06-saas-platform.md#4h-mobile--ess-channel) |
+| 45 | Tuân thủ bảo vệ dữ liệu cá nhân: kiểm kê dữ liệu, sự đồng ý, DSR, lưu trữ, DPIA, vi phạm dữ liệu, phù hợp ISO 27001 | SaaS | MVP | [06 §4.I](modules/06-saas-platform.md#4i-compliance-privacy--security) |
+| 46 | Tích hợp marketplace, trợ lý AI, mở rộng ra khu vực (ngoài VN) | — | P3 | Điều lệ dự án §6 |
 
-- **Legacy data migration** (D-09, 2026-10-16). There is no Oracle or other legacy migration programme, staging area or parallel run. Customers load opening balances through the standard Excel templates (capability 8, §6.5).
-- **General-ledger accounting.** YourHRM exports journals and is not an accounting system. Expense GL posting is done externally.
-- **Live external integrations in MVP** (R2-01, 2026-10-16): time-device connectors (push/pull, offline buffer), Zalo OA/ZNS, SMS, push, e-signature/CA, VNeID, accounting-system APIs, bank APIs, job boards, public API and webhooks, and the integration hub runtime are all P2. The MVP exchanges data by file export and Excel import, and notifies by e-mail and in-app.
-- **Direct API filing to VSS/GDT in MVP.** The MVP produces files for upload via I-VAN/VssID and eTax/HTKK. T-VAN/I-VAN API filing comes in P2.
-- **Processing of SI benefit claims** (sickness and maternity paid by VSS, form 01B-HSB): P2.
-- **Bank host-to-host payments in MVP.** The MVP provides upload files only.
-- Semi-monthly or weekly pay frequencies in MVP.
-- Time-device firmware, door access control and canteen systems. Supply of hardware.
-- Project/task time tracking for billing, workforce demand forecasting and auto-roster optimisation (candidate P3).
-- Operation of background-check vendors and agency/RPO portals (P3). Payment of agency fees and advertising spend.
-- AI ranking and fully automated rejection of candidates (BR-REC-026).
-- Concurrent employment across tenants. Cross-tenant identity merging.
-- On-premise or private-cloud deployment outside the SaaS model (SaaS Q9).
-- Data storage or processing outside Vietnam.
+### 5.2 Ngoài phạm vi (tất cả các giai đoạn trừ khi có ghi chú)
 
----
-
-## 6. End-to-end business processes
-
-Each step names its owning module. Module-level process detail is in each BRD §3, and the interface contracts are in each BRD §7.
-
-### 6.1 Hire-to-retire
-1. **Core** — HR builds legal entities, locations, org units, positions and cost centres. Positions carry the FTE budget.
-2. **Recruitment** (P2) or **People** (direct hire) — A hire is triggered (`CandidateHired` or a manual hire).
-3. **People** — The person is matched by CCCD, passport, tax code or SI number. HR creates the employment, assignment, contract (probation or labour) and salary record. Events `EmployeeHired`, `AssignmentChanged`, `SalaryChanged` and `ContractSigned` are published.
-4. **Core** — A user account is created automatically with the ESS role, and the manager scope is derived.
-5. **T&A** — A schedule, holiday calendar and leave entitlements are assigned, and the device enrolment is mapped.
-6. **Payroll** — The employee joins a pay group. SI increase (D02-LT) and PIT dependants are prepared.
-7. **People** — Changes during employment (transfer, promotion, salary change, contract renewal or conversion, discipline/reward, appraisal) are processed as effective-dated records, each producing a decision (quyết định) and appendix. They are approved through the **Core** workflow, and their events flow to T&A and Payroll.
-8. **People** — Retirement is flagged from the statutory retirement-age roadmap. Exit follows §6.4.
-
-### 6.2 Time-to-pay (monthly cycle; example cut-off 25th, pay date 5th)
-1. **SaaS** — The current legal parameter pack (rates, caps, brackets, holidays) is published and active.
-2. **T&A** — Punches are imported from the time-device software's export file or an Excel timesheet (Phase 1; live device ingestion is P2) and processed into daily timesheets. HR enters missing days manually. Employees resolve exceptions, and leave, OT, trip and WFH requests are approved via the **Core** workflow.
-3. **People** — Changes for the period (hires, terminations, salary, dependants) are effective by the cut-off.
-4. **T&A** — At period end the exception dashboard is cleared, managers confirm, and the admin **closes** the period. The versioned Attendance Result (with retro deltas) is published to Payroll (+2 working days).
-5. **Payroll** — The run is opened and its inputs snapshotted. Variable inputs are imported. The system calculates gross → proration → OT → SI/HI/UI/TU → PIT → deductions → net, with gross-up for NET employees (+3).
-6. **Payroll** — Exceptions are resolved: below minimum wage, negative net, missing bank account or tax code, variance above threshold.
-7. **Core** — Approvals run in sequence: payroll manager → finance → director. The run is **Approved/Locked**, and Payroll signals **T&A** to lock the period hard (+5).
-8. **Payroll** — Bank files, the GL journal and SI/TU/PIT payables are generated. On the pay date payslips are published to ESS (**SaaS** channel) with notifications from **Core**.
-9. **Payroll** — Bank confirmation marks the run as **Paid**. The SI contribution is paid by month-end, and the 05/KK-TNCN is filed by the 20th of the following month (monthly filers) `[verify-legal]`.
-10. **Payroll / T&A** — Late changes to locked periods arrive as retro deltas in the next run.
-
-### 6.3 Recruit-to-onboard (Phase 2)
-1. **Recruitment** — The staffing plan is pre-filled with actual headcount from **People** and positions from **Core**, then approved via the **Core** workflow.
-2. **Recruitment** — A requisition is checked against plan availability and the salary band from **Payroll**, then approved.
-3. **Recruitment** — The opening is published (career site, internal board, job boards). Applications are captured with per-purpose consent (**SaaS** consent service).
-4. **Recruitment** — Duplicate check runs against candidates and current/former employees in **People**. The candidate moves through screening, interviews (calendar integration) and assessments.
-5. **Recruitment** — The offer passes legal checks (probation length and pay, regional minimum wage from **Core**/**Payroll**). NET offers are simulated with **Payroll** gross-up. The offer is approved, then signed via e-sign (**SaaS**) or click-accept.
-6. **Recruitment** — The candidate portal handles pre-boarding (CCCD, tax code, SI number, bank, dependants, documents).
-7. **Recruitment → People / Payroll** — The `CandidateHired` hand-off creates the pre-hire employee, draft contract, onboarding checklist and salary record without re-keying.
-8. **People** — The onboarding checklist is executed. On the start date the employee becomes `Active` and §6.1 continues.
-
-### 6.4 Terminate-to-settle
-1. **People** — Resignation is submitted via ESS, or HR/manager initiates termination. The system computes the required notice, checks protected status and routes approval through the **Core** workflow. A termination decision is generated.
-2. **People** — The offboarding checklist runs (handover, assets, access revocation date). `TerminationScheduled` is published, followed by `EmployeeTerminated` on the last working day.
-3. **Core** — The user is deactivated at the end of the last day, sessions are revoked and pending approvals reassigned.
-4. **T&A** — Final timesheet processing projects the leave balance and provides unused annual-leave days for encashment, plus any negative balance to recover.
-5. **Payroll** — The final settlement is calculated: prorated salary, leave encashment, severance or job-loss allowance (eligibility from **People**), notice compensation, loan and advance recovery, pro-rata 13th month, and PIT. It is approved and paid within 14 working days, extendable to 30 `[verify-legal]`.
-6. **Payroll** — The SI decrease (D02-LT) is filed and SI-book closing data exported. The PIT withholding certificate is issued on request.
-7. **People** — Documents are returned and the work confirmation issued. The former employee keeps limited ESS access per policy, and data is retained under the retention schedule (**SaaS** retention policies).
-
-### 6.5 Tenant sign-up-to-go-live (pilot / assisted path, MVP)
-1. **SaaS** — The contract is signed. The operator creates the tenant (legal entities, edition, modules, tier, VN region) and provisions it in ≤ 10 min with reference data and the current legal parameter pack. The DPA is signed.
-2. **Core** — `TenantProvisioned` creates the company group, owner account, system roles, templates and settings. The owner activates MFA (SSO is P2).
-3. **Core / T&A / Payroll** — Configuration: org structure, workflows, holiday calendar, schedules, leave policies, pay groups, components and formulas, bank and GL mapping, and the Excel punch import with the column layout of the pilot's time-device export file (no live connector in Phase 1, R2-01).
-4. **SaaS / Core** — Opening-balance import (changed in v0.2, D-09; no Oracle migration). The operator and customer agree the go-live month per legal entity (BR-SAAS-088). The customer fills in the standard Excel templates (BR-SAAS-069): employee master, salary history for severance and average bases, SI contribution history, YTD income/insurance/PIT per month of the tax year (BR-SAAS-089), leave balances and YTD OT, and outstanding loans and advances. Each file is validated in validate-only mode until clean, then committed in the **Core** opening-balance import mode (BR-CORE-114).
-5. **SaaS / Payroll / T&A** — Opening balances are reconciled against the customer's control totals: the last legacy payroll register, VSS C12-TS, 05/KK already filed, and the leave report (BR-SAAS-072). This covers payroll YTD, PIT YTD, dependants, SI history, leave balances and loans. The customer's HR/C&B and finance owners sign off.
-6. **Payroll** — The last pre-go-live month is recomputed in YourHRM from the imported inputs and compared with the customer's payroll register, employee by employee (BR-SAAS-073, P1 since R2-03). The first live payroll is then calculated, and its exception and variance reports are reviewed with the customer before the run is submitted for approval.
-7. **SaaS** — Go-live: the go-live checklist is signed (see §10). Approving the first regular run locks the opening balances of that legal entity (BR-SAAS-088). Billing starts with VN e-invoicing, counting persons active at month end per legal entity (BR-SAAS-012, D-10).
-8. *(P2)* Self-service path: sign-up with OTP and MST validation → trial in ≤ 2 min → onboarding wizard → conversion.
-
-### 6.6 Year-end PIT finalisation (quyết toán thuế TNCN)
-1. **SaaS** — The PIT parameter pack for the tax year (brackets, family deductions) is confirmed. Peak capacity is planned for January–March (NFR-SAAS-021).
-2. **People** — Dependant registrations and changes for the year are finalised (ESS plus HR verification).
-3. **Payroll** — The system determines each employee's eligibility to authorise the employer to finalise on their behalf, and shows the reasons for ineligible employees.
-4. **Payroll / SaaS ESS** — Eligible employees submit the authorisation (08/UQ-QTT-TNCN or the current form).
-5. **Payroll** — Annual tax is recomputed for authorised employees and over- or under-withholding determined. For a tenant that went live mid-year, the months before go-live come from the imported opening balances (BR-SAAS-089). The admin reviews.
-6. **Payroll** — Refunds or additional withholding are processed in a run per tenant policy.
-7. **Payroll / SaaS** — The 05/QTT-TNCN and annexes 05-1/05-2/05-3 BK-QTT-TNCN are generated in eTax XML and filed by the last day of the third month after year end `[verify-legal]`. E-withholding certificates are issued to employees via ESS or email.
+- **Chuyển đổi dữ liệu từ hệ thống cũ** (D-09, 2026-10-16). Không có chương trình chuyển đổi từ Oracle hay hệ thống cũ khác, không có vùng staging hay chạy song song. Khách hàng nạp số dư đầu kỳ qua các mẫu Excel chuẩn (năng lực 8, §6.5).
+- **Kế toán sổ cái.** YourHRM xuất bút toán và không phải là hệ thống kế toán. Việc hạch toán GL cho chi phí được thực hiện bên ngoài.
+- **Tích hợp ngoài trực tuyến ở MVP** (R2-01, 2026-10-16): connector máy chấm công (push/pull, bộ đệm offline), Zalo OA/ZNS, SMS, push, chữ ký điện tử/CA, VNeID, API hệ thống kế toán, API ngân hàng, trang tuyển dụng, public API và webhook, và runtime integration hub đều thuộc P2. MVP trao đổi dữ liệu bằng xuất file và import Excel, và thông báo qua e-mail và trong ứng dụng.
+- **Nộp hồ sơ trực tiếp qua API tới BHXH/Tổng cục Thuế ở MVP.** MVP tạo file để tải lên qua I-VAN/VssID và eTax/HTKK. Nộp qua API T-VAN/I-VAN có ở P2.
+- **Xử lý hồ sơ hưởng chế độ BHXH** (ốm đau và thai sản do BHXH chi trả, mẫu 01B-HSB): P2.
+- **Chi trả ngân hàng host-to-host ở MVP.** MVP chỉ cung cấp file để tải lên.
+- Tần suất trả lương nửa tháng hoặc hằng tuần ở MVP.
+- Firmware máy chấm công, kiểm soát ra vào và hệ thống căng tin. Cung cấp phần cứng.
+- Theo dõi thời gian theo dự án/công việc để tính phí, dự báo nhu cầu nhân lực và tối ưu phân ca tự động (ứng viên cho P3).
+- Vận hành nhà cung cấp dịch vụ thẩm tra lý lịch và cổng thông tin cho agency/RPO (P3). Thanh toán phí agency và chi phí quảng cáo.
+- Xếp hạng bằng AI và tự động loại ứng viên hoàn toàn (BR-REC-026).
+- Quan hệ lao động đồng thời xuyên tenant. Hợp nhất định danh xuyên tenant.
+- Triển khai on-premise hoặc private cloud ngoài mô hình SaaS (SaaS Q9).
+- Lưu trữ hoặc xử lý dữ liệu bên ngoài Việt Nam.
 
 ---
 
-## 7. Vietnam regulatory framework (summary)
+## 6. Quy trình nghiệp vụ đầu-cuối
 
-This table consolidates module BRDs §5. **All entries are `[verify-legal]`** and must be confirmed by a Vietnam labour/tax/data-protection consultant before MVP build sign-off. The values themselves live only in effective-dated parameter packs.
+Mỗi bước nêu tên module sở hữu. Chi tiết quy trình ở cấp module nằm trong §3 của mỗi BRD, và các hợp đồng giao tiếp nằm trong §7 của mỗi BRD.
 
-| # | Law / instrument | Topic | Affected modules |
+### 6.1 Từ tuyển dụng đến nghỉ hưu
+1. **Core** — HR xây dựng pháp nhân, địa điểm, đơn vị tổ chức, vị trí và trung tâm chi phí. Vị trí mang ngân sách FTE.
+2. **Recruitment** (P2) hoặc **People** (tuyển trực tiếp) — Việc tuyển mới được kích hoạt (`CandidateHired` hoặc tuyển thủ công).
+3. **People** — Cá nhân được đối chiếu theo CCCD, hộ chiếu, MST hoặc số sổ BHXH. HR tạo quan hệ lao động, phân công, hợp đồng (thử việc hoặc lao động) và hồ sơ lương. Các event `EmployeeHired`, `AssignmentChanged`, `SalaryChanged` và `ContractSigned` được publish.
+4. **Core** — Tài khoản người dùng được tạo tự động với role ESS, và phạm vi quản lý được suy ra.
+5. **T&A** — Gán lịch làm việc, lịch ngày lễ và số ngày phép được hưởng, và ánh xạ đăng ký trên thiết bị.
+6. **Payroll** — Nhân viên được đưa vào một nhóm lương. Chuẩn bị báo tăng BHXH (D02-LT) và người phụ thuộc cho thuế TNCN.
+7. **People** — Các thay đổi trong quá trình làm việc (điều chuyển, thăng chức, thay đổi lương, gia hạn hoặc chuyển đổi hợp đồng, kỷ luật/khen thưởng, đánh giá) được xử lý dưới dạng bản ghi có hiệu lực theo thời gian, mỗi thay đổi tạo ra một quyết định và phụ lục. Chúng được phê duyệt qua workflow của **Core**, và event của chúng được chuyển tới T&A và Payroll.
+8. **People** — Việc nghỉ hưu được đánh dấu dựa trên lộ trình tuổi nghỉ hưu theo luật định. Việc nghỉ việc theo §6.4.
+
+### 6.2 Từ chấm công đến trả lương (chu kỳ hằng tháng; ví dụ chốt công ngày 25, ngày trả lương mùng 5)
+1. **SaaS** — Bộ tham số pháp lý hiện hành (tỷ lệ, mức trần, bậc thuế, ngày lễ) đã được công bố và có hiệu lực.
+2. **T&A** — Dữ liệu chấm công được import từ file xuất của phần mềm máy chấm công hoặc bảng công Excel (Phase 1; tiếp nhận trực tuyến từ thiết bị thuộc P2) và được xử lý thành bảng công hằng ngày. HR nhập thủ công những ngày còn thiếu. Nhân viên giải trình các ngoại lệ, và các yêu cầu nghỉ phép, làm thêm giờ, công tác và WFH được phê duyệt qua workflow của **Core**.
+3. **People** — Các thay đổi trong kỳ (tuyển mới, chấm dứt, lương, người phụ thuộc) có hiệu lực trước ngày chốt.
+4. **T&A** — Cuối kỳ, dashboard ngoại lệ được xử lý hết, quản lý xác nhận, và quản trị viên **khóa** kỳ. Attendance Result có phiên bản (kèm chênh lệch hồi tố) được publish cho Payroll (+2 ngày làm việc).
+5. **Payroll** — Kỳ tính lương được mở và snapshot đầu vào được tạo. Dữ liệu đầu vào biến đổi được import. Hệ thống tính gross → tính theo tỷ lệ → làm thêm giờ → BHXH/BHYT/BHTN/KPCĐ → thuế TNCN → khấu trừ → net, với gross-up cho nhân viên hưởng lương NET (+3).
+6. **Payroll** — Xử lý các ngoại lệ: dưới mức lương tối thiểu, thực lĩnh âm, thiếu tài khoản ngân hàng hoặc MST, chênh lệch vượt ngưỡng.
+7. **Core** — Các bước phê duyệt chạy tuần tự: trưởng bộ phận lương → tài chính → giám đốc. Kỳ tính lương được **Phê duyệt/Khóa**, và Payroll báo cho **T&A** khóa cứng kỳ (+5).
+8. **Payroll** — Tạo file ngân hàng, bút toán GL và các khoản phải nộp BHXH/KPCĐ/thuế TNCN. Vào ngày trả lương, phiếu lương được công bố lên ESS (kênh **SaaS**) cùng thông báo từ **Core**.
+9. **Payroll** — Xác nhận từ ngân hàng đánh dấu kỳ tính lương là **Đã chi trả**. Tiền đóng BHXH được nộp trước cuối tháng, và tờ khai 05/KK-TNCN được nộp trước ngày 20 của tháng sau (đối với người nộp theo tháng) `[verify-legal]`.
+10. **Payroll / T&A** — Các thay đổi muộn cho kỳ đã khóa được chuyển thành chênh lệch hồi tố trong kỳ tiếp theo.
+
+### 6.3 Từ tuyển dụng đến tiếp nhận (Phase 2)
+1. **Recruitment** — Kế hoạch nhân sự được điền sẵn headcount thực tế từ **People** và vị trí từ **Core**, sau đó được phê duyệt qua workflow của **Core**.
+2. **Recruitment** — Yêu cầu tuyển dụng được kiểm tra với định biên còn trống theo kế hoạch và khung lương từ **Payroll**, sau đó được phê duyệt.
+3. **Recruitment** — Vị trí tuyển dụng được công bố (trang tuyển dụng của công ty, bảng tin nội bộ, trang tuyển dụng bên ngoài). Hồ sơ ứng tuyển được thu nhận kèm sự đồng ý theo từng mục đích (dịch vụ quản lý sự đồng ý của **SaaS**).
+4. **Recruitment** — Kiểm tra trùng lặp với ứng viên và nhân viên hiện tại/cựu nhân viên trong **People**. Ứng viên đi qua các bước sàng lọc, phỏng vấn (tích hợp lịch) và đánh giá năng lực.
+5. **Recruitment** — Offer qua các bước kiểm tra pháp lý (thời gian và tiền lương thử việc, lương tối thiểu vùng từ **Core**/**Payroll**). Offer NET được mô phỏng bằng gross-up của **Payroll**. Offer được phê duyệt, sau đó ký qua ký số (**SaaS**) hoặc chấp nhận bằng một cú nhấp.
+6. **Recruitment** — Cổng thông tin ứng viên xử lý việc chuẩn bị trước khi nhận việc (CCCD, MST, số sổ BHXH, ngân hàng, người phụ thuộc, tài liệu).
+7. **Recruitment → People / Payroll** — Bàn giao `CandidateHired` tạo nhân viên trước khi nhận việc, hợp đồng nháp, checklist tiếp nhận và hồ sơ lương mà không cần nhập lại.
+8. **People** — Checklist tiếp nhận được thực hiện. Vào ngày bắt đầu làm việc, nhân viên chuyển sang `Active` và tiếp tục theo §6.1.
+
+### 6.4 Từ chấm dứt đến quyết toán
+1. **People** — Đơn xin nghỉ việc được gửi qua ESS, hoặc HR/quản lý khởi tạo chấm dứt. Hệ thống tính thời hạn báo trước bắt buộc, kiểm tra tình trạng được bảo vệ và chuyển phê duyệt qua workflow của **Core**. Quyết định chấm dứt hợp đồng được tạo ra.
+2. **People** — Checklist nghỉ việc được thực hiện (bàn giao công việc, tài sản, ngày thu hồi quyền truy cập). `TerminationScheduled` được publish, tiếp theo là `EmployeeTerminated` vào ngày làm việc cuối cùng.
+3. **Core** — Người dùng bị vô hiệu hóa vào cuối ngày làm việc cuối cùng, session bị thu hồi và các phê duyệt đang chờ được phân công lại.
+4. **T&A** — Xử lý bảng công cuối cùng ước tính số dư phép và cung cấp số ngày phép năm chưa nghỉ để thanh toán bằng tiền, cùng số dư âm cần thu hồi (nếu có).
+5. **Payroll** — Tính quyết toán khi nghỉ việc: lương tính theo tỷ lệ, tiền thanh toán phép, trợ cấp thôi việc hoặc trợ cấp mất việc làm (điều kiện hưởng từ **People**), tiền bồi thường không báo trước, thu hồi khoản vay và tạm ứng, lương tháng 13 theo tỷ lệ, và thuế TNCN. Quyết toán được phê duyệt và chi trả trong vòng 14 ngày làm việc, có thể kéo dài đến 30 ngày `[verify-legal]`.
+6. **Payroll** — Báo giảm BHXH (D02-LT) được nộp và xuất dữ liệu chốt sổ BHXH. Chứng từ khấu trừ thuế TNCN được cấp khi có yêu cầu.
+7. **People** — Trả lại giấy tờ và cấp xác nhận quá trình làm việc. Cựu nhân viên giữ quyền truy cập ESS giới hạn theo chính sách, và dữ liệu được lưu giữ theo lịch lưu trữ (chính sách lưu trữ của **SaaS**).
+
+### 6.5 Từ đăng ký tenant đến go-live (luồng pilot / có hỗ trợ, MVP)
+1. **SaaS** — Hợp đồng được ký. Operator tạo tenant (pháp nhân, phiên bản sản phẩm, module, gói, vùng VN) và khởi tạo trong ≤ 10 phút với dữ liệu tham chiếu và bộ tham số pháp lý hiện hành. DPA được ký.
+2. **Core** — `TenantProvisioned` tạo nhóm công ty, tài khoản chủ sở hữu, các role hệ thống, mẫu và thiết lập. Chủ sở hữu kích hoạt MFA (SSO thuộc P2).
+3. **Core / T&A / Payroll** — Cấu hình: cơ cấu tổ chức, workflow, lịch ngày lễ, lịch làm việc, chính sách nghỉ phép, nhóm lương, thành phần lương và công thức, ánh xạ ngân hàng và GL, và import dữ liệu chấm công Excel theo bố cục cột của file xuất từ máy chấm công của pilot (không có connector trực tuyến ở Phase 1, R2-01).
+4. **SaaS / Core** — Import số dư đầu kỳ (thay đổi ở v0.2, D-09; không chuyển đổi từ Oracle). Operator và khách hàng thống nhất tháng go-live cho từng pháp nhân (BR-SAAS-088). Khách hàng điền các mẫu Excel chuẩn (BR-SAAS-069): hồ sơ gốc nhân viên, lịch sử lương cho cơ sở tính trợ cấp thôi việc và lương bình quân, lịch sử đóng BHXH, thu nhập/bảo hiểm/thuế TNCN lũy kế từ đầu năm theo từng tháng của năm tính thuế (BR-SAAS-089), số dư phép và số giờ làm thêm lũy kế từ đầu năm, và các khoản vay, tạm ứng còn dư. Mỗi file được kiểm tra ở chế độ chỉ kiểm tra hợp lệ cho đến khi sạch lỗi, sau đó được commit ở chế độ import số dư đầu kỳ của **Core** (BR-CORE-114).
+5. **SaaS / Payroll / T&A** — Số dư đầu kỳ được đối soát với số tổng kiểm soát của khách hàng: sổ lương cuối cùng của hệ thống cũ, C12-TS của BHXH, tờ khai 05/KK đã nộp, và báo cáo phép (BR-SAAS-072). Bao gồm lương lũy kế từ đầu năm, thuế TNCN lũy kế từ đầu năm, người phụ thuộc, lịch sử BHXH, số dư phép và khoản vay. Người phụ trách HR/C&B và tài chính của khách hàng ký xác nhận.
+6. **Payroll** — Tháng cuối cùng trước go-live được tính lại trong YourHRM từ dữ liệu đầu vào đã import và so sánh với sổ lương của khách hàng, theo từng nhân viên (BR-SAAS-073, P1 kể từ R2-03). Sau đó kỳ tính lương thực tế đầu tiên được tính, và các báo cáo ngoại lệ và chênh lệch được rà soát cùng khách hàng trước khi kỳ được gửi phê duyệt.
+7. **SaaS** — Go-live: checklist go-live được ký (xem §10). Việc phê duyệt kỳ tính lương thường kỳ đầu tiên sẽ khóa số dư đầu kỳ của pháp nhân đó (BR-SAAS-088). Bắt đầu tính phí với hóa đơn điện tử VN, đếm số người đang làm việc tại cuối tháng theo từng pháp nhân (BR-SAAS-012, D-10).
+8. *(P2)* Luồng tự phục vụ: đăng ký với OTP và kiểm tra MST → dùng thử trong ≤ 2 phút → wizard onboarding → chuyển đổi sang trả phí.
+
+### 6.6 Quyết toán thuế TNCN cuối năm
+1. **SaaS** — Bộ tham số thuế TNCN cho năm tính thuế (bậc thuế, giảm trừ gia cảnh) được xác nhận. Năng lực cao điểm được lên kế hoạch cho tháng 1–3 (NFR-SAAS-021).
+2. **People** — Hoàn tất đăng ký và thay đổi người phụ thuộc trong năm (ESS cộng với xác minh của HR).
+3. **Payroll** — Hệ thống xác định điều kiện của từng nhân viên để ủy quyền cho người sử dụng lao động quyết toán thay, và hiển thị lý do đối với nhân viên không đủ điều kiện.
+4. **Payroll / SaaS ESS** — Nhân viên đủ điều kiện gửi giấy ủy quyền (08/UQ-QTT-TNCN hoặc mẫu hiện hành).
+5. **Payroll** — Thuế năm được tính lại cho các nhân viên đã ủy quyền và xác định số khấu trừ thừa hoặc thiếu. Đối với tenant go-live giữa năm, các tháng trước go-live lấy từ số dư đầu kỳ đã import (BR-SAAS-089). Quản trị viên rà soát.
+6. **Payroll** — Hoàn thuế hoặc khấu trừ bổ sung được xử lý trong một kỳ tính theo chính sách của tenant.
+7. **Payroll / SaaS** — Tờ khai 05/QTT-TNCN và các phụ lục 05-1/05-2/05-3 BK-QTT-TNCN được tạo dưới dạng XML eTax và nộp trước ngày cuối cùng của tháng thứ ba sau khi kết thúc năm `[verify-legal]`. Chứng từ khấu trừ điện tử được cấp cho nhân viên qua ESS hoặc email.
+
+---
+
+## 7. Khung pháp lý Việt Nam (tóm tắt)
+
+Bảng này hợp nhất §5 của các BRD module. **Mọi mục đều là `[verify-legal]`** và phải được chuyên gia tư vấn lao động/thuế/bảo vệ dữ liệu Việt Nam xác nhận trước khi phê duyệt xây dựng MVP. Bản thân các giá trị chỉ nằm trong các bộ tham số có hiệu lực theo thời gian.
+
+| # | Luật / văn bản | Chủ đề | Module bị ảnh hưởng |
 |---|---|---|---|
-| L1 | Labour Code 2019 (45/2019/QH14) | Contracts, probation, temporary transfer, notice, protected employees, discipline, working/rest time, OT, holidays, leave, wage payment, deductions, severance, settlement | People, T&A, Payroll, Recruitment `[verify-legal]` |
-| L2 | Decree 145/2020/ND-CP | Labour Code guidance: OT caps and the 300h regime, OT/night pay, annual leave, discipline, labour book, labour-usage reports | People, T&A, Payroll `[verify-legal]` |
-| L3 | Decree 74/2024/ND-CP; Decree 293/2025/ND-CP (from 2026-01-01) | Regional minimum wage (regions I–IV), remapped after the provincial merger | Core, Payroll, People, Recruitment `[verify-legal]` |
-| L4 | Resolution 202/2025/QH15; Law 72/2025/QH15 | 34 provinces, two-level local government; administrative-unit master data | Core, People `[verify-legal]` |
-| L5 | Law on Social Insurance 2024 (41/2024/QH15, effective 2025-07-01) | SI contributions, reference level, 14-day exemption, sickness/maternity entitlements, registration and payment deadlines | Payroll, T&A, Core `[verify-legal]` |
-| L6 | Law on Health Insurance (amended 2024) | HI contribution and cap | Payroll `[verify-legal]` |
-| L7 | Employment Law 2025 (74/2025/QH15, effective 2026-01-01) | Unemployment insurance; labour-change notices; non-discrimination | Payroll, People, Recruitment `[verify-legal]` |
-| L8 | Law on OSH 2015; Decree 58/2020/ND-CP | OA-OD insurance rate (0.5%, or 0.3% if approved) | Payroll `[verify-legal]` |
-| L9 | Trade Union Law 2024 | 2% trade-union fee; member dues | Payroll `[verify-legal]` |
-| L10 | Decree 73/2024/ND-CP | Base salary (lương cơ sở) / reference level for caps | Payroll `[verify-legal]` |
-| L11 | PIT Law (2007, amended) and PIT Law 2025; Resolution 110/2025/UBTVQH15; Circular 111/2013/TT-BTC; Circular 92/2015/TT-BTC | Residency, brackets (7 → 5), family deductions, exemptions, casual 10% withholding, dependants | Payroll, People `[verify-legal]` |
-| L12 | Law on Tax Administration 38/2019/QH14; Decree 126/2020/ND-CP; Circular 80/2021/TT-BTC; Circular 86/2024/TT-BTC | Declarations (05/KK, 05/QTT), deadlines, MST formats, CCCD as personal tax code | Payroll, Core, People `[verify-legal]` |
-| L13 | Decree 123/2020/ND-CP as amended by Decree 70/2025/ND-CP; Circular 78/2021, Circular 32/2025 | E-invoices (subscription billing), electronic PIT withholding certificates | SaaS, Payroll `[verify-legal]` |
-| L14 | VSS Decisions 595/QĐ-BHXH and 490/QĐ-BHXH (and successors) | SI forms D02-LT, TK1-TS, C12-TS; e-declaration via I-VAN | Payroll, SaaS `[verify-legal]` |
-| L15 | Law on Personal Data Protection 2025 (91/2025/QH15, effective 2026-01-01); Decree 13/2023/ND-CP | Consent, sensitive data, DSR, DPIA, cross-border transfer, 72h breach notice | All modules, SaaS `[verify-legal]` |
-| L16 | Cybersecurity Law 2018 (and 2025 update); Decree 53/2022/ND-CP | Data localisation in VN; log retention | SaaS, Core `[verify-legal]` |
-| L17 | Law on Network Information Security 2015; Decree 85/2016/ND-CP | Information-system security level classification | SaaS `[verify-legal]` |
-| L18 | Law on E-Transactions 2023 (20/2023/QH15); Decree 23/2025/ND-CP; e-labour-contract decree (e.g. 337/2025/NĐ-CP) | E-signature, e-documents, electronic labour contracts | Core, People, SaaS `[verify-legal]` |
-| L19 | Law on Identification 2023; Decree 69/2024/ND-CP | VNeID e-identification | People, SaaS `[verify-legal]` |
-| L20 | Accounting Law 2015 (88/2015/QH13); Decree 174/2016/ND-CP | ≥ 10-year retention of accounting records, including payroll | Core, Payroll, SaaS `[verify-legal]` |
-| L21 | Circular 11/2020/TT-BLĐTBXH | Heavy/hazardous job list (retirement, leave, allowances) | Core, T&A, People `[verify-legal]` |
-| L22 | Decree 135/2020/ND-CP | Retirement-age roadmap | People `[verify-legal]` |
-| L23 | Decree 152/2020/ND-CP (as amended); Decree 219/2025/NĐ-CP | Foreign workers: work permits and demand approval | People, Recruitment, Payroll `[verify-legal]` |
-| L24 | Law on Gender Equality 2006; Law on Judicial Records 2009 | Non-discrimination; limits on judicial-record requests | Recruitment `[verify-legal]` |
-| L25 | Decree 30/2020/ND-CP; GSO Decision 121-TCTK/PPCĐ | Official document conventions; 54 ethnic groups | Core `[verify-legal]` |
-| L26 | Decree 91/2020/ND-CP | SMS brandname and anti-spam rules | SaaS, Core `[verify-legal]` |
-| L27 | Decree 12/2022/ND-CP | Administrative sanctions (labour, SI) — evidence and record keeping | T&A, People, Payroll `[verify-legal]` |
+| L1 | Bộ luật Lao động 2019 (45/2019/QH14) | Hợp đồng, thử việc, tạm thời chuyển người lao động làm công việc khác, báo trước, người lao động được bảo vệ, kỷ luật, thời giờ làm việc/nghỉ ngơi, làm thêm giờ, ngày lễ, nghỉ phép, trả lương, khấu trừ, trợ cấp thôi việc, quyết toán | People, T&A, Payroll, Recruitment `[verify-legal]` |
+| L2 | Nghị định 145/2020/NĐ-CP | Hướng dẫn Bộ luật Lao động: giới hạn làm thêm giờ và chế độ 300 giờ, tiền lương làm thêm giờ/làm đêm, nghỉ phép năm, kỷ luật, sổ quản lý lao động, báo cáo tình hình sử dụng lao động | People, T&A, Payroll `[verify-legal]` |
+| L3 | Nghị định 74/2024/NĐ-CP; Nghị định 293/2025/NĐ-CP (từ 2026-01-01) | Lương tối thiểu vùng (vùng I–IV), được ánh xạ lại sau khi sáp nhập tỉnh | Core, Payroll, People, Recruitment `[verify-legal]` |
+| L4 | Nghị quyết 202/2025/QH15; Luật 72/2025/QH15 | 34 tỉnh, chính quyền địa phương hai cấp; dữ liệu danh mục đơn vị hành chính | Core, People `[verify-legal]` |
+| L5 | Luật Bảo hiểm xã hội 2024 (41/2024/QH15, hiệu lực 2025-07-01) | Đóng BHXH, mức tham chiếu, miễn đóng 14 ngày, chế độ ốm đau/thai sản, thời hạn đăng ký và nộp tiền | Payroll, T&A, Core `[verify-legal]` |
+| L6 | Luật Bảo hiểm y tế (sửa đổi 2024) | Mức đóng và mức trần BHYT | Payroll `[verify-legal]` |
+| L7 | Luật Việc làm 2025 (74/2025/QH15, hiệu lực 2026-01-01) | Bảo hiểm thất nghiệp; thông báo biến động lao động; chống phân biệt đối xử | Payroll, People, Recruitment `[verify-legal]` |
+| L8 | Luật An toàn, vệ sinh lao động 2015; Nghị định 58/2020/NĐ-CP | Tỷ lệ đóng BHTNLĐ-BNN (0,5%, hoặc 0,3% nếu được chấp thuận) | Payroll `[verify-legal]` |
+| L9 | Luật Công đoàn 2024 | Kinh phí công đoàn 2%; đoàn phí công đoàn | Payroll `[verify-legal]` |
+| L10 | Nghị định 73/2024/NĐ-CP | Lương cơ sở / mức tham chiếu cho mức trần | Payroll `[verify-legal]` |
+| L11 | Luật Thuế TNCN (2007, sửa đổi) và Luật Thuế TNCN 2025; Nghị quyết 110/2025/UBTVQH15; Thông tư 111/2013/TT-BTC; Thông tư 92/2015/TT-BTC | Cư trú, biểu thuế (7 → 5 bậc), giảm trừ gia cảnh, miễn thuế, khấu trừ 10% cho lao động vãng lai, người phụ thuộc | Payroll, People `[verify-legal]` |
+| L12 | Luật Quản lý thuế 38/2019/QH14; Nghị định 126/2020/NĐ-CP; Thông tư 80/2021/TT-BTC; Thông tư 86/2024/TT-BTC | Tờ khai (05/KK, 05/QTT), thời hạn, định dạng MST, CCCD làm mã số thuế cá nhân | Payroll, Core, People `[verify-legal]` |
+| L13 | Nghị định 123/2020/NĐ-CP được sửa đổi bởi Nghị định 70/2025/NĐ-CP; Thông tư 78/2021, Thông tư 32/2025 | Hóa đơn điện tử (tính phí thuê bao), chứng từ khấu trừ thuế TNCN điện tử | SaaS, Payroll `[verify-legal]` |
+| L14 | Quyết định 595/QĐ-BHXH và 490/QĐ-BHXH của BHXH Việt Nam (và các văn bản thay thế) | Mẫu BHXH D02-LT, TK1-TS, C12-TS; kê khai điện tử qua I-VAN | Payroll, SaaS `[verify-legal]` |
+| L15 | Luật Bảo vệ dữ liệu cá nhân 2025 (91/2025/QH15, hiệu lực 2026-01-01); Nghị định 13/2023/NĐ-CP | Sự đồng ý, dữ liệu nhạy cảm, DSR, DPIA, chuyển dữ liệu xuyên biên giới, thông báo vi phạm trong 72 giờ | Tất cả các module, SaaS `[verify-legal]` |
+| L16 | Luật An ninh mạng 2018 (và bản cập nhật 2025); Nghị định 53/2022/NĐ-CP | Lưu trữ dữ liệu tại VN; thời hạn lưu log | SaaS, Core `[verify-legal]` |
+| L17 | Luật An toàn thông tin mạng 2015; Nghị định 85/2016/NĐ-CP | Phân loại cấp độ an toàn hệ thống thông tin | SaaS `[verify-legal]` |
+| L18 | Luật Giao dịch điện tử 2023 (20/2023/QH15); Nghị định 23/2025/NĐ-CP; nghị định về hợp đồng lao động điện tử (ví dụ 337/2025/NĐ-CP) | Chữ ký điện tử, văn bản điện tử, hợp đồng lao động điện tử | Core, People, SaaS `[verify-legal]` |
+| L19 | Luật Căn cước 2023; Nghị định 69/2024/NĐ-CP | Định danh điện tử VNeID | People, SaaS `[verify-legal]` |
+| L20 | Luật Kế toán 2015 (88/2015/QH13); Nghị định 174/2016/NĐ-CP | Lưu trữ chứng từ kế toán ≥ 10 năm, bao gồm bảng lương | Core, Payroll, SaaS `[verify-legal]` |
+| L21 | Thông tư 11/2020/TT-BLĐTBXH | Danh mục nghề, công việc nặng nhọc, độc hại (nghỉ hưu, nghỉ phép, phụ cấp) | Core, T&A, People `[verify-legal]` |
+| L22 | Nghị định 135/2020/NĐ-CP | Lộ trình tuổi nghỉ hưu | People `[verify-legal]` |
+| L23 | Nghị định 152/2020/NĐ-CP (đã sửa đổi); Nghị định 219/2025/NĐ-CP | Lao động nước ngoài: giấy phép lao động và chấp thuận nhu cầu sử dụng | People, Recruitment, Payroll `[verify-legal]` |
+| L24 | Luật Bình đẳng giới 2006; Luật Lý lịch tư pháp 2009 | Chống phân biệt đối xử; giới hạn yêu cầu cung cấp lý lịch tư pháp | Recruitment `[verify-legal]` |
+| L25 | Nghị định 30/2020/NĐ-CP; Quyết định 121-TCTK/PPCĐ của Tổng cục Thống kê | Quy chuẩn văn bản hành chính; 54 dân tộc | Core `[verify-legal]` |
+| L26 | Nghị định 91/2020/NĐ-CP | Quy định về tin nhắn thương hiệu (SMS brandname) và chống tin nhắn rác | SaaS, Core `[verify-legal]` |
+| L27 | Nghị định 12/2022/NĐ-CP | Xử phạt vi phạm hành chính (lao động, BHXH) — bằng chứng và lưu giữ hồ sơ | T&A, People, Payroll `[verify-legal]` |
 
 ---
 
-## 8. Product-wide non-functional requirements
+## 8. Yêu cầu phi chức năng toàn sản phẩm
 
-The product-wide NFRs are owned by [06 SaaS Platform §9](modules/06-saas-platform.md#9-non-functional-requirements-product-wide). Module NFRs (`NFR-CORE/PPL/ATT/PAY/REC`) refine them and must not contradict them.
+Các NFR toàn sản phẩm thuộc sở hữu của [06 SaaS Platform §9](modules/06-saas-platform.md#9-non-functional-requirements-product-wide). Các NFR của module (`NFR-CORE/PPL/ATT/PAY/REC`) chi tiết hóa chúng và không được mâu thuẫn với chúng.
 
-| Area | Product-level target (summary) | Reference |
+| Lĩnh vực | Chỉ tiêu ở cấp sản phẩm (tóm tắt) | Tham chiếu |
 |---|---|---|
-| Availability & maintenance | ≥ 99.5% (≥ 99.9% Enterprise); no maintenance between the 25th and the 5th | NFR-SAAS-001 |
-| Payroll performance | 10,000 employees ≤ 15 min; 1 employee ≤ 5 s | NFR-SAAS-002, NFR-PAY-001 |
-| Interactive performance | p95 ≤ 500 ms transactional; ≤ 3 s standard reports | NFR-SAAS-003, NFR-CORE-002/003, NFR-PPL-003 |
-| Check-in burst (P2, with the live device connector, R2-01) | 2,000 events/min per tenant; 20,000/min platform-wide; offline buffer ≥ 7 days | NFR-SAAS-004, NFR-ATT-001/004 |
-| Scalability & fairness | ≥ 500 tenants and 200,000 employees at launch, 5× headroom; noisy tenant capped at 20% of pool | NFR-SAAS-005, NFR-PAY-013 |
-| Backup & DR | RPO ≤ 15 min; RTO ≤ 4 h (≤ 2 h Enterprise); second VN data centre | NFR-SAAS-006 |
-| Security | TLS 1.2+, AES-256, field-level encryption of sensitive data, vault secrets, OWASP ASVS L2, pen tests | NFR-SAAS-007/008/009, NFR-CORE-007/014 |
-| Tenant isolation | `tenant_id` + PostgreSQL RLS + app filter; release-blocking isolation tests | BR-SAAS-021/023, NFR-CORE-001, NFR-PAY-005, NFR-ATT-010 |
-| Observability | Tenant-tagged logs, metrics and traces; logs ≥ 12 months (security ≥ 24) in VN | NFR-SAAS-010 |
-| Localisation & UX | Full vi/en; Vietnamese diacritics in PDF/Excel; accent-insensitive search; 360 px responsive; WCAG 2.1 AA (S) | NFR-SAAS-011/012/013, NFR-CORE-011 |
-| Release management | Zero-downtime releases; rollback ≤ 15 min; calculation changes behind per-tenant toggles | NFR-SAAS-014/015 |
-| Legal agility & traceability | Parameter pack ≥ 7 days before effective date; every result stores pack, config and release versions; deterministic, reproducible for ≥ 10 years | NFR-SAAS-016/017, NFR-PAY-002/003/007, NFR-ATT-006 |
-| Data portability | Full tenant export ≤ 6 h for 10,000 employees | NFR-SAAS-019 |
-| Support & peak capacity | Sev-1 response ≤ 1 h (Enterprise 24×7); 3× capacity for payroll close and Jan–Mar PIT | NFR-SAAS-020/021 |
-| API & mobile (P2) | Backward-compatible API, ≥ 6-month deprecation; app cold start ≤ 3 s | NFR-SAAS-018/022 |
+| Độ khả dụng & bảo trì | ≥ 99,5% (≥ 99,9% với Enterprise); không bảo trì trong khoảng từ ngày 25 đến ngày 5 | NFR-SAAS-001 |
+| Hiệu năng tính lương | 10.000 nhân viên ≤ 15 phút; 1 nhân viên ≤ 5 s | NFR-SAAS-002, NFR-PAY-001 |
+| Hiệu năng tương tác | p95 ≤ 500 ms cho giao dịch; ≤ 3 s cho báo cáo chuẩn | NFR-SAAS-003, NFR-CORE-002/003, NFR-PPL-003 |
+| Đột biến check-in (P2, cùng connector thiết bị trực tuyến, R2-01) | 2.000 event/phút mỗi tenant; 20.000/phút toàn nền tảng; bộ đệm offline ≥ 7 ngày | NFR-SAAS-004, NFR-ATT-001/004 |
+| Khả năng mở rộng & tính công bằng | ≥ 500 tenant và 200.000 nhân viên khi ra mắt, dư địa 5 lần; tenant gây nhiễu bị giới hạn ở 20% pool | NFR-SAAS-005, NFR-PAY-013 |
+| Backup & DR | RPO ≤ 15 phút; RTO ≤ 4 giờ (≤ 2 giờ với Enterprise); trung tâm dữ liệu thứ hai tại VN | NFR-SAAS-006 |
+| Bảo mật | TLS 1.2+, AES-256, mã hóa dữ liệu nhạy cảm ở mức trường, secret trong vault, OWASP ASVS L2, kiểm thử xâm nhập | NFR-SAAS-007/008/009, NFR-CORE-007/014 |
+| Cách ly tenant | `tenant_id` + PostgreSQL RLS + bộ lọc ứng dụng; test cách ly chặn bản phát hành | BR-SAAS-021/023, NFR-CORE-001, NFR-PAY-005, NFR-ATT-010 |
+| Observability | Log, metric và trace gắn tag tenant; log lưu ≥ 12 tháng (bảo mật ≥ 24) tại VN | NFR-SAAS-010 |
+| Bản địa hóa & UX | Đầy đủ vi/en; dấu tiếng Việt trong PDF/Excel; tìm kiếm không phân biệt dấu; responsive từ 360 px; WCAG 2.1 AA (S) | NFR-SAAS-011/012/013, NFR-CORE-011 |
+| Quản lý phát hành | Phát hành không downtime; rollback ≤ 15 phút; thay đổi tính toán nằm sau toggle theo tenant | NFR-SAAS-014/015 |
+| Linh hoạt pháp lý & truy vết | Bộ tham số có trước ngày hiệu lực ≥ 7 ngày; mọi kết quả lưu phiên bản bộ tham số, cấu hình và bản phát hành; tất định, tái lập được trong ≥ 10 năm | NFR-SAAS-016/017, NFR-PAY-002/003/007, NFR-ATT-006 |
+| Khả năng di chuyển dữ liệu | Xuất toàn bộ dữ liệu tenant ≤ 6 giờ cho 10.000 nhân viên | NFR-SAAS-019 |
+| Hỗ trợ & năng lực cao điểm | Phản hồi Sev-1 ≤ 1 giờ (Enterprise 24×7); năng lực gấp 3 lần cho khóa sổ lương và quyết toán thuế TNCN tháng 1–3 | NFR-SAAS-020/021 |
+| API & mobile (P2) | API tương thích ngược, thời gian deprecation ≥ 6 tháng; app khởi động nguội ≤ 3 s | NFR-SAAS-018/022 |
 
 ---
 
-## 9. Requirement inventory
+## 9. Danh mục yêu cầu
 
-**Counting rules.** The counts cover the rows defined in each module BRD's §4 (BR) and §9 (NFR), counted with `awk` on 2026-10-16 after the v0.2 edits (script in [mvp-scope.md §10](mvp-scope.md#10-reproducing-the-counts)). Five rows have split priorities and are counted under their leading priority: BR-CORE-039, BR-CORE-070, BR-REC-033 and BR-REC-045 count as M, and BR-PPL-058 ("S→M if mandated") counts as S. No requirement uses `W`. Changes since v0.1:
-- T&A and Payroll added six X-03 close-hold BRs: BR-ATT-079, 087, 088 and BR-PAY-082, 083, 084.
-- SaaS added BR-SAAS-088 and BR-SAAS-089 (D-09).
-- BR-SAAS-073 changed from M to S.
-- R2-02 single-owner sync (v0.3, 2026-10-16): 9 BRs added (BR-CORE-088, BR-PPL-023, 039, BR-PAY-065, 085–087, BR-SAAS-090, 091). 5 rows are now "Removed — owned by …" (BR-CORE-038, 039, 042, 113, BR-SAAS-027). Their IDs stay in the module BRDs, but they are excluded from every count below. BR-CORE-086 changed from S to M.
+**Quy tắc đếm.** Số liệu bao gồm các dòng được định nghĩa trong §4 (BR) và §9 (NFR) của mỗi BRD module, được đếm bằng `awk` ngày 2026-10-16 sau các chỉnh sửa v0.2 (script trong [mvp-scope.md §10](mvp-scope.md#10-reproducing-the-counts)). Năm dòng có độ ưu tiên tách đôi và được đếm theo độ ưu tiên đứng đầu: BR-CORE-039, BR-CORE-070, BR-REC-033 và BR-REC-045 được tính là M, và BR-PPL-058 ("S→M nếu bắt buộc") được tính là S. Không có yêu cầu nào dùng `W`. Các thay đổi kể từ v0.1:
+- T&A và Payroll bổ sung sáu BR về close-hold theo X-03: BR-ATT-079, 087, 088 và BR-PAY-082, 083, 084.
+- SaaS bổ sung BR-SAAS-088 và BR-SAAS-089 (D-09).
+- BR-SAAS-073 đổi từ M sang S.
+- Đồng bộ chủ sở hữu duy nhất theo R2-02 (v0.3, 2026-10-16): bổ sung 9 BR (BR-CORE-088, BR-PPL-023, 039, BR-PAY-065, 085–087, BR-SAAS-090, 091). 5 dòng giờ là "Đã loại bỏ — thuộc sở hữu của …" (BR-CORE-038, 039, 042, 113, BR-SAAS-027). ID của chúng vẫn nằm trong các BRD module, nhưng bị loại khỏi mọi số đếm bên dưới. BR-CORE-086 đổi từ S sang M.
 
-**MoSCoW** ranks requirements within a phase. **Phase** (P1/P2/P3) is the scope decision, set only in **[mvp-scope.md](mvp-scope.md) §9** (phase banner in every module BRD). It was re-rated for X-04/OD-9/D-09 (v0.1) and round 2 including the R2-02 sync (v0.2). That document has the rules, the reason for every ID, the D-09 changes and the round 2 changes (§11).
+**MoSCoW** xếp hạng yêu cầu trong một giai đoạn. **Giai đoạn** (P1/P2/P3) là quyết định về phạm vi, chỉ được thiết lập trong **[mvp-scope.md](mvp-scope.md) §9** (banner giai đoạn trong mọi BRD module). Nó được đánh giá lại theo X-04/OD-9/D-09 (v0.1) và vòng 2 bao gồm đồng bộ R2-02 (v0.2). Tài liệu đó có các quy tắc, lý do cho từng ID, các thay đổi theo D-09 và các thay đổi của vòng 2 (§11).
 
-In the table, BR M/S/C is the current MoSCoW in the module BRDs, for active rows only. "Total" counts active BR + NFR rows; the 5 removed rows bring the module-row count to 583.
+Trong bảng, BR M/S/C là MoSCoW hiện tại trong các BRD module, chỉ cho các dòng đang hoạt động. "Tổng" đếm các dòng BR + NFR đang hoạt động; 5 dòng đã loại bỏ đưa tổng số dòng của module lên 583.
 
-| Module | BRD | BR total | BR M | BR S | BR C | BR P1 (v0.2) | **BR P1** | BR P2 | BR P3 | NFR total | NFR P1 (v0.2) | **NFR P1** | NFR P2 | Total |
+| Module | BRD | Tổng BR | BR M | BR S | BR C | BR P1 (v0.2) | **BR P1** | BR P2 | BR P3 | Tổng NFR | NFR P1 (v0.2) | **NFR P1** | NFR P2 | Tổng |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Core | [01-core.md](modules/01-core.md) | 75 | 60 | 10 | 5 | 52 | **45** | 25 | 5 | 15 | 13 | **13** | 2 | 90 |
 | People | [02-people.md](modules/02-people.md) | 95 | 67 | 23 | 5 | 50 | **47** | 43 | 5 | 12 | 10 | **10** | 2 | 107 |
 | Time & Attendance | [03-time-attendance.md](modules/03-time-attendance.md) | 80 | 61 | 16 | 3 | 61 | **55** | 25 | 0 | 11 | 9 | **7** | 4 | 91 |
 | Payroll | [04-payroll.md](modules/04-payroll.md) | 91 | 76 | 12 | 3 | 72 | **71** | 17 | 3 | 13 | 11 | **11** | 2 | 104 |
-| Recruitment (P2 module) | [05-recruitment.md](modules/05-recruitment.md) | 63 | 42 | 20 | 1 | 0 | **0** | 62 | 1 | 11 | 0 | **0** | 11 | 74 |
+| Recruitment (module P2) | [05-recruitment.md](modules/05-recruitment.md) | 63 | 42 | 20 | 1 | 0 | **0** | 62 | 1 | 11 | 0 | **0** | 11 | 74 |
 | SaaS Platform | [06-saas-platform.md](modules/06-saas-platform.md) | 90 | 58 | 26 | 6 | 46 | **42** | 44 | 4 | 22 | 18 | **17** | 5 | 112 |
-| **Total** | | **494** | **364** | **107** | **23** | **281** | **260** | **216** | **18** | **84** | **61** | **58** | **26** | **578** |
+| **Tổng** | | **494** | **364** | **107** | **23** | **281** | **260** | **216** | **18** | **84** | **61** | **58** | **26** | **578** |
 
-**Phase 1 scope: 260 BRs and 58 NFRs** (v0.3 (R3), after rounds 2 and 3 and the R2-02 sync). In v0.1 the MVP was 310 Must BRs (Recruitment excluded). Including the six X-03 additions, that baseline became 316, and the round 1 re-rating brought P1 to 281. Round 2 changes P1 as follows:
-- 27 Option B BRs move to P2 (R2-19). BR-PAY-102 and BR-ATT-037 are kept by more specific decisions.
-- 2 live-integration BRs move to P2: the device connector BR-ATT-021 and BR-SAAS-065 (R2-01).
-- 2 BRs return to P1: BR-ATT-063 (R2-07) and BR-SAAS-073 (R2-03).
-- 7 new R2-02 BRs are rated P1: tax residency, the 183-day check, pay group assignment, People pay-impacting events, legal-entity lock state, the job scheduler and the baseline rule. Two more (exchange rates, reorg mapping) are P2.
-- 2 P1 Core rows are removed because SaaS now owns them. Login, password, MFA and sessions are in BR-SAAS-038/039/043, and exports in BR-SAAS-046, all P1 and baseline.
-- 3 punch-rate and buffer NFRs move to P2 (NFR-ATT-001, NFR-ATT-004, NFR-SAAS-004).
-- Round 3 (decision-log §8): BR-ATT-075 early close for a leaver (R3-06), BR-PPL-019 minimal qualification field (R3-07) and BR-SAAS-037 minimal operator-access log (R3-08) return to P1 (+3). The vendor's own e-invoicing, BR-SAAS-014/015, moves to P2 (R3-01, −2). Net: 259 → 260.
+**Phạm vi Phase 1: 260 BR và 58 NFR** (v0.3 (R3), sau vòng 2, vòng 3 và đồng bộ R2-02). Ở v0.1, MVP gồm 310 BR mức Must (không tính Tuyển dụng). Tính cả sáu bổ sung theo X-03, baseline đó thành 316, và việc đánh giá lại ở vòng 1 đưa P1 về 281. Vòng 2 thay đổi P1 như sau:
+- 27 BR của Phương án B chuyển sang P2 (R2-19). BR-PAY-102 và BR-ATT-037 được giữ lại theo các quyết định cụ thể hơn.
+- 2 BR tích hợp trực tuyến chuyển sang P2: connector thiết bị BR-ATT-021 và BR-SAAS-065 (R2-01).
+- 2 BR quay lại P1: BR-ATT-063 (R2-07) và BR-SAAS-073 (R2-03).
+- 7 BR mới theo R2-02 được xếp P1: cư trú thuế, kiểm tra 183 ngày, gán nhóm lương, các event của People ảnh hưởng đến lương, trạng thái khóa của pháp nhân, job scheduler và quy tắc baseline. Hai BR khác (tỷ giá, ánh xạ tái cơ cấu) thuộc P2.
+- 2 dòng P1 của Core bị loại bỏ vì SaaS giờ sở hữu chúng. Đăng nhập, mật khẩu, MFA và session nằm trong BR-SAAS-038/039/043, và xuất dữ liệu nằm trong BR-SAAS-046, tất cả đều P1 và thuộc baseline.
+- 3 NFR về tốc độ tiếp nhận dữ liệu chấm công và bộ đệm chuyển sang P2 (NFR-ATT-001, NFR-ATT-004, NFR-SAAS-004).
+- Vòng 3 (decision-log §8): BR-ATT-075 khóa sớm cho người nghỉ việc (R3-06), BR-PPL-019 trường trình độ chuyên môn tối thiểu (R3-07) và BR-SAAS-037 log truy cập tối thiểu của operator (R3-08) quay lại P1 (+3). Hóa đơn điện tử của chính nhà cung cấp, BR-SAAS-014/015, chuyển sang P2 (R3-01, −2). Kết quả ròng: 259 → 260.
 
-All Recruitment items are Phase 2.
+Mọi hạng mục Tuyển dụng đều thuộc Phase 2.
 
-The sponsor's target was about 180–200 BRs. **That target is still not reached**:
-- 110 P1 BRs are statutory (SI, PIT including finalisation and residency, contracts, termination, OT and leave law, labour book and reports, final-settlement timing, PDPL). The vendor's own e-invoicing is handled outside the product (R3-01).
-- About 101 more are the processing chain those statutory outputs depend on.
+Mục tiêu của nhà tài trợ là khoảng 180–200 BR. **Mục tiêu đó vẫn chưa đạt được**:
+- 110 BR P1 là bắt buộc theo luật (BHXH, thuế TNCN bao gồm quyết toán và cư trú, hợp đồng, chấm dứt hợp đồng, quy định về làm thêm giờ và nghỉ phép, sổ quản lý lao động và báo cáo, thời hạn quyết toán khi nghỉ việc, PDPL). Hóa đơn điện tử của chính nhà cung cấp được xử lý bên ngoài sản phẩm (R3-01).
+- Khoảng 101 BR khác là chuỗi xử lý mà các đầu ra theo luật định đó phụ thuộc vào.
 
-Option B is now used up, so no descope reserve remains short of statutory scope. The plan must be sized in story points (R2-01). The last scope lever, vendor e-invoicing, was used in round 3 (R3-01).
+Phương án B giờ đã dùng hết, nên không còn dự phòng cắt giảm nào ngoài phạm vi bắt buộc theo luật. Kế hoạch phải được ước lượng bằng story point (R2-01). Đòn bẩy phạm vi cuối cùng, hóa đơn điện tử của nhà cung cấp, đã được dùng ở vòng 3 (R3-01).
 
 ---
 
-## 10. MVP definition — pilot tenant go-live
+## 10. Định nghĩa MVP — go-live tenant pilot
 
-**Pilot profile.** The pilot is an existing customer that moves to YourHRM as a **new system** (D-09). Its legacy Oracle HR data is not migrated. The pilot loads opening balances from its own records through the standard Excel templates and may go live mid-year. It may have one or more legal entities and pays monthly in VND. Bank list and entity count are to be confirmed (Payroll Q9, Core Q7).
+**Hồ sơ pilot.** Pilot là một khách hàng hiện hữu chuyển sang YourHRM như một **hệ thống mới** (D-09). Dữ liệu Oracle HR cũ của họ không được chuyển đổi. Pilot nạp số dư đầu kỳ từ hồ sơ của chính mình qua các mẫu Excel chuẩn và có thể go-live giữa năm. Pilot có thể có một hoặc nhiều pháp nhân và trả lương hằng tháng bằng VND. Danh sách ngân hàng và số lượng pháp nhân cần được xác nhận (Payroll Q9, Core Q7).
 
-**Delivery channel.** Phase 1 is delivered as a web app only: admin plus a responsive ESS/MSS web. There are **no mobile features**: no native app, PWA, push notifications, or GPS/Wi-Fi/selfie/web check-in (X-04, OD-9). There is **no live external integration** (R2-01):
-- **Attendance** comes from Excel import, including import of the time-device software's export file (CSV/Excel) through a device-column template. It is completed by admin manual entry and ESS correction requests.
-- **Notifications** go by e-mail and in-app only. This covers login, MFA and activation OTPs, approvals and payslip notices.
-- **Statutory and finance outputs are file exports** that the customer uploads itself: the bank payment file, the VSS declaration file (via its I-VAN), the PIT XML for eTax/HTKK and the GL journal in Excel.
+**Kênh triển khai.** Phase 1 chỉ được triển khai dưới dạng web app: quản trị cộng với web ESS/MSS responsive. **Không có tính năng mobile**: không có app native, PWA, push notification, hay check-in GPS/Wi-Fi/selfie/web (X-04, OD-9). **Không có tích hợp ngoài trực tuyến** (R2-01):
+- **Dữ liệu chấm công** đến từ import Excel, bao gồm import file xuất (CSV/Excel) của phần mềm máy chấm công qua mẫu theo cột của thiết bị. Được bổ sung bằng việc quản trị viên nhập thủ công và yêu cầu điều chỉnh công trên ESS.
+- **Thông báo** chỉ gửi qua e-mail và trong ứng dụng. Bao gồm OTP đăng nhập, MFA và kích hoạt, phê duyệt và thông báo phiếu lương.
+- **Đầu ra theo luật định và tài chính là các file xuất** mà khách hàng tự tải lên: file chi trả ngân hàng, file kê khai BHXH (qua I-VAN của họ), XML thuế TNCN cho eTax/HTKK và bút toán GL dạng Excel.
 
-### 10.1 Must-have capabilities
-The exact list is the P1 rows of [mvp-scope.md](mvp-scope.md) §9. In summary:
-1. **Platform.** Assisted provisioning, shared tier with RLS, VN hosting, vi/en, local login with MFA (SSO is P2), operator back-office with consent-based support grants (manual two-person break-glass), module subscription with contract price, month-end billable count per legal entity from a manual headcount report (D-10), standard and statutory report framework, e-mail notifications, backup/DR.
-2. **Core.** Legal entities and locations with regions, effective-dated org (reorganisation packages and position control are P2), job titles, grades and cost centres, RBAC with data scopes and masking, workflow (vendor-seeded sequential routes, HR reassignment), in-app and e-mail notifications with vendor-maintained templates, audit, document templates, and the import framework with **opening-balance import mode**.
-3. **People.** Person and employment records (incl. rehire and basic concurrent employment across legal entities, R2-16), personal data and dependants, assignments, salary history, labour contracts, probation and suspension, separation with notice, protection and severance eligibility, ESS web (view), decisions, labour book, semi-annual and monthly labour reports, PDP controls. Onboarding/offboarding checklists, discipline procedure, rewards, probation appraisal, MSS team views, ESS change requests and the document repository are P2.
-4. **T&A.** VN holiday pack (incl. foreign employees' holidays), fixed weekly and night schedules, **Excel import of punches and timesheets incl. the device-export-file template**, admin manual entry, ESS correction requests, timesheets, OT by pre-approval with categories and legal caps (incl. 300h notice), leave with accrual, seniority and carry-forward, maternity and SI claim data (minimal, R2-07), period close with close hold (X-03), Attendance Result and retro, and opening leave balances and YTD OT. One policy set per legal entity.
-5. **Payroll.** Components and formulas, effective-dated legal parameters, Gross/Net with gross-up (fixed net scope), SI/HI/UI/OA-OD/TU, PIT (all regimes, monthly cumulative, finalisation using imported pre-go-live months), monthly runs and bonus/off-cycle runs with correct PIT (Tết policy rules are P2, R2-14), retro pay, final settlement and severance, interest-free loans, payslips (ESS web and password-protected e-mail PDF, R2-17), and file exports: bank files for the pilot's banks, GL journal in Excel, D02-LT, 05/KK and 05/QTT, e-withholding certificates.
-6. **Opening-balance import** (replaces "Migration", D-09). Standard Excel templates for the employee master, salary history, SI contribution history, YTD income/insurance/PIT per month, leave balances and YTD OT, and loans. Validate-only runs, reconciliation against the customer's control totals with sign-off, a lock at the first approved run, and the one-month payroll comparison against the customer's register (BR-SAAS-069–073, 088, 089).
+### 10.1 Các năng lực bắt buộc
+Danh sách chính xác là các dòng P1 của [mvp-scope.md](mvp-scope.md) §9. Tóm tắt:
+1. **Nền tảng.** Khởi tạo có hỗ trợ, gói dùng chung với RLS, lưu trữ tại VN, vi/en, đăng nhập nội bộ với MFA (SSO thuộc P2), back-office cho operator với support grant dựa trên sự đồng ý (break-glass hai người thủ công), thuê bao module với giá theo hợp đồng, số lượng tính phí cuối tháng theo từng pháp nhân từ báo cáo headcount thủ công (D-10), framework báo cáo chuẩn và theo luật định, thông báo e-mail, backup/DR.
+2. **Core.** Pháp nhân và địa điểm có vùng, tổ chức có hiệu lực theo thời gian (gói tái cơ cấu và kiểm soát định biên vị trí thuộc P2), chức danh, ngạch/bậc và trung tâm chi phí, RBAC với phạm vi dữ liệu và masking, workflow (luồng tuần tự do nhà cung cấp tạo sẵn, HR phân công lại), thông báo trong ứng dụng và e-mail với mẫu do nhà cung cấp duy trì, audit, mẫu tài liệu, và framework import với **chế độ import số dư đầu kỳ**.
+3. **People.** Hồ sơ cá nhân và quan hệ lao động (bao gồm tái tuyển dụng và quan hệ lao động đồng thời cơ bản ở nhiều pháp nhân, R2-16), dữ liệu cá nhân và người phụ thuộc, phân công, lịch sử lương, hợp đồng lao động, thử việc và tạm hoãn, chấm dứt với báo trước, bảo vệ và điều kiện hưởng trợ cấp thôi việc, web ESS (xem), quyết định, sổ quản lý lao động, báo cáo lao động 6 tháng và hằng tháng, kiểm soát bảo vệ dữ liệu cá nhân. Checklist tiếp nhận/nghỉ việc, thủ tục kỷ luật, khen thưởng, đánh giá thử việc, view nhóm trên MSS, yêu cầu thay đổi trên ESS và kho tài liệu thuộc P2.
+4. **T&A.** Bộ ngày lễ VN (bao gồm ngày lễ của nhân viên nước ngoài), lịch làm việc cố định theo tuần và ca đêm, **import Excel dữ liệu chấm công và bảng công bao gồm mẫu file xuất từ thiết bị**, quản trị viên nhập thủ công, yêu cầu điều chỉnh công trên ESS, bảng công, làm thêm giờ theo phê duyệt trước với các loại và giới hạn theo luật (bao gồm thông báo chế độ 300 giờ), nghỉ phép với tích lũy, thâm niên và chuyển phép, dữ liệu thai sản và hồ sơ hưởng BHXH (tối thiểu, R2-07), khóa kỳ với close hold (X-03), Attendance Result và hồi tố, cùng số dư phép đầu kỳ và số giờ làm thêm lũy kế từ đầu năm. Một bộ chính sách cho mỗi pháp nhân.
+5. **Payroll.** Thành phần lương và công thức, tham số pháp lý có hiệu lực theo thời gian, Gross/Net với gross-up (phạm vi net cố định), BHXH/BHYT/BHTN/BHTNLĐ-BNN/KPCĐ, thuế TNCN (mọi chế độ, lũy kế hằng tháng, quyết toán dùng các tháng trước go-live đã import), kỳ tính lương tháng và kỳ tính thưởng/ngoài kỳ với thuế TNCN chính xác (quy tắc chính sách Tết thuộc P2, R2-14), truy lĩnh/truy thu, quyết toán khi nghỉ việc và trợ cấp thôi việc, khoản vay không lãi, phiếu lương (web ESS và PDF có mật khẩu qua e-mail, R2-17), và các file xuất: file ngân hàng cho các ngân hàng của pilot, bút toán GL dạng Excel, D02-LT, 05/KK và 05/QTT, chứng từ khấu trừ điện tử.
+6. **Import số dư đầu kỳ** (thay cho "Chuyển đổi dữ liệu", D-09). Các mẫu Excel chuẩn cho hồ sơ gốc nhân viên, lịch sử lương, lịch sử đóng BHXH, thu nhập/bảo hiểm/thuế TNCN lũy kế từ đầu năm theo từng tháng, số dư phép và số giờ làm thêm lũy kế từ đầu năm, và khoản vay. Các lần chạy chỉ kiểm tra hợp lệ, đối soát với số tổng kiểm soát của khách hàng có ký xác nhận, khóa khi kỳ đầu tiên được phê duyệt, và so sánh bảng lương một tháng với sổ lương của khách hàng (BR-SAAS-069–073, 088, 089).
 
-### 10.2 Go-live acceptance criteria
-| # | Criterion |
+### 10.2 Tiêu chí nghiệm thu go-live
+| # | Tiêu chí |
 |---|---|
-| G1 | The opening-balance reconciliation report against the customer's control totals (last legacy payroll register, VSS C12-TS, 05/KK filed for the year, leave report) shows zero unexplained differences and has been signed off by the pilot's HR/C&B and finance owners (BR-SAAS-072). *(changed in v0.2, D-09)* |
-| G2 | Every month of the current tax year before go-live is loaded for every employee (BR-SAAS-089). The one-month comparison of the last pre-go-live month against the customer's payroll register shows no unexplained variance (BR-SAAS-073, R2-03). The first live payroll has been calculated, and its exception and variance reports have been reviewed and explained with the customer before the run is submitted. *(replaces the parallel-run criterion, D-09; changed in v0.3)* |
-| G3 | The golden payroll test pack (≥ 200 scenarios) passes, and the VN consultant has signed off the active legal parameter pack (NFR-PAY-008). |
-| G4 | The exported D02-LT file, the 05/KK PIT XML and the pilot bank files are accepted by the customer's I-VAN tool, eTax/HTKK and bank portals. The GL Excel journal is accepted by the customer's accounting import (NFR-PAY-010). *(changed in v0.3: file exports only)* |
-| G8 | The pilot's attendance route works end to end: its time-device export file (or Excel timesheet) imports cleanly with the device-column template, and manual entries and correction requests close a full period. E-mail delivery of OTPs, notifications and protected payslips is tested on the pilot's mail domain. Employees without e-mail have an agreed fallback. *(new in v0.3, R2-01)* |
-| G5 | The isolation test suite passes, the penetration-test findings at critical/high level are closed, and the DPA and DPIA inputs are delivered. |
-| G6 | UAT for processes §6.1, §6.2, §6.4 and §6.5 is signed, on the web app only. §6.6 is rehearsed on the **imported** YTD data if go-live falls before year end. |
-| G7 | The cut-over month is agreed per legal entity, and the opening balances lock on approval of the first regular run (BR-SAAS-088). The go/no-go is approved by the sponsor and the pilot customer. *(changed in v0.2, D-09)* |
+| G1 | Báo cáo đối soát số dư đầu kỳ so với số tổng kiểm soát của khách hàng (sổ lương cuối cùng của hệ thống cũ, C12-TS của BHXH, tờ khai 05/KK đã nộp trong năm, báo cáo phép) không có chênh lệch nào không giải thích được và đã được người phụ trách HR/C&B và tài chính của pilot ký xác nhận (BR-SAAS-072). *(thay đổi ở v0.2, D-09)* |
+| G2 | Mọi tháng của năm tính thuế hiện tại trước go-live đã được nạp cho mọi nhân viên (BR-SAAS-089). So sánh một tháng của tháng cuối cùng trước go-live với sổ lương của khách hàng không có chênh lệch nào không giải thích được (BR-SAAS-073, R2-03). Kỳ tính lương thực tế đầu tiên đã được tính, và các báo cáo ngoại lệ và chênh lệch đã được rà soát và giải thích cùng khách hàng trước khi kỳ được gửi đi. *(thay cho tiêu chí chạy song song, D-09; thay đổi ở v0.3)* |
+| G3 | Bộ test lương golden (≥ 200 kịch bản) chạy đạt, và chuyên gia tư vấn VN đã ký xác nhận bộ tham số pháp lý đang có hiệu lực (NFR-PAY-008). |
+| G4 | File D02-LT, XML thuế TNCN 05/KK và các file ngân hàng của pilot được xuất ra được công cụ I-VAN, eTax/HTKK và cổng ngân hàng của khách hàng chấp nhận. Bút toán GL dạng Excel được chức năng import của phần mềm kế toán của khách hàng chấp nhận (NFR-PAY-010). *(thay đổi ở v0.3: chỉ xuất file)* |
+| G8 | Luồng chấm công của pilot hoạt động đầu-cuối: file xuất từ máy chấm công (hoặc bảng công Excel) của họ được import sạch lỗi với mẫu theo cột của thiết bị, và các bản nhập thủ công cùng yêu cầu điều chỉnh công khép kín được một kỳ đầy đủ. Việc gửi e-mail OTP, thông báo và phiếu lương được bảo vệ đã được kiểm thử trên tên miền e-mail của pilot. Nhân viên không có e-mail có phương án dự phòng đã thống nhất. *(mới ở v0.3, R2-01)* |
+| G5 | Bộ test cách ly chạy đạt, các phát hiện kiểm thử xâm nhập mức critical/high đã được xử lý, và DPA cùng các đầu vào cho DPIA đã được bàn giao. |
+| G6 | UAT cho các quy trình §6.1, §6.2, §6.4 và §6.5 đã được ký, chỉ trên web app. §6.6 được diễn tập trên dữ liệu lũy kế từ đầu năm **đã import** nếu go-live trước cuối năm. |
+| G7 | Tháng cut-over được thống nhất cho từng pháp nhân, và số dư đầu kỳ bị khóa khi kỳ tính lương thường kỳ đầu tiên được phê duyệt (BR-SAAS-088). Quyết định go/no-go được nhà tài trợ và khách hàng pilot phê duyệt. *(thay đổi ở v0.2, D-09)* |
 
-### 10.3 Explicitly not required for pilot go-live
-- **Mobile and channels.** All mobile features (native app, PWA, push, GPS/Wi-Fi/selfie and web check-in, mobile approval), Zalo/SMS channels.
-- **Live integrations (R2-01).** Time-device connector (push/pull, offline buffer, punch-rate targets), e-signature, VNeID, accounting-system and bank APIs, job boards, public API and webhooks, integration hub runtime, VSS/eTax API submission, host-to-host banking.
-- **People and T&A features.** Recruitment, appraisal (incl. the probation appraisal form), training, expenses, rosters and shift swaps, onboarding/offboarding checklists and the pre-hire portal, discipline procedure, MSS team dashboards. From Option B (R2-19): ESS personal-data change requests, document repository, rehire seniority choice, emergency contacts and education records, late/early and OT detection policies, policy assignment by group, leave cancellation with retro, trip/WFH requests, early close for one employee, device duplicate/clock-drift handling.
-- **Payroll features (R2-14, R2-19).** Tết/13th-month eligibility and proration rules, configurable net scope, subset/simulation runs, salary-advance request flow, payment-file status import, split cost allocation.
-- **Platform.** SSO, reorganisation packages and position control, approval delegation and SLA escalation, no-code workflow designer and parallel steps, tenant template and code-list overrides, custom fields, report designer and dashboards, separate reporting store, feature-flag service, async export service.
-- **Commercial.** Subscription e-invoicing in the product (vendor finance invoices from its own e-invoice tool, R3-01), plans/price books, usage metering, dunning automation, tenant offboarding export and deletion, self-service sign-up, sandbox, dedicated tier, white-label.
-- **Migration.** Any legacy data migration or parallel run.
+### 10.3 Những nội dung không bắt buộc cho go-live pilot
+- **Mobile và các kênh.** Toàn bộ tính năng mobile (app native, PWA, push, check-in GPS/Wi-Fi/selfie và web, phê duyệt trên mobile), kênh Zalo/SMS.
+- **Tích hợp trực tuyến (R2-01).** Connector máy chấm công (push/pull, bộ đệm offline, mục tiêu tốc độ tiếp nhận), chữ ký điện tử, VNeID, API hệ thống kế toán và ngân hàng, trang tuyển dụng, public API và webhook, runtime integration hub, nộp qua API cho BHXH/eTax, ngân hàng host-to-host.
+- **Tính năng People và T&A.** Tuyển dụng, đánh giá (bao gồm biểu mẫu đánh giá thử việc), đào tạo, chi phí, lịch phân ca và đổi ca, checklist tiếp nhận/nghỉ việc và cổng thông tin trước khi nhận việc, thủ tục kỷ luật, dashboard nhóm trên MSS. Từ Phương án B (R2-19): yêu cầu thay đổi dữ liệu cá nhân trên ESS, kho tài liệu, lựa chọn tính thâm niên khi tái tuyển dụng, liên hệ khẩn cấp và hồ sơ học vấn, chính sách đi muộn/về sớm và phát hiện làm thêm giờ, gán chính sách theo nhóm, hủy nghỉ phép có hồi tố, yêu cầu công tác/WFH, khóa sớm cho một nhân viên, xử lý trùng lặp/lệch đồng hồ của thiết bị.
+- **Tính năng Payroll (R2-14, R2-19).** Quy tắc điều kiện hưởng và tính theo tỷ lệ cho Tết/tháng 13, phạm vi net có thể cấu hình, kỳ tính cho một nhóm/mô phỏng, luồng yêu cầu tạm ứng lương, import trạng thái file chi trả, phân bổ chi phí tách nhiều trung tâm.
+- **Nền tảng.** SSO, gói tái cơ cấu và kiểm soát định biên vị trí, ủy quyền phê duyệt và escalation theo SLA, trình thiết kế workflow no-code và bước song song, tenant override mẫu và danh mục mã, custom field, trình thiết kế báo cáo và dashboard, kho dữ liệu báo cáo tách riêng, dịch vụ feature flag, dịch vụ xuất dữ liệu bất đồng bộ.
+- **Thương mại.** Hóa đơn điện tử thuê bao trong sản phẩm (bộ phận tài chính của nhà cung cấp xuất hóa đơn từ công cụ hóa đơn điện tử riêng, R3-01), gói dịch vụ/bảng giá, đo lường sử dụng, tự động nhắc nợ, xuất và xóa dữ liệu khi tenant offboarding, tự đăng ký, sandbox, gói dedicated, white-label.
+- **Chuyển đổi dữ liệu.** Mọi hoạt động chuyển đổi dữ liệu cũ hoặc chạy song song.
 
 ---
 
-## 11. Assumptions, constraints, dependencies, risks
+## 11. Giả định, ràng buộc, phụ thuộc, rủi ro
 
-### 11.1 Assumptions
-| # | Assumption | Source |
+### 11.1 Giả định
+| # | Giả định | Nguồn |
 |---|---|---|
-| A1 | Data ownership is split by domain. Payroll owns money. People owns agreed compensation and personal, tax and SI master data. T&A owns time quantities. Core owns structure, access and the shared engines. | Payroll A1; People A2; T&A A2 |
-| A2 | The vendor maintains legal parameter packs centrally. Tenants override them only where the law allows, for example with more favourable benefits. | SaaS A7; Payroll A4 |
-| A3 | The tenant is the personal-data controller and the vendor is the processor under a signed DPA. | SaaS A2; Recruitment A-05 |
-| A4 | Hosting is with a VN cloud provider that has two or more sites. No personal data is held in hyperscaler regions outside VN. | SaaS A1 |
-| A5 | The pilot fills in the opening-balance templates from its own records: every month of the current tax year before go-live, at least six months of salary history, SI contribution history, leave balances and loans. It also provides control totals and the data owners who sign off the reconciliation. There is no Oracle access and no parallel run (changed in v0.2, D-09). | SaaS A4; Payroll A5 |
-| A6 | E-invoice, I-VAN, e-signature and VNeID come from certified third-party providers. In Phase 1 the customer uses its own I-VAN, eTax and bank tools to upload YourHRM's export files; the vendor's own e-invoices are issued from vendor finance's existing e-invoice tool, outside the product (R3-01); e-signature and VNeID are P2 (R2-01), so e-PIT certificates are produced as data + unsigned PDF and signed by the customer (R3-02). | SaaS A5/A6; People A6 |
-| A7 | Biometric matching happens on the device. YourHRM stores no biometric templates. | T&A A5 |
+| A1 | Quyền sở hữu dữ liệu được phân chia theo domain. Payroll sở hữu tiền. People sở hữu mức đãi ngộ đã thỏa thuận và dữ liệu gốc về cá nhân, thuế và BHXH. T&A sở hữu số lượng thời gian. Core sở hữu cơ cấu, quyền truy cập và các engine dùng chung. | Payroll A1; People A2; T&A A2 |
+| A2 | Nhà cung cấp duy trì tập trung các bộ tham số pháp lý. Tenant chỉ override ở những nơi luật cho phép, ví dụ với các quyền lợi có lợi hơn. | SaaS A7; Payroll A4 |
+| A3 | Tenant là bên kiểm soát dữ liệu cá nhân và nhà cung cấp là bên xử lý theo DPA đã ký. | SaaS A2; Recruitment A-05 |
+| A4 | Lưu trữ tại một nhà cung cấp cloud VN có từ hai địa điểm trở lên. Không có dữ liệu cá nhân nào được lưu tại các region của hyperscaler bên ngoài VN. | SaaS A1 |
+| A5 | Pilot điền các mẫu số dư đầu kỳ từ hồ sơ của chính mình: mọi tháng của năm tính thuế hiện tại trước go-live, ít nhất sáu tháng lịch sử lương, lịch sử đóng BHXH, số dư phép và khoản vay. Pilot cũng cung cấp số tổng kiểm soát và người phụ trách dữ liệu ký xác nhận đối soát. Không có quyền truy cập Oracle và không chạy song song (thay đổi ở v0.2, D-09). | SaaS A4; Payroll A5 |
+| A6 | Hóa đơn điện tử, I-VAN, chữ ký điện tử và VNeID đến từ các nhà cung cấp bên thứ ba được cấp phép. Ở Phase 1, khách hàng dùng công cụ I-VAN, eTax và ngân hàng của riêng mình để tải lên các file xuất từ YourHRM; hóa đơn điện tử của chính nhà cung cấp được phát hành từ công cụ hóa đơn điện tử hiện có của bộ phận tài chính nhà cung cấp, bên ngoài sản phẩm (R3-01); chữ ký điện tử và VNeID thuộc P2 (R2-01), nên chứng từ khấu trừ thuế TNCN điện tử được tạo dưới dạng dữ liệu + PDF chưa ký và do khách hàng ký (R3-02). | SaaS A5/A6; People A6 |
+| A7 | Việc so khớp sinh trắc học diễn ra trên thiết bị. YourHRM không lưu mẫu sinh trắc học. | T&A A5 |
 
-### 11.2 Constraints
-- PostgreSQL with one schema per module (`core`, `hr`, `att`, `pay`, `rec`) plus `saas` for platform data (charter §2, X-07), Java Spring Boot, and multi-tenant from day one.
-- Phase 1 is web only (admin + responsive ESS). Mobile features are Phase 2 (X-04, OD-9).
-- Legal values are never hard-coded.
-- Personal data, customer data files (e.g. opening-balance templates) and credentials are never committed to the repository.
-- All personal data stays in Vietnam.
-- Payroll maintenance windows must avoid the 25th–5th of each month.
+### 11.2 Ràng buộc
+- PostgreSQL với mỗi module một schema (`core`, `hr`, `att`, `pay`, `rec`) cộng thêm `saas` cho dữ liệu nền tảng (điều lệ dự án §2, X-07), Java Spring Boot, và multi-tenant ngay từ ngày đầu.
+- Phase 1 chỉ có web (quản trị + ESS responsive). Tính năng mobile thuộc Phase 2 (X-04, OD-9).
+- Giá trị pháp lý không bao giờ được hard-code.
+- Dữ liệu cá nhân, file dữ liệu của khách hàng (ví dụ mẫu số dư đầu kỳ) và thông tin đăng nhập không bao giờ được commit vào repository.
+- Toàn bộ dữ liệu cá nhân được lưu tại Việt Nam.
+- Cửa sổ bảo trì liên quan đến tính lương phải tránh khoảng từ ngày 25 đến ngày 5 hằng tháng.
 
-### 11.3 Dependencies
-| # | Dependency | Needed for |
+### 11.3 Phụ thuộc
+| # | Phụ thuộc | Cần cho |
 |---|---|---|
-| DP1 | Retained VN labour, tax and data-protection consultant | `[verify-legal]` sign-off; golden tests; parameter packs |
-| DP2 | Pilot customer: completed opening-balance templates and control totals, reconciliation sign-off owners, bank list, time-device model/firmware, UAT staff | MVP go-live |
-| DP3 | VN cloud/data-centre provider (two sites) | Residency, DR |
-| DP4 | E-invoice provider; I-VAN/T-VAN; banks' file formats; e-signature CA | Billing, statutory filing, payments, e-contracts |
-| DP5 | Sample export files from the pilot's time-device software (column layout, encoding, device user IDs) for the device-export-file template; one certified connector only from P2 (R2-01) | T&A MVP |
-| DP7 | A reliable e-mail service for the pilot's users (deliverability to the pilot's domain, SPF/DKIM), and personal e-mail addresses for staff without a work address | Login/OTP, notifications, payslip PDFs (R2-01, R2-17) |
-| DP6 | Architecture decisions: tenancy isolation model, workflow engine build vs embed, reporting store | All modules (see gap analysis) |
+| DP1 | Chuyên gia tư vấn lao động, thuế và bảo vệ dữ liệu VN được thuê dài hạn | Ký xác nhận `[verify-legal]`; golden test; bộ tham số |
+| DP2 | Khách hàng pilot: mẫu số dư đầu kỳ đã điền đầy đủ và số tổng kiểm soát, người phụ trách ký xác nhận đối soát, danh sách ngân hàng, model/firmware máy chấm công, nhân sự tham gia UAT | Go-live MVP |
+| DP3 | Nhà cung cấp cloud/trung tâm dữ liệu VN (hai địa điểm) | Lưu trữ dữ liệu trong nước, DR |
+| DP4 | Nhà cung cấp hóa đơn điện tử; I-VAN/T-VAN; định dạng file của ngân hàng; CA chữ ký điện tử | Tính phí, nộp hồ sơ theo luật định, chi trả, hợp đồng điện tử |
+| DP5 | File xuất mẫu từ phần mềm máy chấm công của pilot (bố cục cột, encoding, ID người dùng trên thiết bị) cho mẫu file xuất từ thiết bị; chỉ một connector được chứng nhận từ P2 (R2-01) | T&A MVP |
+| DP7 | Dịch vụ e-mail tin cậy cho người dùng của pilot (khả năng gửi tới tên miền của pilot, SPF/DKIM), và địa chỉ e-mail cá nhân cho nhân viên không có e-mail công việc | Đăng nhập/OTP, thông báo, PDF phiếu lương (R2-01, R2-17) |
+| DP6 | Các quyết định kiến trúc: mô hình cách ly tenant, tự xây hay nhúng workflow engine, kho dữ liệu báo cáo | Tất cả các module (xem gap analysis) |
 
-### 11.4 Top risks (consolidated)
-| # | Risk | Impact | Mitigation | Module refs |
+### 11.4 Các rủi ro hàng đầu (tổng hợp)
+| # | Rủi ro | Tác động | Giảm thiểu | Tham chiếu module |
 |---|---|---|---|---|
-| RK1 | High volume of legal change in 2025–2026: SI Law 2024, PIT Law 2025, Employment Law 2025, PDP Law 2025, minimum wage, provincial merger, e-contract decree | Wrong pay; rework; penalties | Effective-dated packs; regulatory SLA; golden tests; consultant on retainer | PAY R1, SAAS R2, PPL RK1, ATT R3 |
-| RK2 | Cross-tenant data leak | Critical legal and reputational damage | RLS + app filter; release-blocking isolation tests | SAAS R1, CORE R-08 |
-| RK3 | Incomplete or wrong opening balances in the customer's Excel files (no migration, D-09): duplicates, missing IDs, three-level addresses, missing pre-go-live months, YTD/SI history | Wrong monthly PIT and finalisation, severance and leave; go-live delay | Standard templates with validate-only runs; old→new address mapping; full tax-year months mandatory (BR-SAAS-089); reconciliation gate against control totals (BR-SAAS-072); lock and audited adjustments (BR-SAAS-088) | SAAS R3, PAY R7, PPL RK2, CORE R-01, ATT R7 |
-| RK4 | Retro and effective-dating inconsistency across People, T&A and Payroll | Pay and costing errors | Versioned events; Attendance Result retro contract; period locks; contract tests | PAY R4, ATT R2/R4, PPL RK3/RK4, CORE R-06 |
-| RK5 | MVP scope does not fit 16 weeks: P1 is still 260 BRs after rounds 2–3 and the R2-02 sync against a target of about 180–200, because 110 BRs are statutory (X-04). Option B is used up, so no descope reserve is left | Delay to pilot go-live and to the first paying tenant | Phase rating in mvp-scope.md; story-point sizing before commitment (R2-01); no new P1 items without a matching swap; next levers listed in mvp-scope.md §11.4 | CORE R-04, PPL RK6, SAAS R8 |
-| RK6 | Exposure of sensitive personal data (salary, bank, CCCD, health; GPS/selfie only from P2) | PDP Law penalties | Field encryption, masking, access logging, consent, DPIA | PPL RK5, PAY R6, ATT R5, SAAS R7 |
-| RK7 | External format/API changes (VSS, eTax, banks, devices, job boards) | Rejected files; integration gaps | Configurable, versioned export and import templates (P1: bank, VSS, eTax, GL, device-export files); integration hub and connector versioning from P2 | PAY R5, SAAS R6, ATT R1, REC RK-02 |
-| RK8 | Data residency breach via third-party SaaS tools (email, monitoring, CV parser) | Regulatory penalty | Vendor inventory; VN-hosted alternatives; PII scrubbing; tenant opt-in | SAAS R4, REC RK-05 |
-| RK9 | No parallel run before go-live (D-09): calculation or configuration errors first appear on live payslips | Wrong first payroll; loss of pilot confidence | Golden test pack (G3); one-month comparison against the customer's last payroll register (BR-SAAS-073, P1 since R2-03); first run reviewed before submission (G2) | SAAS R3, PAY R7 |
-| RK10 | Pilot attendance has no live source (OD-9, R2-01). Device data arrives only as exported files, and staff without devices, such as office, field and remote staff, need Excel or correction requests | Missing punches; heavier admin work at period close | Excel timesheet import and device-export-file template (BR-ATT-025); ESS correction requests (BR-ATT-036); admin manual entry (BR-ATT-037); attendance codes for trips/WFH | ATT R1 |
-| RK11 | **Manual attendance effort and data-entry errors at the pilot** (R2-01, R2-19). Device files are exported and imported by hand on a schedule, and the late/early and OT detection policies, duplicate-punch handling and early close are P2. Late or edited files, wrong columns, duplicate or missing punches and keying errors in manual entries flow into OT caps, leave balances and pay | Wrong OT/leave quantities and pay; OT cap breaches not seen in time; long period close; disputes with employees | Fixed import calendar (e.g. daily or weekly) agreed with the pilot; validate-only dry run with an error file (BR-CORE-111) before every commit; device-column template tested on real export files (G8); mandatory reason and before/after history on manual edits (BR-ATT-037); pre-close exception checklist (BR-ATT-074); OT cap checks at import; ESS timesheet view for employees (BR-ATT-080); size the HR effort with the pilot before go-live | ATT R1, PAY R4 |
-| RK12 | **E-mail dependency** (R2-01, R2-17, R3-04, R3-05). With SMS, Zalo and push in P2, e-mail is the only outbound channel for ESS activation and MFA OTPs, former-employee OTP (OD-8), approval notices and password-protected payslips. Many factory workers have no e-mail, and mail can be delayed, filtered as spam or sent to a wrong address | Employees cannot activate ESS or receive payslips; locked-out approvers; payslip sent to the wrong person (PDPL incident) | DP7: deliverability set-up (SPF/DKIM) with the pilot's domain; personal e-mail captured and verified at hire; employees without e-mail get a **printed PDF payslip from HR** on every payment, with no activation codes and no ESS access in P1 (R3-05; the employer must still give every employee the payslip details, Labour Code Art. 95(3)); the payslip password is set by the employee in ESS, with no default or derived password, and until then the e-mail is a notice only (R3-04); delivery-status tracking and resend (BR-PAY-102); SMS back as an early P2 item | SAAS R4, PAY R6, CORE R-08 |
+| RK1 | Khối lượng thay đổi pháp lý lớn trong 2025–2026: Luật BHXH 2024, Luật Thuế TNCN 2025, Luật Việc làm 2025, Luật Bảo vệ dữ liệu cá nhân 2025, lương tối thiểu, sáp nhập tỉnh, nghị định về hợp đồng điện tử | Trả lương sai; làm lại; bị phạt | Bộ tham số có hiệu lực theo thời gian; SLA về cập nhật pháp lý; golden test; chuyên gia tư vấn được thuê dài hạn | PAY R1, SAAS R2, PPL RK1, ATT R3 |
+| RK2 | Rò rỉ dữ liệu xuyên tenant | Thiệt hại nghiêm trọng về pháp lý và uy tín | RLS + bộ lọc ứng dụng; test cách ly chặn bản phát hành | SAAS R1, CORE R-08 |
+| RK3 | Số dư đầu kỳ không đầy đủ hoặc sai trong file Excel của khách hàng (không chuyển đổi dữ liệu, D-09): trùng lặp, thiếu ID, địa chỉ ba cấp, thiếu các tháng trước go-live, lịch sử lũy kế từ đầu năm/BHXH | Thuế TNCN hằng tháng và quyết toán, trợ cấp thôi việc và phép bị sai; chậm go-live | Mẫu chuẩn với các lần chạy chỉ kiểm tra hợp lệ; ánh xạ địa chỉ cũ→mới; bắt buộc đủ các tháng của năm tính thuế (BR-SAAS-089); cổng đối soát với số tổng kiểm soát (BR-SAAS-072); khóa và điều chỉnh có audit (BR-SAAS-088) | SAAS R3, PAY R7, PPL RK2, CORE R-01, ATT R7 |
+| RK4 | Không nhất quán về hồi tố và effective dating giữa People, T&A và Payroll | Sai sót về lương và chi phí | Event có phiên bản; hợp đồng hồi tố của Attendance Result; khóa kỳ; contract test | PAY R4, ATT R2/R4, PPL RK3/RK4, CORE R-06 |
+| RK5 | Phạm vi MVP không vừa 16 tuần: P1 vẫn là 260 BR sau vòng 2–3 và đồng bộ R2-02 so với mục tiêu khoảng 180–200, vì 110 BR là bắt buộc theo luật (X-04). Phương án B đã dùng hết, nên không còn dự phòng cắt giảm | Chậm go-live pilot và chậm có tenant trả phí đầu tiên | Xếp giai đoạn trong mvp-scope.md; ước lượng story point trước khi cam kết (R2-01); không thêm hạng mục P1 mới nếu không có hoán đổi tương ứng; các đòn bẩy tiếp theo được liệt kê trong mvp-scope.md §11.4 | CORE R-04, PPL RK6, SAAS R8 |
+| RK6 | Lộ dữ liệu cá nhân nhạy cảm (lương, ngân hàng, CCCD, sức khỏe; GPS/selfie chỉ từ P2) | Bị phạt theo Luật Bảo vệ dữ liệu cá nhân | Mã hóa trường dữ liệu, masking, ghi log truy cập, sự đồng ý, DPIA | PPL RK5, PAY R6, ATT R5, SAAS R7 |
+| RK7 | Thay đổi định dạng/API bên ngoài (BHXH, eTax, ngân hàng, thiết bị, trang tuyển dụng) | File bị từ chối; thiếu hụt tích hợp | Mẫu xuất và import có thể cấu hình, có phiên bản (P1: ngân hàng, BHXH, eTax, GL, file xuất từ thiết bị); integration hub và quản lý phiên bản connector từ P2 | PAY R5, SAAS R6, ATT R1, REC RK-02 |
+| RK8 | Vi phạm yêu cầu lưu trữ dữ liệu trong nước qua các công cụ SaaS bên thứ ba (email, giám sát, phân tích CV) | Bị xử phạt theo quy định | Kiểm kê nhà cung cấp; phương án thay thế lưu trữ tại VN; loại bỏ PII; tenant tự chọn tham gia | SAAS R4, REC RK-05 |
+| RK9 | Không chạy song song trước go-live (D-09): lỗi tính toán hoặc cấu hình xuất hiện lần đầu trên phiếu lương thực tế | Kỳ lương đầu tiên bị sai; mất niềm tin của pilot | Bộ golden test (G3); so sánh một tháng với sổ lương cuối cùng của khách hàng (BR-SAAS-073, P1 kể từ R2-03); kỳ đầu tiên được rà soát trước khi gửi đi (G2) | SAAS R3, PAY R7 |
+| RK10 | Dữ liệu chấm công của pilot không có nguồn trực tuyến (OD-9, R2-01). Dữ liệu thiết bị chỉ đến dưới dạng file xuất, và nhân viên không có thiết bị, như nhân viên văn phòng, hiện trường và làm việc từ xa, cần dùng Excel hoặc yêu cầu điều chỉnh công | Thiếu dữ liệu chấm công; khối lượng công việc quản trị nặng hơn khi khóa kỳ | Import bảng công Excel và mẫu file xuất từ thiết bị (BR-ATT-025); yêu cầu điều chỉnh công trên ESS (BR-ATT-036); quản trị viên nhập thủ công (BR-ATT-037); mã chấm công cho công tác/WFH | ATT R1 |
+| RK11 | **Công sức chấm công thủ công và lỗi nhập liệu tại pilot** (R2-01, R2-19). File từ thiết bị được xuất và import thủ công theo lịch, và các chính sách phát hiện đi muộn/về sớm và làm thêm giờ, xử lý dữ liệu chấm công trùng lặp và khóa sớm thuộc P2. File bị muộn hoặc bị chỉnh sửa, sai cột, dữ liệu chấm công trùng lặp hoặc bị thiếu và lỗi gõ phím khi nhập thủ công sẽ ảnh hưởng đến giới hạn làm thêm giờ, số dư phép và tiền lương | Số lượng làm thêm giờ/phép và tiền lương bị sai; vi phạm giới hạn làm thêm giờ không được phát hiện kịp thời; khóa kỳ kéo dài; tranh chấp với nhân viên | Lịch import cố định (ví dụ hằng ngày hoặc hằng tuần) được thống nhất với pilot; chạy thử chỉ kiểm tra hợp lệ kèm file lỗi (BR-CORE-111) trước mỗi lần commit; mẫu theo cột của thiết bị được kiểm thử trên file xuất thực tế (G8); bắt buộc nhập lý do và lịch sử trước/sau cho các chỉnh sửa thủ công (BR-ATT-037); checklist ngoại lệ trước khi khóa kỳ (BR-ATT-074); kiểm tra giới hạn làm thêm giờ khi import; view bảng công trên ESS cho nhân viên (BR-ATT-080); ước lượng công sức của HR cùng pilot trước go-live | ATT R1, PAY R4 |
+| RK12 | **Phụ thuộc vào e-mail** (R2-01, R2-17, R3-04, R3-05). Do SMS, Zalo và push thuộc P2, e-mail là kênh gửi ra duy nhất cho kích hoạt ESS và OTP MFA, OTP cho cựu nhân viên (OD-8), thông báo phê duyệt và phiếu lương có mật khẩu. Nhiều công nhân nhà máy không có e-mail, và thư có thể bị chậm, bị lọc là spam hoặc gửi nhầm địa chỉ | Nhân viên không thể kích hoạt ESS hoặc nhận phiếu lương; người phê duyệt bị khóa tài khoản; phiếu lương gửi nhầm người (sự cố PDPL) | DP7: thiết lập khả năng gửi thư (SPF/DKIM) với tên miền của pilot; thu thập và xác minh e-mail cá nhân khi tuyển dụng; nhân viên không có e-mail nhận **phiếu lương PDF in sẵn từ HR** ở mỗi lần chi trả, không có mã kích hoạt và không có quyền truy cập ESS ở P1 (R3-05; người sử dụng lao động vẫn phải cung cấp chi tiết phiếu lương cho mọi nhân viên, Bộ luật Lao động Điều 95(3)); mật khẩu phiếu lương do nhân viên tự đặt trong ESS, không có mật khẩu mặc định hay suy ra, và trước khi đặt, e-mail chỉ là thông báo (R3-04); theo dõi trạng thái gửi và gửi lại (BR-PAY-102); đưa SMS trở lại như một hạng mục sớm của P2 | SAAS R4, PAY R6, CORE R-08 |
 
 ---
 
-## 12. Glossary
+## 12. Bảng thuật ngữ
 
-| # | English | Vietnamese | Meaning |
+| # | Tiếng Anh | Tiếng Việt | Ý nghĩa |
 |---|---|---|---|
-| 1 | Social insurance (SI) | Bảo hiểm xã hội (BHXH) | Compulsory insurance covering retirement and survivorship, sickness and maternity, and OA-OD. It is funded by employer and employee contributions on the SI salary basis. |
-| 2 | Health insurance (HI) | Bảo hiểm y tế (BHYT) | Compulsory health cover funded by employer and employee contributions. |
-| 3 | Unemployment insurance (UI) | Bảo hiểm thất nghiệp (BHTN) | Compulsory scheme, capped at 20 × regional minimum wage. It does not apply to foreigners. |
-| 4 | Occupational accident & disease insurance (OA-OD) | Bảo hiểm tai nạn lao động, bệnh nghề nghiệp | Employer-only SI component. |
-| 5 | Vietnam Social Security (VSS) | Bảo hiểm xã hội Việt Nam | Authority collecting SI/HI/UI. It receives D02-LT declarations and issues C12-TS notices. |
-| 6 | SI unit code / SI number | Mã đơn vị BHXH / Mã số BHXH (sổ BHXH) | Employer registration code at VSS, and an individual's lifetime SI number or book. |
-| 7 | Trade union fee | Kinh phí công đoàn (KPCĐ) | 2% employer levy on the SI salary basis. It is distinct from member dues (đoàn phí). |
-| 8 | Tax code | Mã số thuế (MST) | Enterprise tax code: 10 digits, or 13 for dependent units. Individuals use their 12-digit personal ID number. |
-| 9 | Citizen identity card | Căn cước công dân / Căn cước (CCCD) | National ID with a 12-digit personal identification number. Also serves as the personal tax code. |
-| 10 | VNeID | VNeID (định danh điện tử) | National electronic identification app and level-2 e-ID. |
-| 11 | Personal income tax (PIT) | Thuế thu nhập cá nhân (TNCN) | Progressive tax for residents, 20% flat for non-residents, 10% withholding on casual income. |
-| 12 | PIT year-end finalisation | Quyết toán thuế TNCN | Annual recomputation of PIT. The employer finalises for authorised employees (05/QTT-TNCN). |
-| 13 | Family deduction | Giảm trừ gia cảnh | Monthly deduction from taxable income: personal deduction plus an amount per registered dependant. |
-| 14 | Dependant | Người phụ thuộc | Person registered for a family deduction. Each dependant can be claimed by only one taxpayer. |
-| 15 | PIT withholding certificate | Chứng từ khấu trừ thuế TNCN | Certificate of tax withheld, issued electronically to the payee. |
-| 16 | Commitment form 08/CK-TNCN | Bản cam kết 08/CK-TNCN | Declaration that annual income stays below the taxable threshold, which avoids the 10% casual withholding. |
-| 17 | Base salary / reference level | Lương cơ sở / Mức tham chiếu | State reference amount used for SI/HI caps (20 ×) and other benefits. Under the SI Law 2024 the reference level replaces base salary. |
-| 18 | Regional minimum wage | Lương tối thiểu vùng | Statutory monthly and hourly floor for regions I–IV, determined by work location. |
-| 19 | Pay scale | Thang bảng lương | Employer's grade and step salary table. |
-| 20 | Allowance | Phụ cấp | Additional pay component. Each allowance carries independent PIT and SI treatment flags. |
-| 21 | Standard working days | Ngày công chuẩn | Divisor for proration (actual scheduled days, fixed 26, or calendar method). |
-| 22 | Actual worked days | Ngày công thực tế | Days worked, including paid entitlements, as delivered by T&A. |
-| 23 | Overtime (OT) | Làm thêm giờ | Work beyond normal hours, paid at ≥ 150/200/300% plus night premiums. Capped at 40 h/month and 200 or 300 h/year. |
-| 24 | Annual leave | Nghỉ phép năm | 12/14/16 working days plus 1 day per 5 years of service. Unused days are paid on termination. |
-| 25 | Compensatory leave / TOIL | Nghỉ bù | Time off granted instead of OT pay, or for a holiday falling on a rest day. |
-| 26 | 13th-month salary / Tết bonus | Lương tháng 13 / Thưởng Tết | Customary year-end payment, processed in an off-cycle run. |
-| 27 | Labour contract (definite / indefinite) | Hợp đồng lao động (xác định / không xác định thời hạn) | Employment contract. Definite term is ≤ 36 months, and after two definite contracts the next must be indefinite. |
-| 28 | Probation | Thử việc | Trial period with a statutory maximum length. Pay must be ≥ 85% of the job's salary. |
-| 29 | Contract appendix | Phụ lục hợp đồng | Amendment to contract terms. It cannot change the contract duration. |
-| 30 | HR decision | Quyết định | Formal signed document for hires, transfers, salary changes, discipline and termination. |
-| 31 | Severance / job-loss allowance | Trợ cấp thôi việc / Trợ cấp mất việc làm | Termination allowances of 0.5 or 1 month per year of service, excluding UI-covered time. |
-| 32 | Legal entity | Pháp nhân | Legal employer and taxpayer. A tenant may hold several. |
-| 33 | Collaborator / service contract | Cộng tác viên (CTV) / Hợp đồng dịch vụ | Non-labour engagement. Payments are taxed as casual income, not SI-liable. |
-| 34 | Labour management book | Sổ quản lý lao động | Statutory register of employees kept by the employer. |
-| 35 | Attendance explanation | Giải trình chấm công | Employee correction request for a missing punch or late arrival. |
-| 36 | Electronic invoice | Hóa đơn điện tử | Mandatory e-invoice format for the vendor's subscription billing. |
-| 37 | Effective-dated | Hiệu lực theo thời gian | A record has from and to dates. The system answers "as of date D" and keeps history. |
-| 38 | ESS / MSS | Tự phục vụ nhân viên / quản lý | Employee and manager self-service portals. |
+| 1 | Social insurance (SI) | Bảo hiểm xã hội (BHXH) | Bảo hiểm bắt buộc chi trả cho hưu trí và tử tuất, ốm đau và thai sản, và BHTNLĐ-BNN. Được tài trợ bằng khoản đóng của người sử dụng lao động và người lao động trên tiền lương làm căn cứ đóng BHXH. |
+| 2 | Health insurance (HI) | Bảo hiểm y tế (BHYT) | Bảo hiểm sức khỏe bắt buộc được tài trợ bằng khoản đóng của người sử dụng lao động và người lao động. |
+| 3 | Unemployment insurance (UI) | Bảo hiểm thất nghiệp (BHTN) | Chế độ bắt buộc, mức trần 20 × lương tối thiểu vùng. Không áp dụng cho người nước ngoài. |
+| 4 | Occupational accident & disease insurance (OA-OD) | Bảo hiểm tai nạn lao động, bệnh nghề nghiệp | Thành phần BHXH chỉ do người sử dụng lao động đóng. |
+| 5 | Vietnam Social Security (VSS) | Bảo hiểm xã hội Việt Nam | Cơ quan thu BHXH/BHYT/BHTN. Tiếp nhận tờ khai D02-LT và phát hành thông báo C12-TS. |
+| 6 | SI unit code / SI number | Mã đơn vị BHXH / Mã số BHXH (sổ BHXH) | Mã đăng ký của người sử dụng lao động tại cơ quan BHXH, và mã số hoặc sổ BHXH trọn đời của cá nhân. |
+| 7 | Trade union fee | Kinh phí công đoàn (KPCĐ) | Khoản đóng 2% của người sử dụng lao động trên tiền lương làm căn cứ đóng BHXH. Khác với đoàn phí của đoàn viên. |
+| 8 | Tax code | Mã số thuế (MST) | Mã số thuế doanh nghiệp: 10 chữ số, hoặc 13 chữ số với đơn vị phụ thuộc. Cá nhân dùng số định danh cá nhân 12 chữ số. |
+| 9 | Citizen identity card | Căn cước công dân / Căn cước (CCCD) | Giấy tờ tùy thân quốc gia với số định danh cá nhân 12 chữ số. Đồng thời dùng làm mã số thuế cá nhân. |
+| 10 | VNeID | VNeID (định danh điện tử) | Ứng dụng định danh điện tử quốc gia và định danh điện tử mức 2. |
+| 11 | Personal income tax (PIT) | Thuế thu nhập cá nhân (TNCN) | Thuế lũy tiến cho người cư trú, thuế suất cố định 20% cho người không cư trú, khấu trừ 10% đối với thu nhập vãng lai. |
+| 12 | PIT year-end finalisation | Quyết toán thuế TNCN | Tính lại thuế TNCN hằng năm. Người sử dụng lao động quyết toán thay cho nhân viên đã ủy quyền (05/QTT-TNCN). |
+| 13 | Family deduction | Giảm trừ gia cảnh | Khoản giảm trừ hằng tháng khỏi thu nhập tính thuế: giảm trừ bản thân cộng với một khoản cho mỗi người phụ thuộc đã đăng ký. |
+| 14 | Dependant | Người phụ thuộc | Người được đăng ký để giảm trừ gia cảnh. Mỗi người phụ thuộc chỉ được một người nộp thuế đăng ký giảm trừ. |
+| 15 | PIT withholding certificate | Chứng từ khấu trừ thuế TNCN | Chứng từ xác nhận số thuế đã khấu trừ, được cấp dưới dạng điện tử cho người nhận thu nhập. |
+| 16 | Commitment form 08/CK-TNCN | Bản cam kết 08/CK-TNCN | Bản cam kết thu nhập năm dưới ngưỡng chịu thuế, giúp không bị khấu trừ 10% đối với thu nhập vãng lai. |
+| 17 | Base salary / reference level | Lương cơ sở / Mức tham chiếu | Mức tham chiếu của Nhà nước dùng cho mức trần BHXH/BHYT (20 ×) và các chế độ khác. Theo Luật BHXH 2024, mức tham chiếu thay thế lương cơ sở. |
+| 18 | Regional minimum wage | Lương tối thiểu vùng | Mức sàn theo tháng và theo giờ theo luật định cho các vùng I–IV, được xác định theo nơi làm việc. |
+| 19 | Pay scale | Thang bảng lương | Bảng lương theo ngạch và bậc của người sử dụng lao động. |
+| 20 | Allowance | Phụ cấp | Thành phần lương bổ sung. Mỗi khoản phụ cấp có cờ xử lý thuế TNCN và BHXH riêng. |
+| 21 | Standard working days | Ngày công chuẩn | Số chia để tính theo tỷ lệ (số ngày theo lịch làm việc thực tế, cố định 26, hoặc theo ngày dương lịch). |
+| 22 | Actual worked days | Ngày công thực tế | Số ngày làm việc, bao gồm các ngày nghỉ có hưởng lương, do T&A cung cấp. |
+| 23 | Overtime (OT) | Làm thêm giờ | Làm việc ngoài giờ bình thường, được trả ≥ 150/200/300% cộng thêm phụ cấp làm đêm. Giới hạn 40 giờ/tháng và 200 hoặc 300 giờ/năm. |
+| 24 | Annual leave | Nghỉ phép năm | 12/14/16 ngày làm việc cộng 1 ngày cho mỗi 5 năm làm việc. Số ngày chưa nghỉ được thanh toán khi chấm dứt hợp đồng. |
+| 25 | Compensatory leave / TOIL | Nghỉ bù | Thời gian nghỉ được cấp thay cho tiền làm thêm giờ, hoặc khi ngày lễ trùng ngày nghỉ hằng tuần. |
+| 26 | 13th-month salary / Tết bonus | Lương tháng 13 / Thưởng Tết | Khoản chi trả cuối năm theo thông lệ, được xử lý trong kỳ tính ngoài kỳ. |
+| 27 | Labour contract (definite / indefinite) | Hợp đồng lao động (xác định / không xác định thời hạn) | Hợp đồng lao động. Hợp đồng xác định thời hạn tối đa 36 tháng, và sau hai hợp đồng xác định thời hạn thì hợp đồng tiếp theo phải là không xác định thời hạn. |
+| 28 | Probation | Thử việc | Thời gian làm thử với độ dài tối đa theo luật định. Tiền lương phải ≥ 85% mức lương của công việc. |
+| 29 | Contract appendix | Phụ lục hợp đồng | Sửa đổi các điều khoản hợp đồng. Không được thay đổi thời hạn hợp đồng. |
+| 30 | HR decision | Quyết định | Văn bản chính thức được ký cho tuyển dụng, điều chuyển, thay đổi lương, kỷ luật và chấm dứt hợp đồng. |
+| 31 | Severance / job-loss allowance | Trợ cấp thôi việc / Trợ cấp mất việc làm | Trợ cấp khi chấm dứt hợp đồng, 0,5 hoặc 1 tháng lương cho mỗi năm làm việc, không tính thời gian đã đóng BHTN. |
+| 32 | Legal entity | Pháp nhân | Người sử dụng lao động và người nộp thuế theo pháp luật. Một tenant có thể có nhiều pháp nhân. |
+| 33 | Collaborator / service contract | Cộng tác viên (CTV) / Hợp đồng dịch vụ | Quan hệ không phải lao động. Khoản chi trả bị tính thuế như thu nhập vãng lai, không thuộc diện đóng BHXH. |
+| 34 | Labour management book | Sổ quản lý lao động | Sổ đăng ký nhân viên theo luật định do người sử dụng lao động lưu giữ. |
+| 35 | Attendance explanation | Giải trình chấm công | Yêu cầu điều chỉnh của nhân viên khi thiếu dữ liệu chấm công hoặc đi muộn. |
+| 36 | Electronic invoice | Hóa đơn điện tử | Định dạng hóa đơn điện tử bắt buộc cho việc tính phí thuê bao của nhà cung cấp. |
+| 37 | Effective-dated | Hiệu lực theo thời gian | Bản ghi có ngày bắt đầu và ngày kết thúc. Hệ thống trả lời "tại ngày D" và lưu giữ lịch sử. |
+| 38 | ESS / MSS | Tự phục vụ nhân viên / quản lý | Cổng tự phục vụ cho nhân viên và quản lý. |
 
 ---
 
-## 13. Open decisions
+## 13. Các quyết định còn mở
 
-The Integration analyst consolidates cross-module open questions, ownership conflicts and interface gaps in **[gap-analysis.md](gap-analysis.md)**. That document is being prepared in parallel and is the single register for decisions. Decisions that block the MVP must be closed before SRS sign-off. Indicative topics raised in the module BRDs:
-- the owner of the legal parameter store and holiday calendar
-- ESS hosting
-- the platform schema and tenant-isolation model
-- SI unit code per branch
-- the standard-days methods and the OT cut-off
-- PIT Law 2025 transition dates and the reference level
-- whether e-labour contracts are mandatory
-- the pilot's bank list and SCIM needs
-- expense reimbursement routing
+Chuyên viên phân tích tích hợp hợp nhất các câu hỏi mở xuyên module, xung đột quyền sở hữu và các thiếu hụt về giao tiếp trong **[gap-analysis.md](gap-analysis.md)**. Tài liệu đó đang được chuẩn bị song song và là sổ đăng ký duy nhất cho các quyết định. Các quyết định chặn MVP phải được đóng trước khi phê duyệt SRS. Các chủ đề tiêu biểu được nêu trong các BRD module:
+- chủ sở hữu kho tham số pháp lý và lịch ngày lễ
+- nơi lưu trữ ESS
+- schema của nền tảng và mô hình cách ly tenant
+- mã đơn vị BHXH theo từng chi nhánh
+- các phương pháp tính ngày công chuẩn và thời điểm chốt làm thêm giờ
+- ngày chuyển tiếp của Luật Thuế TNCN 2025 và mức tham chiếu
+- hợp đồng lao động điện tử có bắt buộc hay không
+- danh sách ngân hàng của pilot và nhu cầu SCIM
+- luồng hoàn ứng chi phí

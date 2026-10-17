@@ -1,135 +1,135 @@
-# Decision Log & RAID — Phase 0 (2026-10-16)
+# Nhật ký quyết định & RAID — Phase 0 (2026-10-16)
 
-Consolidates the open decisions raised by the BRD, the gap analysis and the architecture drafts. Each one needs an owner and a date before the MVP backlog is frozen.
+Tổng hợp các quyết định còn mở phát sinh từ BRD, gap analysis và các bản nháp kiến trúc. Mỗi quyết định cần có người phụ trách và thời hạn trước khi chốt backlog MVP.
 
-**Status 2026-10-16:** rounds 1–3 (§1–§2, §7, §8) decided and **applied** to the charter, BRDs (BRD v0.3 R3, gap analysis v1.2, mvp-scope v0.3), architecture overview v0.3, DESIGN.md v0.3 and ADRs. Phase 1 = **260 BRs + 58 NFRs**. No open gap blocks the MVP. Open items left: legal/DPO validation (§3) and R3-03 legal confirmation. PM interpretations: §6 and §7.2.
+**Tình trạng 2026-10-16:** vòng 1–3 (§1–§2, §7, §8) đã được quyết định và **áp dụng** vào điều lệ dự án, các BRD (BRD v0.3 R3, gap analysis v1.2, mvp-scope v0.3), architecture overview v0.3, DESIGN.md v0.3 và các ADR. Phase 1 = **260 BR + 58 NFR**. Không còn gap mở nào chặn MVP. Các hạng mục còn mở: thẩm định pháp lý/DPO (§3) và xác nhận pháp lý cho R3-03. Diễn giải của PM: §6 và §7.2.
 
-## 1. PM-level conflicts found during cross-review
-| ID | Conflict | Sources | PM recommendation | Decide by | Decision |
+## 1. Các xung đột cấp PM phát hiện khi review chéo
+| ID | Xung đột | Nguồn | Khuyến nghị của PM | Người quyết định | Quyết định |
 |---|---|---|---|---|---|
-| X-01 | **Salary amounts encrypted?** The solution architect lists them as encrypted; the data architect recommends against it, because it breaks SQL totals, GL, reports and payroll speed. | architecture-overview.md; DESIGN.md §15 D-02/D-11; ADR-0026 | Follow the data architect: no column encryption for amounts. Protect them with RLS, module roles, masking views and access audit. Encrypt identifiers and bank accounts only. | Architects + DPO | Agree |
-| X-02 | **Module roles reading Core global reference tables** breaks the solution architect's "no grants on other schemas" rule. | DESIGN.md D-12; ADR-0021/0035; ADR-0001 | Accept a read-only exception for global reference data only, listed in ArchUnit/DB tests. | Architects | accept |
-| X-03 | **Period close:** the solution architect changes gap-analysis §7 to add a payroll *hold* on the attendance version. | ADR-0019; gap-analysis §7, GAP-027 | Accept it, because it removes the lock deadlock. The T&A and Payroll BAs update their BRDs. | T&A + Payroll BA | Accept |
-| X-04 | **MVP scope:** 310 must-have BRs (excluding Recruitment) against a 16-week pilot go-live. | BRD §9–10 | High risk. Re-rate the MVP to "pilot-critical" only. Expect to cut it to about 180–200 BRs, deferring appraisal, training, expense, report designer and white-label. | Sponsor + PM | Yes, cut off features and put all mobile app features to next phase. Phase 1 only core features on each module. |
-| X-05 | **Punch ingestion capacity:** T&A wants 200/s per region, SaaS ~333/s, and the solution architect set 500/s across the platform and 50/s per tenant. | GAP-058; architecture-overview | Use the solution architect's figure, to be confirmed in spike SP-3. | T&A BA | accept |
-| X-06 | New events not in catalogue v1: `att.AttendancePeriodHoldGranted/Released`, `core.ReorgPackageStatusChanged`, `people.OnboardingReadinessChanged`. | architecture-overview | Add them to gap-analysis §6 (catalogue v1.1). | Integration analyst | Agree add to gap-analysis §6 (catalogue v1.1) |
-| X-07 | **Charter amendment:** add a `saas` schema. | GAP-014 | Approve. | Sponsor | Approve |
+| X-01 | **Có mã hóa số tiền lương không?** Solution architect liệt kê là có mã hóa; data architect khuyến nghị không, vì làm hỏng phép tổng SQL, GL, báo cáo và tốc độ tính lương. | architecture-overview.md; DESIGN.md §15 D-02/D-11; ADR-0026 | Theo data architect: không mã hóa cột cho số tiền. Bảo vệ bằng RLS, role theo module, masking view và audit truy cập. Chỉ mã hóa định danh và tài khoản ngân hàng. | Architect + DPO | Đồng ý |
+| X-02 | **Role của module đọc các bảng tham chiếu toàn cục của Core** vi phạm quy tắc "không grant trên schema khác" của solution architect. | DESIGN.md D-12; ADR-0021/0035; ADR-0001 | Chấp nhận ngoại lệ chỉ đọc, chỉ cho dữ liệu tham chiếu toàn cục, được liệt kê trong test ArchUnit/DB. | Architect | chấp nhận |
+| X-03 | **Khóa kỳ:** solution architect thay đổi gap-analysis §7 để thêm cơ chế *hold* của payroll trên phiên bản chấm công. | ADR-0019; gap-analysis §7, GAP-027 | Chấp nhận, vì nó loại bỏ deadlock khóa. BA T&A và Payroll cập nhật BRD. | BA T&A + Payroll | Chấp nhận |
+| X-04 | **Phạm vi MVP:** 310 BR bắt buộc (không tính Tuyển dụng) so với mốc go-live pilot 16 tuần. | BRD §9–10 | Rủi ro cao. Đánh giá lại MVP chỉ giữ phần "thiết yếu cho pilot". Dự kiến cắt còn khoảng 180–200 BR, hoãn đánh giá, đào tạo, chi phí, trình thiết kế báo cáo và white-label. | Nhà tài trợ + PM | Đồng ý, cắt bớt tính năng và chuyển toàn bộ tính năng app mobile sang giai đoạn sau. Phase 1 chỉ gồm tính năng lõi của mỗi module. |
+| X-05 | **Năng lực tiếp nhận dữ liệu chấm công:** T&A muốn 200/s mỗi vùng, SaaS ~333/s, còn solution architect đặt 500/s toàn nền tảng và 50/s mỗi tenant. | GAP-058; architecture-overview | Dùng con số của solution architect, sẽ xác nhận trong spike SP-3. | BA T&A | chấp nhận |
+| X-06 | Các event mới chưa có trong danh mục v1: `att.AttendancePeriodHoldGranted/Released`, `core.ReorgPackageStatusChanged`, `people.OnboardingReadinessChanged`. | architecture-overview | Bổ sung vào gap-analysis §6 (danh mục v1.1). | Chuyên viên phân tích tích hợp | Đồng ý bổ sung vào gap-analysis §6 (danh mục v1.1) |
+| X-07 | **Điều chỉnh điều lệ dự án:** thêm schema `saas`. | GAP-014 | Phê duyệt. | Nhà tài trợ | Phê duyệt |
 
-## 2. Sponsor / business decisions
-| ID | Decision needed | Source | Decision |
+## 2. Quyết định của nhà tài trợ / nghiệp vụ
+| ID | Quyết định cần đưa ra | Nguồn | Quyết định |
 |---|---|---|---|
-| OD-1 | VN cloud provider for production and DR (Viettel IDC / FPT / VNG / CMC). Must support the PG extensions, logical replication and KMS (also D-07). | Solution arch. §17.2, Data arch. D-07 | Run the 2 weeks  evaluation (SP-7), then decide. |
-| OD-2 | Frontend framework: React + TS + Ant Design, or Angular. Depends on team skills. | ADR-0013 | React + TS + Ant Design |
-| OD-3 | Java 25 + Spring Boot 4, or the Java 21 + Boot 3.5 fallback. Decide after spike SP-1. | ADR-0002 | Java 25, with 21 as the fallback after the first spike |
-| OD-4 | Accept an in-house workflow engine with no BPMN designer. | ADR-0007 | Accept |
-| OD-5 | BI for Phase 2: Superset, or a commercial tool. | ADR-0012 | Superset |
-| OD-6 | Infrastructure cost target per employee per month, and an Enterprise dedicated-tier price floor. | Solution arch. | calcuate later, not need right now. |
-| OD-8 | Former-employee login by e-mail OTP, which means capturing a personal e-mail at offboarding (GAP-036). | ADR-0005 | Accept |
-| OD-9 | PWA web check-in for the pilot; native app in Phase 2. | Solution arch. | Do this on phase 2. |
-| OD-10 | Software key root for MVP; HSM before the Enterprise tier. | Solution arch. | Accept |
-| D-01 | Accept eventual integrity between modules (no cross-schema foreign keys). | ADR-0022 | Accept |
-| D-03 | Archive thresholds: punches 25 months, timesheets 37, payroll lines 36. Restore within about 2 working days. | ADR-0030 | accept |
-| D-09 | Migrated Oracle history shows the cut-over date as its "known" date. | ADR-0033 | No need migration, we will build a new system. |
-| D-10 | Definition of a billable employee. | DESIGN.md §15 | count active person at month end, per legal entity. |
-| Flyway | Licence terms for the Community edition. | ADR-0031 | Yes, I think Community licence that enough |
+| OD-1 | Nhà cung cấp cloud tại VN cho production và DR (Viettel IDC / FPT / VNG / CMC). Phải hỗ trợ các extension PG, logical replication và KMS (xem thêm D-07). | Solution arch. §17.2, Data arch. D-07 | Thực hiện đánh giá trong 2 tuần (SP-7), sau đó quyết định. |
+| OD-2 | Framework frontend: React + TS + Ant Design, hoặc Angular. Phụ thuộc vào kỹ năng của nhóm. | ADR-0013 | React + TS + Ant Design |
+| OD-3 | Java 25 + Spring Boot 4, hoặc phương án dự phòng Java 21 + Boot 3.5. Quyết định sau spike SP-1. | ADR-0002 | Java 25, dự phòng bằng 21 sau spike đầu tiên |
+| OD-4 | Chấp nhận workflow engine tự phát triển, không có trình thiết kế BPMN. | ADR-0007 | Chấp nhận |
+| OD-5 | BI cho Phase 2: Superset, hoặc một công cụ thương mại. | ADR-0012 | Superset |
+| OD-6 | Mục tiêu chi phí hạ tầng trên mỗi nhân viên mỗi tháng, và giá sàn cho gói Enterprise dedicated. | Solution arch. | tính sau, hiện chưa cần. |
+| OD-8 | Cựu nhân viên đăng nhập bằng OTP qua e-mail, nghĩa là phải thu thập e-mail cá nhân khi nghỉ việc (GAP-036). | ADR-0005 | Chấp nhận |
+| OD-9 | Check-in qua web PWA cho pilot; app native ở Phase 2. | Solution arch. | Thực hiện ở phase 2. |
+| OD-10 | Software key root cho MVP; HSM trước khi có gói Enterprise. | Solution arch. | Chấp nhận |
+| D-01 | Chấp nhận tính toàn vẹn sau cùng (eventual integrity) giữa các module (không có foreign key xuyên schema). | ADR-0022 | Chấp nhận |
+| D-03 | Ngưỡng lưu trữ archive: dữ liệu chấm công 25 tháng, bảng công 37, dòng lương 36. Khôi phục trong khoảng 2 ngày làm việc. | ADR-0030 | chấp nhận |
+| D-09 | Lịch sử Oracle được chuyển đổi hiển thị ngày cut-over là ngày "được biết". | ADR-0033 | Không cần chuyển đổi dữ liệu, chúng ta sẽ xây dựng hệ thống mới. |
+| D-10 | Định nghĩa nhân viên tính phí. | DESIGN.md §15 | đếm số người đang làm việc tại thời điểm cuối tháng, theo từng pháp nhân. |
+| Flyway | Điều khoản giấy phép của bản Community. | ADR-0031 | Có, tôi nghĩ giấy phép Community là đủ |
 
-## 3. Legal / DPO validation (blocking for payroll go-live)
-- Every `[verify-legal]` figure across the BRDs: SI Law 2024 rates and caps, regional minimum wages for 2026, the PIT schedule and deductions for 2026, OT caps and rates.
-- D-04: retention periods, including "attendance kept 10 years after employment ends".
-- D-05: backups keep erased persons' data for up to 35 days. Needs a DPO statement under PDPL 2025.
-- PDPL 2025 / Decree 13/2023: DPIA for biometrics, GPS and selfies (T&A) and for candidate data (Recruitment).
+## 3. Thẩm định pháp lý / DPO (chặn go-live tính lương)
+- Mọi con số `[verify-legal]` trong các BRD: tỷ lệ và mức trần theo Luật BHXH 2024, lương tối thiểu vùng năm 2026, biểu thuế TNCN và các khoản giảm trừ năm 2026, giới hạn và tỷ lệ làm thêm giờ.
+- D-04: thời hạn lưu trữ, bao gồm "dữ liệu chấm công lưu 10 năm sau khi chấm dứt lao động".
+- D-05: bản backup giữ dữ liệu của người đã bị xóa tối đa 35 ngày. Cần tuyên bố của DPO theo PDPL 2025.
+- PDPL 2025 / Nghị định 13/2023: DPIA cho sinh trắc học, GPS và selfie (T&A) và cho dữ liệu ứng viên (Tuyển dụng).
 
-## 4. Spikes before architecture sign-off
-| Spike | Goal | Owner |
+## 4. Các spike trước khi phê duyệt kiến trúc
+| Spike | Mục tiêu | Phụ trách |
 |---|---|---|
-| SP-1 | Payroll engine: 10k employees ≤ 15 min (target 5) | Solution arch. |
-| SP-2 | RLS + PgBouncer transaction mode performance at 100k employees per cluster | Data arch. |
-| SP-3 | Punch ingestion at 500/s, with offline device buffer | Solution arch. |
-| SP-4 | Formula coverage of the pilot pay policies (from its pay-rule documents, not Oracle) by the formula language | Payroll BA + Solution arch. |
-| SP-7 | VN cloud evaluation (2 weeks) | DevOps |
-| — | Key-unwrap cost for 10k persons per payroll run | Data arch. |
+| SP-1 | Payroll engine: 10k nhân viên ≤ 15 phút (mục tiêu 5) | Solution arch. |
+| SP-2 | Hiệu năng RLS + PgBouncer transaction mode với 100k nhân viên mỗi cluster | Data arch. |
+| SP-3 | Tiếp nhận dữ liệu chấm công ở mức 500/s, có bộ đệm offline trên thiết bị | Solution arch. |
+| SP-4 | Mức độ ngôn ngữ công thức bao phủ các chính sách lương của pilot (từ tài liệu quy chế lương, không phải từ Oracle) | BA Payroll + Solution arch. |
+| SP-7 | Đánh giá cloud VN (2 tuần) | DevOps |
+| — | Chi phí key-unwrap cho 10k người mỗi kỳ tính lương | Data arch. |
 
-## 5. Top risks
-1. MVP scope vs the 16-week timeline (X-04).
-2. Legal parameter accuracy: 2026 PIT and SI changes are not yet validated.
-3. Opening balances: a mid-year go-live needs correct YTD payroll/PIT, SI history and leave balances loaded from Excel templates (no Oracle migration, D-09).
-4. The pilot's first Tết bonus run (Feb 2027) needs the Tết/13th-month policy, a scope hole in gap-analysis §8.
-5. Building in-house engines (workflow, formula language, scheduler) puts load on the team's capacity.
+## 5. Các rủi ro hàng đầu
+1. Phạm vi MVP so với tiến độ 16 tuần (X-04).
+2. Độ chính xác của tham số pháp lý: các thay đổi về thuế TNCN và BHXH năm 2026 chưa được thẩm định.
+3. Số dư đầu kỳ: go-live giữa năm cần nạp chính xác lương/thuế TNCN lũy kế từ đầu năm, lịch sử BHXH và số ngày phép còn lại từ các mẫu Excel (không chuyển đổi từ Oracle, D-09).
+4. Kỳ tính thưởng Tết đầu tiên của pilot (tháng 2/2027) cần chính sách Tết/lương tháng 13, một lỗ hổng phạm vi trong gap-analysis §8.
+5. Tự xây dựng các engine (workflow, ngôn ngữ công thức, scheduler) gây áp lực lên năng lực của nhóm.
 
-## 6. PM interpretations of decisions (2026-10-16)
-| Decision | Interpretation applied | Confirm? |
+## 6. Diễn giải của PM về các quyết định (2026-10-16)
+| Quyết định | Diễn giải được áp dụng | Cần xác nhận? |
 |---|---|---|
-| D-09 No migration | No Oracle migration programme, staging or parallel run. Replaced by a generic **opening-balance import** (Excel templates): employee master, YTD income/PIT/SI, SI contribution history, leave balances, loans — needed for a mid-year go-live and PIT year-end finalisation. | Sponsor |
-| X-04 + OD-9 | Phase 1 = core features of each module, delivered as a responsive web app (admin + ESS web). All mobile features (native app, PWA/GPS/selfie check-in) move to Phase 2. Pilot attendance comes from time devices and Excel import. | — |
-| D-10 | Billable unit = active person at month end **per legal entity**; a person employed by two legal entities of one tenant is counted twice. | Sponsor |
+| D-09 Không chuyển đổi dữ liệu | Không có chương trình chuyển đổi từ Oracle, không staging, không chạy song song. Thay bằng chức năng **import số dư đầu kỳ** tổng quát (mẫu Excel): hồ sơ gốc nhân viên, thu nhập/thuế TNCN/BHXH lũy kế từ đầu năm, lịch sử đóng BHXH, số ngày phép còn lại, khoản vay — cần cho go-live giữa năm và quyết toán thuế TNCN cuối năm. | Nhà tài trợ |
+| X-04 + OD-9 | Phase 1 = tính năng lõi của mỗi module, triển khai dưới dạng web app responsive (web quản trị + ESS). Toàn bộ tính năng mobile (app native, check-in PWA/GPS/selfie) chuyển sang Phase 2. Dữ liệu chấm công của pilot lấy từ máy chấm công và import Excel. | — |
+| D-10 | Đơn vị tính phí = người đang làm việc tại cuối tháng **theo từng pháp nhân**; một người làm việc cho hai pháp nhân của cùng một tenant được tính hai lần. | Nhà tài trợ |
 
-## 7. Round 2 — decisions needed (raised 2026-10-16 after applying round 1)
-| ID | Decision needed | Source | PM recommendation | Decision |
+## 7. Vòng 2 — các quyết định cần đưa ra (phát sinh ngày 2026-10-16 sau khi áp dụng vòng 1)
+| ID | Quyết định cần đưa ra | Nguồn | Khuyến nghị của PM | Quyết định |
 |---|---|---|---|---|
-| R2-01 | **MVP size.** Re-scope gives **281 P1 BRs**, not 180–200: 107 are statutory and 121 are the chain those outputs need. Option B cuts 29 more (→ 252), each with a workaround. | [mvp-scope.md](../01-requirements/brd/mvp-scope.md) | Accept 281 as scope and keep Option B as the descope reserve. **Size it in story points before committing to 16 weeks**, because 281 BRs in 16 weeks is high risk. | Remove external intergration with time devices, zalo, too down scope. |
-| R2-02 | **Approve the single-owner table** (gap-analysis §5) as final. It closes most of the 29 open MVP-blocking gaps. | gap-analysis §3, §5 | Approve as a whole. | Agree |
-| R2-03 | **No parallel run** with D-09. Add a one-month payroll comparison against the customer's current payroll output (BR-SAAS-073) to P1? About 1 week of work. | mvp-scope §8; BRD RK9 | Yes, P1. | agree |
-| R2-04 | SSO (Google / Microsoft 365) deferred to P2. Pilot uses Keycloak username + MFA. | BR-CORE-039, BR-SAAS-040 | Accept, unless the pilot requires SSO. | No need SSO at pilot. SSO can be move to next phase |
-| R2-05 | Discipline procedure deferred to P2. Pilot handles dismissals offline. | BR-PPL-080/081 | Accept. | Agree |
-| R2-06 | Desktop web check-in (IP-restricted) deferred to P2 with OD-9. Staff without a device use Excel import or correction requests. | BR-ATT-024 | Accept if every pilot site has time devices; otherwise keep it in P1 (small). | Agree to P2, not all all has time devices, can use excel import. |
-| R2-07 | SI benefit-claim data for sick/maternity leave (certificate, facility, child data) deferred to P2. | BR-ATT-063 | **Keep in P1 (minimal).** The employer must file sick/maternity claims to VSS, and payroll needs the same data. | Agree |
-| R2-08 | Cross-entity annual OT cap stays P2 pending legal advice. | BR-ATT-047; GAP-031 | Accept; ask the labour consultant. | Agree |
-| R2-09 | Multi-currency (USD contracts for expats) stays P2. | mvp-scope §8 | Accept, if the pilot has no USD contracts. Please confirm. | Agree, do not need multi currency |
-| R2-10 | E-labour contract stays P2 unless a decree makes it mandatory before go-live. | People BRD | Accept. | Agree, E-labour contract can be stay P2 at this time |
-| R2-11 | X-02 exception list also includes tenant override rows in `core.code_value` / `core.exchange_rate`, plus two plumbing write grants: insert into `saas.job` and append to `audit.audit_event`. | ADR-0021; DESIGN.md §2.3 | Accept as covered by X-02. | Agree |
-| R2-12 | D-10 details: (a) is a `SUSPENDED` employee billable? (b) confirm a person employed by 2 legal entities is billed twice. | DESIGN.md §11; BR-SAAS-012 | (a) Not billable. (b) Your call; billing once per person per tenant is friendlier. |  (a) Not billable |
-| R2-13 | Opening balances: who prepares the Excel files and who signs the reconciliation? Data must start from 1 January of the tax year. | BR-SAAS-088/089 | Customer prepares, our implementation consultant validates, customer C&B lead signs. | Yes, customer prepares |
-| R2-14 | Tết / 13th-month bonus policy for the pilot (first run Feb 2027). | gap-analysis §8 | Business input needed from the pilot. | No need when run pilot, put some sample data to verify function work that enough. |
-| R2-15 | DPO to record in the DPIA: plaintext salary amounts are readable by holders of the `hr`/`pay` DB credentials (consequence of X-01). | Arch. AR-13 | Accept; mitigate with secrets vault, no human access to app credentials, DB access audit. | Accept |
+| R2-01 | **Quy mô MVP.** Rà soát lại phạm vi cho ra **281 BR P1**, không phải 180–200: 107 BR là bắt buộc theo luật và 121 BR là chuỗi cần thiết để tạo ra các đầu ra đó. Phương án B cắt thêm 29 BR (→ 252), mỗi BR có cách xử lý thay thế. | [mvp-scope.md](../01-requirements/brd/mvp-scope.md) | Chấp nhận 281 làm phạm vi và giữ Phương án B làm dự phòng cắt giảm. **Ước lượng bằng story point trước khi cam kết 16 tuần**, vì 281 BR trong 16 tuần là rủi ro cao. | Bỏ tích hợp ngoài với máy chấm công, zalo, để giảm phạm vi. |
+| R2-02 | **Phê duyệt bảng chủ sở hữu duy nhất** (gap-analysis §5) là bản cuối cùng. Việc này đóng phần lớn trong số 29 gap mở đang chặn MVP. | gap-analysis §3, §5 | Phê duyệt toàn bộ. | Đồng ý |
+| R2-03 | **Không chạy song song** theo D-09. Có thêm chức năng so sánh bảng lương một tháng với kết quả tính lương hiện tại của khách hàng (BR-SAAS-073) vào P1 không? Khoảng 1 tuần công. | mvp-scope §8; BRD RK9 | Có, P1. | đồng ý |
+| R2-04 | SSO (Google / Microsoft 365) hoãn sang P2. Pilot dùng username Keycloak + MFA. | BR-CORE-039, BR-SAAS-040 | Chấp nhận, trừ khi pilot yêu cầu SSO. | Pilot không cần SSO. SSO có thể chuyển sang giai đoạn sau |
+| R2-05 | Quy trình kỷ luật hoãn sang P2. Pilot xử lý sa thải ngoài hệ thống. | BR-PPL-080/081 | Chấp nhận. | Đồng ý |
+| R2-06 | Check-in qua web trên máy tính (giới hạn IP) hoãn sang P2 cùng OD-9. Nhân viên không có thiết bị dùng import Excel hoặc yêu cầu điều chỉnh công. | BR-ATT-024 | Chấp nhận nếu mọi địa điểm pilot đều có máy chấm công; nếu không thì giữ ở P1 (nhỏ). | Đồng ý chuyển sang P2, không phải nơi nào cũng có máy chấm công, có thể dùng import Excel. |
+| R2-07 | Dữ liệu hồ sơ hưởng chế độ BHXH cho nghỉ ốm/thai sản (giấy chứng nhận, cơ sở y tế, thông tin con) hoãn sang P2. | BR-ATT-063 | **Giữ ở P1 (tối thiểu).** Người sử dụng lao động phải nộp hồ sơ ốm đau/thai sản cho BHXH Việt Nam, và payroll cần cùng dữ liệu này. | Đồng ý |
+| R2-08 | Giới hạn làm thêm giờ theo năm xuyên pháp nhân vẫn ở P2, chờ tư vấn pháp lý. | BR-ATT-047; GAP-031 | Chấp nhận; hỏi chuyên gia tư vấn lao động. | Đồng ý |
+| R2-09 | Đa tiền tệ (hợp đồng USD cho người nước ngoài) vẫn ở P2. | mvp-scope §8 | Chấp nhận, nếu pilot không có hợp đồng USD. Vui lòng xác nhận. | Đồng ý, không cần đa tiền tệ |
+| R2-10 | Hợp đồng lao động điện tử vẫn ở P2, trừ khi có nghị định bắt buộc trước go-live. | People BRD | Chấp nhận. | Đồng ý, hợp đồng lao động điện tử hiện có thể giữ ở P2 |
+| R2-11 | Danh sách ngoại lệ X-02 còn bao gồm các dòng override của tenant trong `core.code_value` / `core.exchange_rate`, cùng hai quyền ghi kỹ thuật: insert vào `saas.job` và append vào `audit.audit_event`. | ADR-0021; DESIGN.md §2.3 | Chấp nhận, coi như thuộc phạm vi X-02. | Đồng ý |
+| R2-12 | Chi tiết D-10: (a) nhân viên `SUSPENDED` có tính phí không? (b) xác nhận một người làm việc cho 2 pháp nhân bị tính phí hai lần. | DESIGN.md §11; BR-SAAS-012 | (a) Không tính phí. (b) Tùy anh/chị quyết; tính phí một lần cho mỗi người trên mỗi tenant thân thiện hơn. |  (a) Không tính phí |
+| R2-13 | Số dư đầu kỳ: ai chuẩn bị file Excel và ai ký biên bản đối soát? Dữ liệu phải bắt đầu từ ngày 1 tháng 1 của năm tính thuế. | BR-SAAS-088/089 | Khách hàng chuẩn bị, tư vấn triển khai của chúng ta kiểm tra, trưởng bộ phận C&B của khách hàng ký. | Đúng, khách hàng chuẩn bị |
+| R2-14 | Chính sách thưởng Tết / lương tháng 13 cho pilot (kỳ chạy đầu tiên tháng 2/2027). | gap-analysis §8 | Cần đầu vào nghiệp vụ từ pilot. | Không cần khi chạy pilot, chỉ cần đưa một ít dữ liệu mẫu để kiểm tra chức năng hoạt động là đủ. |
+| R2-15 | DPO ghi nhận trong DPIA: người nắm thông tin đăng nhập DB `hr`/`pay` có thể đọc được số tiền lương dạng plaintext (hệ quả của X-01). | Arch. AR-13 | Chấp nhận; giảm thiểu bằng secrets vault, không cho con người truy cập thông tin đăng nhập của ứng dụng, audit truy cập DB. | Chấp nhận |
 
-### 7.1 Round 2 follow-up decisions (2026-10-16)
-| ID | Decision needed | Source | PM recommendation | Decision |
+### 7.1 Các quyết định tiếp theo của vòng 2 (2026-10-16)
+| ID | Quyết định cần đưa ra | Nguồn | Khuyến nghị của PM | Quyết định |
 |---|---|---|---|---|
-| R2-16 | GAP-031: support one person employed by two legal entities of one tenant in Phase 1? | gap-analysis GAP-031 | Basic support: PIT family deduction applied once (primary employment), SI through one employer; cross-entity OT cap P2 (R2-08). | Agree |
-| R2-17 | GAP-057: payslip delivery by e-mail. | gap-analysis GAP-057; Core deep-link rule | Secure link by default, PDF opt-in. | **Password-protected PDF** (sponsor). Core's deep-link-only rule is relaxed for payslips. |
-| R2-18 | GAP-060: baseline capabilities always on, whatever modules a tenant buys. | gap-analysis GAP-060 | Core, People basics, legal parameters, pay scales/bands (§5 #7), Excel attendance import. | Agree |
-| R2-19 | Option B (29 more non-statutory cuts, 281 → ~252) and all live external integrations → P2 (R2-01). | mvp-scope §6 | — | Agree (sponsor) |
+| R2-16 | GAP-031: hỗ trợ một người làm việc cho hai pháp nhân của cùng một tenant trong Phase 1? | gap-analysis GAP-031 | Hỗ trợ cơ bản: giảm trừ gia cảnh thuế TNCN áp dụng một lần (nơi làm việc chính), BHXH qua một người sử dụng lao động; giới hạn làm thêm giờ xuyên pháp nhân ở P2 (R2-08). | Đồng ý |
+| R2-17 | GAP-057: gửi phiếu lương qua e-mail. | gap-analysis GAP-057; quy tắc deep-link của Core | Mặc định gửi link bảo mật, PDF là tùy chọn. | **PDF có mật khẩu** (nhà tài trợ). Quy tắc chỉ dùng deep-link của Core được nới lỏng cho phiếu lương. |
+| R2-18 | GAP-060: các năng lực nền tảng luôn được bật, bất kể tenant mua module nào. | gap-analysis GAP-060 | Core, People cơ bản, tham số pháp lý, thang/bậc lương (§5 #7), import chấm công Excel. | Đồng ý |
+| R2-19 | Phương án B (cắt thêm 29 BR không bắt buộc theo luật, 281 → ~252) và toàn bộ tích hợp ngoài trực tuyến → P2 (R2-01). | mvp-scope §6 | — | Đồng ý (nhà tài trợ) |
 
-### 7.2 PM interpretations of round 2 (confirm or correct)
-| Item | Interpretation applied |
+### 7.2 Diễn giải của PM về vòng 2 (xác nhận hoặc điều chỉnh)
+| Hạng mục | Diễn giải được áp dụng |
 |---|---|
-| R2-01 integrations | **P2:** live time-device connector, offline buffer and 500/s target (X-05, SP-3 postponed); Zalo OA/ZNS; SMS; e-sign; VNeID; accounting APIs; job boards; public webhooks. **P1 keeps:** e-mail (login, MFA, OD-8 OTP, notifications), in-app notifications, and **file exports** the customer uploads: bank payment file, VSS insurance declaration file, PIT XML for eTax, GL journal in Excel. **Import of time-device software export files (CSV/Excel) stays P1**: an Excel import with a device column layout, not a live integration. |
-| R2-12 (b) | Not answered → D-10 stands: billed once per legal entity. |
-| R2-13 | Customer prepares the opening-balance files; our implementation consultant validates; the customer's C&B lead signs the reconciliation. |
-| R2-14 | No Tết policy engine in P1. The bonus / off-cycle payroll run with correct PIT stays **P1**, so a real Tết bonus can be paid as a one-off amount. Eligibility and proration rules → P2. Test with sample data. |
-| R2-07 | BR-ATT-063 (SI benefit-claim data) moves back to **P1**, minimal. |
-| R2-03 | BR-SAAS-073 (one-month payroll comparison) moves to **P1**. |
+| R2-01 tích hợp | **P2:** connector trực tuyến với máy chấm công, bộ đệm offline và mục tiêu 500/s (X-05, SP-3 hoãn lại); Zalo OA/ZNS; SMS; ký số; VNeID; API kế toán; trang tuyển dụng; webhook công khai. **P1 giữ lại:** e-mail (đăng nhập, MFA, OTP theo OD-8, thông báo), thông báo trong ứng dụng, và **xuất file** để khách hàng tự tải lên: file chi trả ngân hàng, file kê khai bảo hiểm cho BHXH Việt Nam, XML thuế TNCN cho eTax, bút toán GL dạng Excel. **Import file xuất từ phần mềm máy chấm công (CSV/Excel) vẫn ở P1**: là import Excel theo bố cục cột của thiết bị, không phải tích hợp trực tuyến. |
+| R2-12 (b) | Chưa có câu trả lời → giữ nguyên D-10: tính phí một lần cho mỗi pháp nhân. |
+| R2-13 | Khách hàng chuẩn bị các file số dư đầu kỳ; tư vấn triển khai của chúng ta kiểm tra; trưởng bộ phận C&B của khách hàng ký biên bản đối soát. |
+| R2-14 | Không có engine chính sách Tết ở P1. Kỳ tính thưởng / tính lương ngoài kỳ với thuế TNCN chính xác vẫn ở **P1**, để có thể chi trả thưởng Tết thực tế như một khoản một lần. Quy tắc điều kiện hưởng và tính theo tỷ lệ → P2. Kiểm thử bằng dữ liệu mẫu. |
+| R2-07 | BR-ATT-063 (dữ liệu hồ sơ hưởng chế độ BHXH) chuyển lại **P1**, ở mức tối thiểu. |
+| R2-03 | BR-SAAS-073 (so sánh bảng lương một tháng) chuyển sang **P1**. |
 
-## 8. Round 3 — decisions needed (raised 2026-10-16 after applying round 2)
-| ID | Decision needed | Source | PM recommendation | Decision |
+## 8. Vòng 3 — các quyết định cần đưa ra (phát sinh ngày 2026-10-16 sau khi áp dụng vòng 2)
+| ID | Quyết định cần đưa ra | Nguồn | Khuyến nghị của PM | Quyết định |
 |---|---|---|---|---|
-| R3-01 | **E-invoices for YourHRM's own subscription billing** (BR-SAAS-014/015) need a certified e-invoice provider API, the only live integration left in P1. | mvp-scope §11.4 R2-C1; arch. open point 1 | **P2.** Vendor finance issues invoices from its existing e-invoice tool, using the usage report. The pilot is unlikely to be billed through the product. | move to P2 |
-| R3-02 | **Electronic PIT withholding certificates** (BR-PAY-059) need the employer's digital signature and possibly sending data to the tax authority (Decree 70/2025). E-sign is P2. | R2-C3; arch. point 7 | P1 = data and PDF certificate. The customer signs and issues via the tax authority's own tool or its existing provider. **Legal consultant must confirm for 2027.** | E-sign is P2 |
-| R3-03 | **Insurance for one person with contracts in two legal entities:** SI/UI follow the first contract, HI the highest salary, OA-OD due from each employer. | R2-C2; GAP-031 | Implement per-type, per-employment participation (already designed). **Legal consultant to confirm the rules.** | Rule is follow the first contract not highest salary. |
-| R3-04 | **Payslip PDF password:** the employee sets it in ESS, with no default or derived password. Until it is set, the e-mail is a notice with no attachment. | R2-C7; BR-PAY-102; ADR-0015 | Accept. **DPO sign-off.** | Accept |
-| R3-05 | **Employees without e-mail** can't receive OTPs or payslips, but payslip details must reach every employee (Labour Code Art. 95(3)). | R2-C6; BRD RK12 | Fallback: HR prints payslips and issues one-time activation codes for ESS. | Print a PDF then give it to employee. |
-| R3-06 | **Leaver final settlement within 14 working days** without early close of one employee's attendance (BR-ATT-075 cut under Option B). | R2-C4 | Restore BR-ATT-075 to P1 (small), because the workaround (manual payroll input) is error-prone for a statutory deadline. | Agree |
-| R3-07 | **Labour management book** still needs the qualification field (BR-PPL-019 cut under Option B). | R2-C5 | Restore a minimal qualification field to P1 (statutory). | Agree |
-| R3-08 | **Operator / break-glass access log** cut under Option B, but PDPL requires processor oversight. | R2-C8 | Restore minimal logging of operator access to tenant data in P1. | Agree |
-| R3-09 | **Custom fields P2:** tenant-specific attributes in the opening-balance employee file have nowhere to go. | R2-C11 | Map them to standard fields or attachments during template validation. | Agree |
-| R3-10 | **GAP-049:** OA-OD rate and PIT declaration frequency live on the Core legal entity (PM brief), not in Payroll settings. | gap-analysis v1.2 | Accept. | Agree |
-| R3-11 | **Phase-1 tech simplification:** no Kafka (DB-backed event bus, ADR-0004 rev. 2), no ingest role (ADR-0001 amendment), reporting fed by native logical replication (ADR-0012 amendment). Kafka is added in P2. | architecture-overview v0.3 §7.2 | Accept: it saves weeks of ops work in a 16-week plan. | Agree |
+| R3-01 | **Hóa đơn điện tử cho việc thu phí thuê bao của chính YourHRM** (BR-SAAS-014/015) cần API của nhà cung cấp hóa đơn điện tử được cấp phép, là tích hợp trực tuyến duy nhất còn lại ở P1. | mvp-scope §11.4 R2-C1; arch. điểm mở 1 | **P2.** Bộ phận tài chính của nhà cung cấp phát hành hóa đơn từ công cụ hóa đơn điện tử hiện có, dựa trên báo cáo sử dụng. Pilot khó có khả năng được tính phí qua sản phẩm. | chuyển sang P2 |
+| R3-02 | **Chứng từ khấu trừ thuế TNCN điện tử** (BR-PAY-059) cần chữ ký số của người sử dụng lao động và có thể phải gửi dữ liệu cho cơ quan thuế (Nghị định 70/2025). Ký số ở P2. | R2-C3; arch. điểm 7 | P1 = dữ liệu và chứng từ PDF. Khách hàng ký và phát hành qua công cụ của cơ quan thuế hoặc nhà cung cấp hiện có của họ. **Chuyên gia tư vấn pháp lý phải xác nhận cho năm 2027.** | Ký số ở P2 |
+| R3-03 | **Bảo hiểm cho một người có hợp đồng ở hai pháp nhân:** BHXH/BHTN theo hợp đồng đầu tiên, BHYT theo mức lương cao nhất, BHTNLĐ-BNN do từng người sử dụng lao động đóng. | R2-C2; GAP-031 | Triển khai tham gia theo từng loại bảo hiểm, theo từng quan hệ lao động (đã được thiết kế). **Chuyên gia tư vấn pháp lý xác nhận quy tắc.** | Quy tắc là theo hợp đồng đầu tiên, không theo lương cao nhất. |
+| R3-04 | **Mật khẩu PDF phiếu lương:** nhân viên tự đặt trong ESS, không có mật khẩu mặc định hay mật khẩu suy ra. Cho đến khi được đặt, e-mail chỉ là thông báo không kèm file đính kèm. | R2-C7; BR-PAY-102; ADR-0015 | Chấp nhận. **DPO phê duyệt.** | Chấp nhận |
+| R3-05 | **Nhân viên không có e-mail** không nhận được OTP hay phiếu lương, nhưng chi tiết phiếu lương phải đến được mọi nhân viên (Bộ luật Lao động Điều 95(3)). | R2-C6; BRD RK12 | Phương án dự phòng: HR in phiếu lương và cấp mã kích hoạt dùng một lần cho ESS. | In PDF rồi đưa cho nhân viên. |
+| R3-06 | **Quyết toán cho người nghỉ việc trong vòng 14 ngày làm việc** mà không cần khóa sớm chấm công của một nhân viên (BR-ATT-075 bị cắt theo Phương án B). | R2-C4 | Khôi phục BR-ATT-075 vào P1 (nhỏ), vì cách xử lý thay thế (nhập payroll thủ công) dễ sai đối với một thời hạn theo luật. | Đồng ý |
+| R3-07 | **Sổ quản lý lao động** vẫn cần trường trình độ chuyên môn (BR-PPL-019 bị cắt theo Phương án B). | R2-C5 | Khôi phục trường trình độ chuyên môn tối thiểu vào P1 (bắt buộc theo luật). | Đồng ý |
+| R3-08 | **Nhật ký truy cập của operator / break-glass** bị cắt theo Phương án B, nhưng PDPL yêu cầu giám sát bên xử lý dữ liệu. | R2-C8 | Khôi phục ghi log tối thiểu việc operator truy cập dữ liệu tenant ở P1. | Đồng ý |
+| R3-09 | **Custom field ở P2:** các thuộc tính riêng của tenant trong file nhân viên số dư đầu kỳ không có chỗ lưu. | R2-C11 | Ánh xạ chúng vào trường chuẩn hoặc file đính kèm trong bước kiểm tra mẫu. | Đồng ý |
+| R3-10 | **GAP-049:** tỷ lệ BHTNLĐ-BNN và tần suất kê khai thuế TNCN nằm trên pháp nhân của Core (PM brief), không nằm trong thiết lập Payroll. | gap-analysis v1.2 | Chấp nhận. | Đồng ý |
+| R3-11 | **Đơn giản hóa công nghệ cho Phase 1:** không dùng Kafka (event bus dựa trên DB, ADR-0004 rev. 2), không có ingest role (điều chỉnh ADR-0001), báo cáo được cấp dữ liệu bằng logical replication native (điều chỉnh ADR-0012). Kafka được bổ sung ở P2. | architecture-overview v0.3 §7.2 | Chấp nhận: tiết kiệm nhiều tuần công vận hành trong kế hoạch 16 tuần. | Đồng ý |
 
-### 8.1 Notes on applying round 3 (2026-10-16)
-- **R3-03 legal caution (PM):** the sponsor decided insurance follows the first contract. The PM believes the Health Insurance Law requires HI on the contract with the **highest salary** when a person has several labour contracts. The rule is therefore built as legal parameter `insurance.multi_contract_rule`, set per insurance type (FIRST_CONTRACT | HIGHEST_SALARY | EACH_EMPLOYER). Defaults are SI/UI/HI = FIRST_CONTRACT (sponsor) and OA-OD = EACH_EMPLOYER, all `[verify-legal]`. If the consultant confirms the highest-salary rule for HI, only the parameter changes.
-- **R3-02:** in P1, the PIT withholding certificate is data plus an unsigned PDF. The customer signs and issues through the tax authority's tool or its own provider. `[verify-legal]` for 2027.
-- **R3-05:** employees without e-mail get printed PDF payslips from HR, with no activation codes and no ESS access in P1.
-- **R3-11:** ADR-0004 rev. 2 and Amendment 1 of ADR-0001/0002/0012 set to Accepted.
+### 8.1 Ghi chú khi áp dụng vòng 3 (2026-10-16)
+- **Lưu ý pháp lý R3-03 (PM):** nhà tài trợ quyết định bảo hiểm theo hợp đồng đầu tiên. PM cho rằng Luật Bảo hiểm y tế yêu cầu đóng BHYT theo hợp đồng có **mức lương cao nhất** khi một người có nhiều hợp đồng lao động. Vì vậy quy tắc được xây dựng dưới dạng tham số pháp lý `insurance.multi_contract_rule`, thiết lập theo từng loại bảo hiểm (FIRST_CONTRACT | HIGHEST_SALARY | EACH_EMPLOYER). Giá trị mặc định là BHXH/BHTN/BHYT = FIRST_CONTRACT (nhà tài trợ) và BHTNLĐ-BNN = EACH_EMPLOYER, tất cả đều `[verify-legal]`. Nếu chuyên gia tư vấn xác nhận quy tắc lương cao nhất cho BHYT, chỉ cần thay đổi tham số.
+- **R3-02:** ở P1, chứng từ khấu trừ thuế TNCN là dữ liệu cộng với một file PDF chưa ký. Khách hàng ký và phát hành qua công cụ của cơ quan thuế hoặc nhà cung cấp riêng của họ. `[verify-legal]` cho năm 2027.
+- **R3-05:** nhân viên không có e-mail nhận phiếu lương PDF in sẵn từ HR, không có mã kích hoạt và không có quyền truy cập ESS ở P1.
+- **R3-11:** ADR-0004 rev. 2 và Amendment 1 của ADR-0001/0002/0012 được chuyển sang trạng thái Accepted.
 
-## 9. Round 4 — planning decisions (raised 2026-10-16 after estimation)
-Evidence: [backlog-summary.md](../01-requirements/user-stories/backlog-summary.md). Phase 1 = 608 stories, ≈ 3,130 SP, ≈ 195 person-months. The 16-week plan would need about 75 developers.
+## 9. Vòng 4 — các quyết định lập kế hoạch (phát sinh ngày 2026-10-16 sau khi ước lượng)
+Bằng chứng: [backlog-summary.md](../01-requirements/user-stories/backlog-summary.md). Phase 1 = 608 story, ≈ 3.130 SP, ≈ 195 người-tháng. Kế hoạch 16 tuần sẽ cần khoảng 75 developer.
 
-| ID | Decision needed | PM recommendation | Decision |
+| ID | Quyết định cần đưa ra | Khuyến nghị của PM | Quyết định |
 |---|---|---|---|
-| R4-01 | **Re-baseline the timeline.** The 16-week Phase-1 go-live is not feasible (about 4–5× over capacity). | Accept a re-baseline: full Phase 1 in ≈ 13–14 months with ~16 developers (≈ 22 FTE), and a first live payroll in ≈ 9–10 months via the release train (R4-02). | _Open_ |
-| R4-02 | **Release train by statutory calendar:** R1 first live payroll → R2 within ~3 months (retro, bonus/off-cycle before Tết, final-settlement edge cases, semi-annual labour report) → R3 before the PIT year-end deadline (05/QTT finalisation, certificates, self-service provisioning and billing). | Accept, then have the BAs tag every story R1/R2/R3 to size R1 precisely (PM estimate ~1,700–1,900 SP). | _Open_ |
-| R4-03 | **Team size and budget:** how many developers can be funded or staffed? | 16 developers (≈ 6 Payroll, 3 Core, 3 People/T&A, 4 platform/frontend) + QA, BA, UX, DevOps, PM ≈ 22 FTE. | _Open_ |
-| R4-04 | **Effort levers** (§6 of the summary, ~200–275 SP): simplified pilot platform (single tenant, backup/restore DR), defer the reporting store, defer DOCX tenant templates. | Accept, except static DB credentials (conflicts with R2-15). | _Open_ |
-| R4-05 | **Re-open OD-4:** open-source BPMN engine (e.g. Flowable) instead of the in-house workflow engine, saving ~30–40 SP and a [high-uncertainty] 13-SP story. | Run a 3-day comparison spike in sprint 0, then decide. | _Open_ |
-| R4-06 | **Velocity calibration:** dates are planning estimates until sprints 1–2 are measured. | Commit to the R1 date only after sprint 2. | _Open_ |
-| R4-07 | **VN payroll/tax consultant:** 4–6 consultant-weeks for the golden scenarios and `[verify-legal]` rules; also needed for R3-02/R3-03. | Engage before sprint 1. | _Open_ |
+| R4-01 | **Đặt lại baseline tiến độ.** Mốc go-live Phase 1 trong 16 tuần là không khả thi (vượt năng lực khoảng 4–5 lần). | Chấp nhận đặt lại baseline: hoàn thành toàn bộ Phase 1 trong ≈ 13–14 tháng với ~16 developer (≈ 22 FTE), và kỳ tính lương thực tế đầu tiên trong ≈ 9–10 tháng thông qua release train (R4-02). | _Mở_ |
+| R4-02 | **Release train theo lịch pháp lý:** R1 kỳ tính lương thực tế đầu tiên → R2 trong vòng ~3 tháng (truy lĩnh/truy thu, thưởng/tính lương ngoài kỳ trước Tết, các trường hợp biên của quyết toán khi nghỉ việc, báo cáo lao động 6 tháng) → R3 trước hạn quyết toán thuế TNCN cuối năm (quyết toán 05/QTT, chứng từ, tự đăng ký sử dụng và tính phí). | Chấp nhận, sau đó yêu cầu các BA gắn nhãn R1/R2/R3 cho từng story để ước lượng chính xác R1 (PM ước tính ~1.700–1.900 SP). | _Mở_ |
+| R4-03 | **Quy mô nhóm và ngân sách:** có thể cấp kinh phí hoặc bố trí bao nhiêu developer? | 16 developer (≈ 6 Payroll, 3 Core, 3 People/T&A, 4 nền tảng/frontend) + QA, BA, UX, DevOps, PM ≈ 22 FTE. | _Mở_ |
+| R4-04 | **Các đòn bẩy giảm công sức** (§6 của bản tóm tắt, ~200–275 SP): nền tảng pilot đơn giản hóa (single tenant, DR bằng backup/restore), hoãn kho dữ liệu báo cáo, hoãn mẫu DOCX theo tenant. | Chấp nhận, trừ thông tin đăng nhập DB tĩnh (xung đột với R2-15). | _Mở_ |
+| R4-05 | **Mở lại OD-4:** dùng BPMN engine mã nguồn mở (ví dụ Flowable) thay cho workflow engine tự phát triển, tiết kiệm ~30–40 SP và một story 13 SP [high-uncertainty]. | Thực hiện spike so sánh 3 ngày trong sprint 0, sau đó quyết định. | _Mở_ |
+| R4-06 | **Hiệu chỉnh velocity:** các mốc thời gian chỉ là ước tính lập kế hoạch cho đến khi đo được sprint 1–2. | Chỉ cam kết mốc R1 sau sprint 2. | _Mở_ |
+| R4-07 | **Chuyên gia tư vấn lương/thuế VN:** 4–6 tuần công tư vấn cho các golden scenario và quy tắc `[verify-legal]`; cũng cần cho R3-02/R3-03. | Thuê trước sprint 1. | _Mở_ |
