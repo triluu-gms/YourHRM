@@ -1,0 +1,105 @@
+# YourHRM — local development stack (Phase 1).
+# Start:  docker compose -f infra/docker/docker-compose.yml up -d
+# Full (adds secrets vault):  ... --profile full up -d
+# Sized for an 8 GB laptop: every service has a memory limit.
+# Local development only — never use these credentials anywhere else.
+name: yourhrm
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    container_name: yhrm-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres_dev}
+      POSTGRES_DB: yhrm
+      TZ: UTC
+      PGTZ: UTC
+      YHRM_APP_PASSWORD: ${YHRM_APP_PASSWORD:-yhrm_dev}
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - timezone=UTC
+      - -c
+      - wal_level=logical          # reporting store feed (ADR-0012 amendment) can be tried locally
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - log_min_duration_statement=500
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../database/postgresql/ddl:/yhrm-ddl:ro
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d yhrm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 768m
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    container_name: yhrm-keycloak
+    command: ["start-dev", "--http-port=8080", "--health-enabled=true"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev}
+      KC_HOSTNAME_STRICT: "false"
+      JAVA_OPTS_APPEND: "-Xms128m -Xmx512m"
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+    mem_limit: 768m
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    container_name: yhrm-valkey
+    command: ["valkey-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    ports:
+      - "${VALKEY_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 128m
+    restart: unless-stopped
+
+  mailpit:                      # catches every e-mail (OTP, notifications, payslip PDFs) — Phase 1 channel
+    image: axllent/mailpit:latest
+    container_name: yhrm-mailpit
+    environment:
+      MP_MAX_MESSAGES: 2000
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    mem_limit: 96m
+    restart: unless-stopped
+
+  openbao:                      # secrets / transit encryption (ADR-0017, ADR-0026) — optional locally
+    profiles: ["full"]
+    image: openbao/openbao:latest
+    container_name: yhrm-openbao
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${OPENBAO_DEV_TOKEN:-root_dev}
+    cap_add: ["IPC_LOCK"]
+    ports:
+      - "${OPENBAO_PORT:-8200}:8200"
+    mem_limit: 128m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  keycloak-data:

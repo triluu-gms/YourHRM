@@ -30,5 +30,11 @@ Ví dụ các schema dưới đây:
 
 ## Bắt đầu
 
+1. Cài **JDK 25** (Temurin), **Node.js 22**, **Git**, **WSL2 + Docker Desktop** (khởi động lại Windows sau khi cài WSL2).
+2. Khởi động môi trường cục bộ (PostgreSQL 17 đã nạp DDL, Keycloak, Valkey, Mailpit):
+   ```powershell
+   docker compose -f infra/docker/docker-compose.yml up -d
+   ```
+3. Chi tiết cổng, tài khoản và cách nạp lại database: [infra/docker/README.md](infra/docker/README.md).
 
 > Không bao giờ commit file `.env`. Thông tin đăng nhập cơ sở dữ liệu Oracle cũ chỉ được lưu ở máy cục bộ.
