@@ -10,7 +10,8 @@
 --   [T]  tenant-owned  : tenant_id + RLS (tenant_isolation policy)
 -- Placement classes (DESIGN §3.1, ADR-0036). The DDL is identical in every database;
 -- what differs is where a table is AUTHORITATIVE:
---   PLATFORM   : written only in the platform cluster (tenant, plans, billing, packs, keyring, privacy registries)
+--   PLATFORM   : written only in the platform cluster (tenant, plans, billing + usage metering, packs, keyring,
+--                privacy registries, support grants + operator access log)
 --   REPLICATED : read-only logical-replication copy in pool/dedicated clusters
 --                (tenant, tenant_placement, entitlement, baseline_capability, legal_param_*, retention_policy)
 --   LOCAL      : cluster-local, never replicated (job queue, outbox/inbox)
@@ -21,11 +22,36 @@
 -- saas.enqueue_event_delivery(); claim_jobs() respects ordering keys;
 -- entitlement source BASELINE + saas.baseline_capability (always-on capabilities).
 -- NOT tested: no PostgreSQL available in this round; reviewed by read-through only.
+--
+-- v0.4 (2026-10-17, DDL review round):
+--   * M3  legal_param_override: LOCATION scope (location_id soft ref, resolution
+--         GLOBAL -> TENANT -> LEGAL_ENTITY -> LOCATION), period CHECK, exclusion now keyed
+--         on (set, key, LE, location, period); trigger checks the definition's
+--         override_rule / most-specific override_scope.
+--   * usage_record  (monthly partitioned metering, BR-SAAS-012/013, D-10): metric x
+--         module x legal entity x day/month, frozen flag for invoiced months.
+--   * operator_access_log  (tenant-visible, append-only, BR-SAAS-037, R3-08 P1).
+--   * Identity: confirmed NO credential / password / MFA / session tables in this
+--         schema - Keycloak owns them (SA ADR-0005). DESIGN §7.1 mentions of
+--         user_credential / mfa_factor are superseded by ADR-0005.
+--   * X-02 allow-list unchanged: no new cross-schema grants.
+--   Smoke-tested 000->001->002 on PGlite 0.5.10 (PostgreSQL 18.6 in WASM), see 002 header.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
 SET ROLE yhrm_owner;
 SET search_path = saas, sys, public;
+
+-- -----------------------------------------------------------------------------
+-- IDENTITY: deliberately NO tables here for credentials, password hashes/history,
+-- MFA factors (TOTP secrets, e-mail OTP), sessions, refresh tokens or IdP client
+-- secrets. Keycloak is the identity provider and owns all of them in its own
+-- database (SA ADR-0005; BR-SAAS-038/039/043). YourHRM keeps only the link
+-- core.user_account.identity_id (Keycloak user id, soft) and authorisation data in
+-- `core`. Per-tenant SSO configuration (identity_provider_config, BR-SAAS-041) and
+-- public-API clients (api_client, BR-SAAS-056) are Phase 2 and will hold references
+-- to Keycloak objects only, never secrets.
+-- -----------------------------------------------------------------------------
 
 GRANT USAGE ON SCHEMA saas TO yhrm_app, yhrm_platform;   -- modules: own tenant row + job enqueue only
 
@@ -412,6 +438,68 @@ CREATE TABLE saas.invoice_line (
 );
 
 -- -----------------------------------------------------------------------------
+-- Usage metering  [T, PLATFORM]  (BR-SAAS-012/013, decision D-10; DESIGN §10.1)
+-- One row per tenant x metric x module x legal entity x measurement day. The
+-- billable quantity of a month is the row with measured_on = last day of the month
+-- (D-10: persons actively employed at the legal entity on the last day, counted per
+-- legal entity and per module); daily rows are informative only. Counts come from
+-- the owner modules' APIs/events (People: CO-05), never from reading their tables.
+-- Once a month is invoiced its rows are frozen (is_frozen) and become immutable;
+-- corrections are new MANUAL_ADJUSTMENT rows in an open month.
+-- Range-partitioned by usage_month (monthly), hot retention 25 months.
+-- -----------------------------------------------------------------------------
+CREATE TABLE saas.usage_record (
+  tenant_id        uuid        NOT NULL,
+  id               uuid        NOT NULL DEFAULT sys.uuid_v7(),
+  usage_month      sys.month_date NOT NULL,                   -- partition key (first day of month)
+  measured_on      date        NOT NULL,                      -- snapshot day inside usage_month
+  metric_code      text        NOT NULL,                      -- BILLABLE_PERSON | ACTIVE_USER | STORAGE_GB | API_CALL | EMAIL_SENT | SMS_SENT | ZNS_SENT | ESIGN_TXN
+  module_code      text,                                      -- core | hr | att | pay | rec; NULL = not module-specific
+  legal_entity_id  uuid,                                      -- -> core.legal_entity (soft); NULL = tenant-wide metric
+  quantity         numeric(19,4) NOT NULL,
+  source           text        NOT NULL DEFAULT 'SNAPSHOT_JOB',
+  source_ref       text,                                      -- snapshot job id / adapter batch id / adjustment ticket
+  detail           jsonb       NOT NULL DEFAULT '{}'::jsonb,  -- breakdown counts only; NEVER person identifiers
+  is_frozen        boolean     NOT NULL DEFAULT false,
+  frozen_at        timestamptz,
+  invoice_id       uuid,                                      -- -> saas.invoice once billed (P2 billing, R3-01: P1 invoices issued outside the product)
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  created_by       uuid,
+  CONSTRAINT usage_record_pk PRIMARY KEY (tenant_id, id, usage_month),
+  CONSTRAINT usage_record_uq UNIQUE NULLS NOT DISTINCT
+    (tenant_id, usage_month, metric_code, module_code, legal_entity_id, measured_on, source),
+  CONSTRAINT usage_record_invoice_fk FOREIGN KEY (tenant_id, invoice_id) REFERENCES saas.invoice (tenant_id, id),
+  CONSTRAINT usage_record_metric_ck CHECK (metric_code IN ('BILLABLE_PERSON','ACTIVE_USER','STORAGE_GB','API_CALL',
+                                                           'EMAIL_SENT','SMS_SENT','ZNS_SENT','ESIGN_TXN')),
+  CONSTRAINT usage_record_module_ck CHECK (module_code IS NULL OR module_code IN ('core','hr','att','pay','rec')),
+  CONSTRAINT usage_record_source_ck CHECK (source IN ('SNAPSHOT_JOB','ADAPTER','MANUAL_ADJUSTMENT')),
+  CONSTRAINT usage_record_month_ck CHECK (measured_on >= usage_month
+                                          AND measured_on < (usage_month + interval '1 month')),   -- tz-independent
+  CONSTRAINT usage_record_qty_ck CHECK (quantity >= 0 OR source = 'MANUAL_ADJUSTMENT'),
+  CONSTRAINT usage_record_frozen_ck CHECK (is_frozen = (frozen_at IS NOT NULL)),
+  CONSTRAINT usage_record_billable_ck CHECK (metric_code <> 'BILLABLE_PERSON'
+                                             OR (module_code IS NOT NULL AND legal_entity_id IS NOT NULL))
+) PARTITION BY RANGE (usage_month);
+CREATE INDEX usage_record_month_ix ON saas.usage_record (tenant_id, usage_month, metric_code);
+COMMENT ON TABLE saas.usage_record IS
+  '[T] Usage metering (BR-SAAS-013). Billable persons (D-10) = BILLABLE_PERSON row measured on the last day of the month, per LE x module. Frozen rows are immutable.';
+COMMENT ON COLUMN saas.usage_record.detail IS 'pii:P0 aggregate counts only (no person ids)';
+
+-- Frozen (invoiced) months are immutable; the only legal change is freezing an open row.
+CREATE OR REPLACE FUNCTION saas.tg_usage_frozen_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.is_frozen THEN
+    RAISE EXCEPTION 'usage record % of % is frozen', OLD.id, OLD.usage_month USING ERRCODE = '55000';
+  END IF;
+  RETURN coalesce(NEW, OLD);
+END $$;
+CREATE TRIGGER trg_frozen_guard BEFORE UPDATE OR DELETE ON saas.usage_record
+  FOR EACH ROW EXECUTE FUNCTION saas.tg_usage_frozen_guard();
+
+CALL sys.create_range_partitions('saas.usage_record', 'month', (current_date - interval '1 month')::date, 4);
+
+-- -----------------------------------------------------------------------------
 -- Support grants  [T]  (BR-SAAS-033..037)
 -- -----------------------------------------------------------------------------
 CREATE TABLE saas.support_grant (
@@ -432,6 +520,53 @@ CREATE TABLE saas.support_grant (
   CONSTRAINT support_grant_window_ck CHECK (valid_to > valid_from AND valid_to <= valid_from + interval '72 hours'),
   CONSTRAINT support_grant_status_ck CHECK (status IN ('REQUESTED','APPROVED','REJECTED','ACTIVE','EXPIRED','REVOKED'))
 );
+
+-- Operator access log  [T, PLATFORM]  (BR-SAAS-037; decision R3-08: minimal operator
+-- access logging is Phase 1).  One row per operator session start/end and per
+-- significant access (unmask, change, export, impersonation) to a tenant's data.
+-- Visible to the tenant's admins through the SaaS API (yhrm_app_saas, RLS) and
+-- exportable. Append-only. Object-level detail of what was read/changed is ALSO in
+-- the tenant's audit.audit_event (operator_id / support_grant_id columns, ADR-0027);
+-- audit_event_id links the two when known. Break-glass sessions (BR-SAAS-036) have
+-- no support grant and must carry a reason + incident reference.
+CREATE TABLE saas.operator_access_log (
+  tenant_id            uuid        NOT NULL,
+  id                   uuid        NOT NULL DEFAULT sys.uuid_v7(),
+  occurred_at          timestamptz NOT NULL DEFAULT now(),
+  operator_id          uuid        NOT NULL,                  -- platform operator (Keycloak operator realm user, soft)
+  operator_display     text        NOT NULL,                  -- name shown to the tenant (operators are named, not anonymous)
+  access_type          text        NOT NULL,
+  support_grant_id     uuid,                                  -- NULL only for BREAK_GLASS
+  operator_session_id  uuid,                                  -- groups the rows of one session (soft)
+  ticket_ref           text,
+  reason               text        NOT NULL,
+  action               text        NOT NULL,
+  modules              text[]      NOT NULL DEFAULT '{}',
+  impersonated_user_id uuid,                                  -- -> core.user_account (soft), BR-SAAS-035
+  object_schema        text,
+  object_type          text,
+  object_id            uuid,
+  audit_event_id       uuid,                                  -- -> audit.audit_event (soft, tenant cluster)
+  detail               jsonb       NOT NULL DEFAULT '{}'::jsonb,   -- masked summary; never unmasked values
+  client_ip            inet,
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT operator_access_log_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT operator_access_log_grant_fk FOREIGN KEY (tenant_id, support_grant_id)
+    REFERENCES saas.support_grant (tenant_id, id),
+  CONSTRAINT operator_access_log_type_ck CHECK (access_type IN ('SUPPORT_SESSION','IMPERSONATION','BREAK_GLASS')),
+  CONSTRAINT operator_access_log_action_ck CHECK (action IN ('SESSION_START','SESSION_END','VIEW','UNMASK',
+                                                             'CHANGE','EXPORT','IMPERSONATE_START','IMPERSONATE_END')),
+  CONSTRAINT operator_access_log_grant_ck CHECK ((access_type = 'BREAK_GLASS') = (support_grant_id IS NULL)),
+  CONSTRAINT operator_access_log_imp_ck CHECK (access_type <> 'IMPERSONATION' OR impersonated_user_id IS NOT NULL)
+);
+CREATE INDEX operator_access_log_time_ix  ON saas.operator_access_log (tenant_id, occurred_at);
+CREATE INDEX operator_access_log_grant_ix ON saas.operator_access_log (tenant_id, support_grant_id);
+CREATE TRIGGER trg_append_only BEFORE UPDATE OR DELETE ON saas.operator_access_log
+  FOR EACH ROW EXECUTE FUNCTION sys.tg_forbid_change();
+COMMENT ON TABLE saas.operator_access_log IS
+  '[T] Tenant-visible log of operator access to tenant data (BR-SAAS-037, R3-08). Append-only.';
+COMMENT ON COLUMN saas.operator_access_log.operator_display IS 'pii:P1 operator name (vendor staff)';
+COMMENT ON COLUMN saas.operator_access_log.client_ip IS 'pii:P2 operator client IP';
 
 -- -----------------------------------------------------------------------------
 -- Privacy registries  [T]  (gap §5 #27; PDPL 2025)
@@ -517,7 +652,7 @@ CREATE TABLE saas.legal_param_definition (
   unit            text,                                       -- VND, %, days, hours, months
   json_schema     jsonb,                                      -- validates value_json for structured types
   override_rule   text NOT NULL DEFAULT 'NONE',
-  override_scope  text,
+  override_scope  text,                                       -- most specific level allowed: TENANT | LEGAL_ENTITY | LOCATION (M3)
   description_vi  text NOT NULL,
   description_en  text NOT NULL,
   is_active       boolean NOT NULL DEFAULT true,
@@ -653,9 +788,12 @@ CREATE TABLE saas.legal_param_override (
   id               uuid NOT NULL DEFAULT sys.uuid_v7(),
   override_set_id  uuid NOT NULL,
   legal_entity_id  uuid,                                      -- -> core.legal_entity (soft); NULL = tenant-wide
+  location_id      uuid,                                      -- -> core.location (soft); v0.4 M3: LOCATION-scoped override
+                                                              --    (e.g. a location-level minimum-wage region override
+                                                              --    where the pack allows it; Core keeps no override, BR-CORE-006)
   param_key        text NOT NULL,                             -- -> saas.legal_param_definition (same schema, global)
   valid_from       date NOT NULL,
-  valid_to         date,
+  valid_to         date,                                      -- exclusive; NULL = open-ended
   valid_during     daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
   value_num        numeric,
   value_text       text,
@@ -667,10 +805,40 @@ CREATE TABLE saas.legal_param_override (
     REFERENCES saas.legal_param_override_set (tenant_id, id),
   CONSTRAINT legal_param_override_key_fk FOREIGN KEY (param_key) REFERENCES saas.legal_param_definition (param_key),
   CONSTRAINT legal_param_override_one_ck CHECK (num_nonnulls(value_num, value_text, value_json) = 1),
+  CONSTRAINT legal_param_override_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
+  -- a location belongs to exactly one legal entity; carrying both keeps resolution a plain lookup
+  CONSTRAINT legal_param_override_loc_ck CHECK (location_id IS NULL OR legal_entity_id IS NOT NULL),
+  -- one value per (set, key, scope, day): no overlapping periods at the same scope
   CONSTRAINT legal_param_override_ex EXCLUDE USING gist (
     tenant_id WITH =, override_set_id WITH =, param_key WITH =,
-    (coalesce(legal_entity_id, sys.global_tenant_id())) WITH =, valid_during WITH &&)
+    (coalesce(legal_entity_id, sys.global_tenant_id())) WITH =,
+    (coalesce(location_id, sys.global_tenant_id())) WITH =, valid_during WITH &&)
 );
+CREATE INDEX legal_param_override_lookup_ix ON saas.legal_param_override (tenant_id, override_set_id, param_key, valid_from);
+COMMENT ON TABLE saas.legal_param_override IS
+  '[T] Tenant override of a statutory parameter. Resolution (ADR-0010): GLOBAL pack -> TENANT -> LEGAL_ENTITY -> LOCATION, most specific wins.';
+
+-- The override level must be allowed by the definition: override_rule <> NONE, and the
+-- row is no more specific than definition.override_scope (TENANT < LEGAL_ENTITY < LOCATION).
+-- FLOOR/CAP checks against the statutory value need the pack and run in the service.
+CREATE OR REPLACE FUNCTION saas.tg_legal_param_override_scope()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_rule text; v_scope text; v_level int; v_max int;
+BEGIN
+  SELECT override_rule, override_scope INTO v_rule, v_scope
+    FROM saas.legal_param_definition WHERE param_key = NEW.param_key;
+  IF v_rule IS NULL OR v_rule = 'NONE' THEN
+    RAISE EXCEPTION 'legal parameter % cannot be overridden', NEW.param_key USING ERRCODE = '23514';
+  END IF;
+  v_level := CASE WHEN NEW.location_id IS NOT NULL THEN 3 WHEN NEW.legal_entity_id IS NOT NULL THEN 2 ELSE 1 END;
+  v_max   := CASE v_scope WHEN 'LOCATION' THEN 3 WHEN 'LEGAL_ENTITY' THEN 2 ELSE 1 END;
+  IF v_level > v_max THEN
+    RAISE EXCEPTION 'legal parameter % allows overrides down to % only', NEW.param_key, v_scope USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_scope BEFORE INSERT OR UPDATE ON saas.legal_param_override
+  FOR EACH ROW EXECUTE FUNCTION saas.tg_legal_param_override_scope();
 
 -- -----------------------------------------------------------------------------
 -- Platform audit (operator/identity events with no tenant business object)  [P]
@@ -702,7 +870,8 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['saas.tenant_key','saas.subject_key','saas.subscription','saas.subscription_item',
                            'saas.entitlement','saas.invoice','saas.invoice_line','saas.support_grant',
                            'saas.consent_record','saas.data_subject_request','saas.archive_manifest',
-                           'saas.legal_param_override_set','saas.legal_param_override']
+                           'saas.legal_param_override_set','saas.legal_param_override',
+                           'saas.usage_record','saas.operator_access_log']
   LOOP
     CALL sys.enable_tenant_rls(t::regclass);
     EXECUTE format('CREATE POLICY platform_all ON %s FOR ALL TO yhrm_platform USING (true) WITH CHECK (true)', t);
@@ -723,7 +892,8 @@ GRANT SELECT ON saas.tenant TO yhrm_app;                                   -- ow
 GRANT SELECT, INSERT, UPDATE ON saas.tenant_key, saas.subject_key, saas.subscription, saas.subscription_item,
       saas.entitlement, saas.invoice, saas.invoice_line, saas.support_grant, saas.consent_record,
       saas.data_subject_request, saas.retention_policy, saas.archive_manifest,
-      saas.legal_param_override_set, saas.legal_param_override TO yhrm_app_saas;
+      saas.legal_param_override_set, saas.legal_param_override, saas.usage_record TO yhrm_app_saas;
+GRANT SELECT, INSERT ON saas.operator_access_log TO yhrm_app_saas;          -- append-only; tenant admins read via SaaS API
 GRANT SELECT ON saas.plan, saas.plan_version, saas.baseline_capability TO yhrm_app_saas;
 
 -- Legal packs: every module reads published packs through the Legal Parameter
@@ -734,7 +904,7 @@ GRANT EXECUTE ON FUNCTION saas.legal_param_as_of(uuid, text, date) TO yhrm_app_s
 
 -- Operator back-office: platform tables + pack authoring. No access to module schemas.
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA saas TO yhrm_platform;
-REVOKE UPDATE ON saas.platform_audit_event FROM yhrm_platform;
+REVOKE UPDATE ON saas.platform_audit_event, saas.operator_access_log FROM yhrm_platform;
 
 -- Audit sealer seals the platform chain too.
 GRANT USAGE ON SCHEMA saas TO yhrm_audit_sealer;

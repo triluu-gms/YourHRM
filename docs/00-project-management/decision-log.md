@@ -133,3 +133,20 @@ Bằng chứng: [backlog-summary.md](../01-requirements/user-stories/backlog-sum
 | R4-05 | **Mở lại OD-4:** dùng BPMN engine mã nguồn mở (ví dụ Flowable) thay cho workflow engine tự phát triển, tiết kiệm ~30–40 SP và một story 13 SP [high-uncertainty]. | Thực hiện spike so sánh 3 ngày trong sprint 0, sau đó quyết định. | _Mở_ |
 | R4-06 | **Hiệu chỉnh velocity:** các mốc thời gian chỉ là ước tính lập kế hoạch cho đến khi đo được sprint 1–2. | Chỉ cam kết mốc R1 sau sprint 2. | _Mở_ |
 | R4-07 | **Chuyên gia tư vấn lương/thuế VN:** 4–6 tuần công tư vấn cho các golden scenario và quy tắc `[verify-legal]`; cũng cần cho R3-02/R3-03. | Thuê trước sprint 1. | _Mở_ |
+
+## 10. Vòng 5 — quyết định review DDL (D1–D11, nhà tài trợ đồng ý theo khuyến nghị ngày 2026-10-21)
+Bằng chứng: [DESIGN.md](../../database/postgresql/DESIGN.md) §15.1, DDL v0.4 trong [database/postgresql/ddl/](../../database/postgresql/ddl/).
+
+| ID | Vấn đề | Quyết định (2026-10-21) |
+|---|---|---|
+| D1 | Hai module cùng thực thi close hold | `att.attendance_result_hold` là nguồn duy nhất; `pay.run_attendance_version` chỉ là bản phản chiếu (bỏ unique một hold/kỳ). |
+| D2 | Kết quả lương đóng băng từ `SUBMITTED` | Chấp nhận (chặt hơn `APPROVED`). |
+| D3 | Lần chạy lương không có `CANCELLED` | Thêm `CANCELLED` (chỉ từ DRAFT/CALCULATED/REJECTED, có lý do, giải phóng hold). |
+| D4 | Nguồn cấp reporting store chưa nối | Thêm `007_publications.sql` (column list loại cột P3, policy đọc cho `yhrm_cdc`) và bảng landing `att`/`pay` trong `100_rpt.sql`. |
+| D5 | T&A thiếu ngày vào làm/nghỉ việc, lao động được bảo vệ | Thêm projection `att.ext_hr_employment`. |
+| D6 | Masking view và `yhrm_reporting_ro` | Thu hồi grant view cho `yhrm_reporting_ro`; báo cáo đi qua reporting store. |
+| D7 | Payload `rec.CandidateHired` chứa P3 | Payload tối giản; People lấy dữ liệu P3 qua API Recruitment theo `hire_id` (Phase 2). |
+| D8 | Liên hệ ứng viên nâng lên P3 | Chấp nhận; DPO xác nhận. |
+| D9 | Purge tenant bị chặn bởi trigger append-only | Cơ chế bypass có kiểm soát: role `yhrm_purger` + `sys.purge_bypass(tenant)` (chỉ DELETE, tenant ở trạng thái TERMINATING). |
+| D10 | `pay.ext_att_result` lệch với `att` | Đồng bộ scope `PERIOD`/`EMPLOYMENT` + `result_kind`, unique theo `att_result_id`. |
+| D11 | `reporting/100_rpt.sql` lạc hậu | Sửa theo DDL v0.4/v0.5 (bỏ override vùng lương, loại bảo hiểm `OA_OD`/`TU`, `source`, `COMPARISON`/`CANCELLED`). |

@@ -15,6 +15,13 @@
 --
 -- v0.3 (2026-10-16, R2-01): role comments only (relay feeds the Phase-1 DB-backed
 -- bus; yhrm_cdc feeds the reporting store by native logical replication). NOT tested.
+-- v0.5 (2026-10-21, sponsor decisions on the DDL review):
+--   D9  controlled bypass of append-only / immutability triggers for the tenant
+--       purge (DESIGN §3.7): NOLOGIN role yhrm_purger + sys.purge_bypass(p_tenant uuid)
+--       (section 8a, the shared contract for every module file). The generic trigger
+--       functions sys.tg_forbid_change() and sys.tg_bitemporal_guard() now allow
+--       DELETE (never UPDATE) when sys.purge_bypass(OLD.tenant_id) is true.
+--   Smoke-tested 2026-10-21 on PGlite 0.5.10 (= PostgreSQL 18.6) together with 001-005.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -63,7 +70,10 @@ BEGIN
       ('yhrm_audit_sealer',  true,  false, 'Seals the audit hash chain (seal columns only).'),
       ('yhrm_reporting_ro',  true,  false, 'Real-time statutory reports on OLTP; RLS applies.'),
       ('yhrm_ops_ro',        true,  false, 'Monitoring only (pg_monitor). No table data.'),
-      ('yhrm_breakglass',    false, true,  'Granted temporarily to a named DBA on two-person approval; pgaudit logs all.')
+      ('yhrm_breakglass',    false, true,  'Granted temporarily to a named DBA on two-person approval; pgaudit logs all.'),
+      ('yhrm_purger',        false, false, 'D9 marker role for the tenant purge (DESIGN §3.7). NOLOGIN, NOBYPASSRLS, member of nothing, no privileges. '
+                                           'Ops grant it to the role running the purge job (yhrm_owner) for the purge window only; '
+                                           'sys.purge_bypass() checks the membership.')
     ) AS t(role_name, can_login, bypass, note)
   LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r.role_name) THEN
@@ -217,6 +227,50 @@ BEGIN
   RETURN t;
 END $$;
 
+-- -----------------------------------------------------------------------------
+-- 6a. Tenant purge bypass (D9, DESIGN §3.7) -- SHARED CONTRACT for every module.
+--
+--  Append-only and immutability triggers block DELETE, which would make the tenant
+--  purge (§3.7 step 2: batched DELETE ... WHERE tenant_id = $1) impossible. The
+--  controlled bypass is:
+--
+--    sys.purge_bypass(p_tenant uuid) is true  iff
+--      (a) current_setting('app.purge_tenant_id', true) = p_tenant::text
+--          (set TRANSACTION-locally by the purge job: set_config(..., true)), AND
+--      (b) pg_has_role(current_user, 'yhrm_purger', 'MEMBER').
+--
+--  Rules for every module file (saas, core, hr, att, pay, rec, reporting landing):
+--   * Every append-only / immutability trigger MUST allow the DELETE path when
+--     sys.purge_bypass(OLD.tenant_id) is true (RETURN OLD) and MUST keep rejecting
+--     UPDATE whatever the bypass says. INSERT paths are unaffected.
+--     sys.tg_forbid_change() and sys.tg_bitemporal_guard() below already do this;
+--     module-specific guard functions call sys.purge_bypass(OLD.tenant_id) first
+--     thing in their DELETE branch.
+--   * The check is per row on OLD.tenant_id, so even inside a purge transaction the
+--     bypass never opens rows of another tenant.
+--   * Membership is granted by ops, not by this file: the purge job runs as
+--     yhrm_owner (BYPASSRLS, owner of every table); for the purge window only, ops
+--     run `GRANT yhrm_purger TO yhrm_owner` (two-person approval, pgaudit) and
+--     `REVOKE yhrm_purger FROM yhrm_owner` afterwards. yhrm_purger itself is NOLOGIN,
+--     NOBYPASSRLS, member of nothing and holds no privileges; app roles never get it.
+--   * The purge job (not the database) additionally requires
+--     saas.tenant.state = 'TERMINATING' for p_tenant (read-only window over) before it
+--     sets app.purge_tenant_id, then moves the tenant to PURGED and writes the purge
+--     certificate with row counts (§3.7 step 4).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sys.purge_bypass(p_tenant uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER PARALLEL SAFE
+AS $$
+  SELECT p_tenant IS NOT NULL
+     AND coalesce(current_setting('app.purge_tenant_id', true), '') = p_tenant::text
+     AND pg_has_role(current_user, 'yhrm_purger', 'MEMBER')
+$$;
+COMMENT ON FUNCTION sys.purge_bypass(uuid) IS
+  'D9 tenant purge bypass (DESIGN §3.7): true only when app.purge_tenant_id = p_tenant AND current_user is a member of '
+  'yhrm_purger. Append-only / immutability triggers allow DELETE (never UPDATE) when true. The purge job also requires '
+  'saas.tenant.state = TERMINATING (checked by the job).';
+
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA sys TO yhrm_app, yhrm_platform, yhrm_relay, yhrm_audit_sealer, yhrm_reporting_ro;
 
 -- -----------------------------------------------------------------------------
@@ -265,16 +319,23 @@ BEGIN
 END $$;
 
 -- Append-only tables (punches, snapshots, published packs ...).
+-- D9: DELETE is allowed for the tenant purge only (sys.purge_bypass, section 8a).
+-- tenant_id is read through to_jsonb so that the function also serves tables without
+-- a tenant_id column (the bypass never applies to them). UPDATE is always rejected.
 CREATE OR REPLACE FUNCTION sys.tg_forbid_change()
 RETURNS trigger LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND sys.purge_bypass((to_jsonb(OLD) ->> 'tenant_id')::uuid) THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION '%.% is append-only (% rejected)', TG_TABLE_SCHEMA, TG_TABLE_NAME, TG_OP
     USING ERRCODE = '55000';
 END $$;
 
 -- Bi-temporal tables (DESIGN §5.2): business columns are immutable; the only legal
--- update is stamping superseded_at/superseded_by (once). DELETE is forbidden.
+-- update is stamping superseded_at/superseded_by (once). DELETE is forbidden, except
+-- for the tenant purge (D9, sys.purge_bypass, section 8a).
 CREATE OR REPLACE FUNCTION sys.tg_bitemporal_guard()
 RETURNS trigger LANGUAGE plpgsql
 AS $$
@@ -287,6 +348,9 @@ DECLARE
                                    'updated_at','updated_by','version','valid_during'];
 BEGIN
   IF TG_OP = 'DELETE' THEN
+    IF sys.purge_bypass((to_jsonb(OLD) ->> 'tenant_id')::uuid) THEN
+      RETURN OLD;                                          -- D9 tenant purge
+    END IF;
     RAISE EXCEPTION '%.% is bi-temporal: rows are superseded, never deleted', TG_TABLE_SCHEMA, TG_TABLE_NAME
       USING ERRCODE = '55000';
   END IF;

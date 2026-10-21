@@ -386,6 +386,8 @@ Interaction style: synchronous API for look-ups/validations at the moment of use
 
 Rules (changed 2026-10-16, R2-02 §5 #5, #24): People is the system of record for person, statutory, bank, contract **and agreed compensation (salary record)** data after acceptance; Payroll owns only derived pay results and learns the salary from `people.SalaryChanged`. The referral bonus reaches Payroll separately (P9, Phase 2). Recruitment keeps a read-only snapshot for analytics until retention ends.
 
+**Payload minimisation (changed 2026-10-21, decision D7):** the `rec.CandidateHired` event itself carries **no P3 values** (CCCD/passport number, personal tax code, SI book number, bank account number, dependants' ID numbers and tax codes, health data). The event carries the keys, the non-sensitive groups and a list of which P3 groups are available. People then pulls the P3 groups from the Recruitment hand-off API by `hire_id`, under its own service identity, and stores them encrypted with the person's key. This follows DESIGN.md §9.1 (no P3 in event payloads). The table above lists the **content of the hand-off**, not the event payload.
+
 ---
 
 ## 8. Reports & analytics
