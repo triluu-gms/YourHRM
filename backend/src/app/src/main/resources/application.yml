@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: yourhrm
+  threads:
+    virtual:
+      enabled: true
+  main:
+    banner-mode: off
+  modulith:
+    detection-strategy: explicitly-annotated
+  datasource:
+    # The application ALWAYS connects as a module runtime role (never as owner / superuser) so that
+    # PostgreSQL RLS applies (DESIGN.md §3.4). Phase 1 runs Core only, hence yhrm_app_core.
+    url: ${YHRM_DB_URL:jdbc:postgresql://localhost:5432/yhrm}
+    username: ${YHRM_DB_USER:yhrm_app_core}
+    password: ${YHRM_DB_PASSWORD:}
+    hikari:
+      pool-name: yhrm-core
+      maximum-pool-size: ${YHRM_DB_POOL_SIZE:10}
+      # No session-level SET here: the tenant context is set per TRANSACTION (set_config(..., true)).
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none        # the DDL baseline is owned by database/postgresql/ddl (Flyway pipeline: US-TECH-024)
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: false
+  mvc:
+    problemdetails:
+      enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak realm (ADR-0005). JWKS is fetched lazily and cached; no IdP call per request.
+          issuer-uri: ${YHRM_JWT_ISSUER_URI:http://localhost:8180/realms/yourhrm}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+yhrm:
+  permissions:
+    # auto: upsert core.permission when the DB role allows it, otherwise log the SQL for the release job
+    # verify: only compare and log; off: skip
+    registration: auto
+  authz:
+    cache-ttl: 60s
+
+logging:
+  pattern:
+    correlation: "[%X{tenant_id:-}/%X{request_id:-}] "

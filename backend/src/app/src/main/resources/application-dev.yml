@@ -1,0 +1,19 @@
+# Local development (infra/docker): PostgreSQL 17 on localhost:5432 with the DDL baseline loaded,
+# Keycloak on localhost:8180 (realm "yourhrm"). Start with:  SPRING_PROFILES_ACTIVE=dev
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/yhrm
+    username: yhrm_app_core
+    password: ${YHRM_DB_PASSWORD}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${YHRM_JWT_ISSUER_URI:http://localhost:8180/realms/yourhrm}
+
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    vn.yourhrm: DEBUG
