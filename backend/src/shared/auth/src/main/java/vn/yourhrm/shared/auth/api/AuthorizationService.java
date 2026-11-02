@@ -1,6 +1,8 @@
 package vn.yourhrm.shared.auth.api;
 
 import java.time.LocalDate;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * The single authorisation service (US-CORE-037, ADR-0006). Implemented by Core; every module asks it,
@@ -27,4 +29,11 @@ public interface AuthorizationService {
 
     /** The data scope of {@code permission}, ready to filter SQL ({@link ScopePredicate#toSql}). */
     ScopePredicate scopeFor(String permission, LocalDate asOf);
+
+    /**
+     * Recipient filter (BR-CORE-035, US-CORE-037): the tenant users who may exercise {@code permission} on
+     * {@code target} with structure as of {@code asOf}, e.g. "HR officers responsible for this employee" for a
+     * notification. Only users who may sign in today are returned. Does not depend on the current user.
+     */
+    Set<UUID> usersWhoCan(String permission, AuthorizationTarget target, LocalDate asOf);
 }

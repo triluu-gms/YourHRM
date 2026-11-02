@@ -22,8 +22,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <pre>
  * select set_config('app.tenant_id', ?, true), set_config('app.user_id', ?, true),
- *        set_config('app.request_id', ?, true), set_config('app.purpose', ?, true)
+ *        set_config('app.request_id', ?, true), set_config('app.purpose', ?, true),
+ *        set_config('app.operator_id', ?, true), set_config('app.support_grant_id', ?, true),
+ *        set_config('app.channel', ?, true), set_config('app.client_ip', ?, true),
+ *        set_config('app.user_agent', ?, true), set_config('app.correlation_id', ?, true)
  * </pre>
+ *
+ * <p>The operator and grant are set only in a platform support session ({@link SupportSession}, BR-CORE-041) and let
+ * the row audit attribute changes to the operator and the support grant. The last four come from the bound
+ * {@link RequestOrigin} (BR-CORE-090); without one the audit records the channel SYSTEM.
  *
  * <p>{@code is_local = true} makes the values transaction-local ({@code SET LOCAL}); they vanish at
  * commit/rollback, so a pooled connection never carries a tenant into the next transaction (PgBouncer
@@ -40,7 +47,10 @@ public class TenantAwareJpaTransactionManager extends JpaTransactionManager {
 
     public static final String SET_CONTEXT_SQL =
             "select set_config('app.tenant_id', ?, true), set_config('app.user_id', ?, true), "
-                    + "set_config('app.request_id', ?, true), set_config('app.purpose', ?, true)";
+                    + "set_config('app.request_id', ?, true), set_config('app.purpose', ?, true), "
+                    + "set_config('app.operator_id', ?, true), set_config('app.support_grant_id', ?, true), "
+                    + "set_config('app.channel', ?, true), set_config('app.client_ip', ?, true), "
+                    + "set_config('app.user_agent', ?, true), set_config('app.correlation_id', ?, true)";
 
     private static final long serialVersionUID = 1L;
     private static final Logger log = LoggerFactory.getLogger(TenantAwareJpaTransactionManager.class);
@@ -70,21 +80,34 @@ public class TenantAwareJpaTransactionManager extends JpaTransactionManager {
         }
     }
 
-    private static String[] resolveSettings() {
+    static String[] resolveSettings() {
         var ctx = TenantContext.optional();
+        RequestOrigin origin = RequestOrigin.optional().orElse(null);
+        String[] originSettings = origin == null ? new String[] {RequestOrigin.SYSTEM, "", "", ""}
+                : new String[] {origin.channel(), nullToEmpty(origin.clientIp()), nullToEmpty(origin.userAgent()),
+                    nullToEmpty(origin.correlationId())};
         if (ctx.isPresent()) {
             TenantContext c = ctx.get();
+            var support = SupportSession.optional();
             return new String[] {
                 c.tenantId().toString(),
                 c.userAccountId() == null ? "" : c.userAccountId().toString(),
                 c.requestId() == null ? "" : c.requestId(),
-                ""
+                support.isPresent() ? "SUPPORT" : "",
+                support.map(x -> x.operatorId().toString()).orElse(""),
+                support.map(x -> x.supportGrantId().toString()).orElse(""),
+                originSettings[0], originSettings[1], originSettings[2], originSettings[3]
             };
         }
         if (PlatformContext.isBound()) {
-            return new String[] {"", "", "", PlatformContext.purpose()};
+            return new String[] {"", "", "", PlatformContext.purpose(), "", "",
+                originSettings[0], originSettings[1], originSettings[2], originSettings[3]};
         }
         throw new NoTenantContextException();
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 
     static void applySettings(Connection connection, String[] settings) throws SQLException {

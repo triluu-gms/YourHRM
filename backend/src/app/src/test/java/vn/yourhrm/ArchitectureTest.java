@@ -52,9 +52,11 @@ class ArchitectureTest {
 
     @Test
     void tenantIsNeverReadFromRequestHeaders() {
-        // Request headers may be read only by the TenantContextFilter (for the X-Request-Id correlation id).
+        // Request headers may be read only by the TenantContextFilter (for the X-Request-Id correlation id) and the
+        // ClientInfoResolver (User-Agent for the approval trail, BR-CORE-061); neither reads tenant or user from them.
         noClasses().that().resideInAPackage("vn.yourhrm..")
                 .and().doNotHaveSimpleName("TenantContextFilter")
+                .and().doNotHaveSimpleName("ClientInfoResolver")
                 .should().callMethod(jakarta.servlet.http.HttpServletRequest.class, "getHeader", String.class)
                 .orShould().dependOnClassesThat().haveFullyQualifiedName("org.springframework.web.bind.annotation.RequestHeader")
                 .because("ADR-0003: tenant and user come only from the validated JWT, never from headers")

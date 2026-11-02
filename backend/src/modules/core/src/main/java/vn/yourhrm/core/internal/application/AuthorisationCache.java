@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import vn.yourhrm.core.api.CoreEvents.OrgUnitChanged;
 import vn.yourhrm.core.api.CoreEvents.RoleAssignmentChanged;
 import vn.yourhrm.core.api.CoreEvents.RoleChanged;
 import vn.yourhrm.core.api.CoreEvents.UserStatusChanged;
@@ -90,6 +91,13 @@ public class AuthorisationCache {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     void on(UserStatusChanged e) {
         evictUser(e.tenantId(), e.userAccountId());
+    }
+
+    /** Org-unit subtrees are expanded into the cached scopes, so any structural change invalidates the tenant. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    void on(OrgUnitChanged e) {
+        log.debug("Evicting authorisation cache of tenant {} (org unit {} {})", e.tenantId(), e.orgUnitId(), e.change());
+        evictTenant(e.tenantId());
     }
 
     /** Hit rate of the snapshot cache (diagnostics / tests). */

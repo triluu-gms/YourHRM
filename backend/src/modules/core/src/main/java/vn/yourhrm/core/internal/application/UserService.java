@@ -1,5 +1,6 @@
 package vn.yourhrm.core.internal.application;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.yourhrm.core.api.CoreEvents.UserStatusChanged;
+import vn.yourhrm.core.api.UserLifecycle;
 import vn.yourhrm.core.internal.domain.UserAccount;
 import vn.yourhrm.core.internal.domain.UserStatus;
 import vn.yourhrm.core.internal.infra.UserAccountRepository;
@@ -22,7 +24,7 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  * updated_by with the acting user; the DDL row-audit trigger records the change in audit.audit_event.
  */
 @Service
-public class UserService {
+public class UserService implements UserLifecycle {
 
     private final UserAccountRepository users;
     private final JdbcClient jdbc;
@@ -37,13 +39,13 @@ public class UserService {
         this.clock = clock;
     }
 
-    public record UserView(UUID id, String login, String email, String mobile, UUID employmentId, UUID personId,
+    public record UserView(UUID id, String login, String displayName, String email, String mobile, UUID employmentId, UUID personId,
             UUID identityId, String locale, UserStatus status, Instant expiresAt, Instant accessRevokedAt,
             Instant createdAt, UUID createdBy, Instant updatedAt, UUID updatedBy, int version) {
 
         static UserView of(UserAccount u) {
-            return new UserView(u.getId(), u.getLogin(), u.getEmail(), u.getMobile(), u.getEmploymentId(),
-                    u.getPersonId(), u.getIdentityId(), u.getLocale(), u.getStatus(), u.getExpiresAt(),
+            return new UserView(u.getId(), u.getLogin(), u.getDisplayName(), u.getEmail(), u.getMobile(),
+                    u.getEmploymentId(), u.getPersonId(), u.getIdentityId(), u.getLocale(), u.getStatus(), u.getExpiresAt(),
                     u.getAccessRevokedAt(), u.getCreatedAt(), u.getCreatedBy(), u.getUpdatedAt(), u.getUpdatedBy(),
                     u.getVersion() == null ? 0 : u.getVersion());
         }
@@ -52,7 +54,7 @@ public class UserService {
     public record Page<T>(List<T> items, int page, int size, long total) {
     }
 
-    public record Profile(String email, String mobile, String locale, UUID identityId, UUID employmentId,
+    public record Profile(String displayName, String email, String mobile, String locale, UUID identityId, UUID employmentId,
             UUID personId, Instant expiresAt) {
     }
 
@@ -94,8 +96,9 @@ public class UserService {
         Instant now = clock.now();
         UserAccount user = UserAccount.create(ctx.tenantId(), Ids.newId(), login,
                 profile.locale() == null ? "vi-VN" : profile.locale(), ctx.userAccountId(), now);
-        user.updateProfile(profile.email(), profile.mobile(), user.getLocale(), profile.identityId(),
-                profile.employmentId(), profile.personId(), profile.expiresAt(), ctx.userAccountId(), now);
+        user.updateProfile(profile.displayName(), profile.email(), profile.mobile(), user.getLocale(),
+                profile.identityId(), profile.employmentId(), profile.personId(), profile.expiresAt(),
+                ctx.userAccountId(), now);
         users.saveAndFlush(user);
         publish(user);
         return UserView.of(user);
@@ -107,7 +110,7 @@ public class UserService {
         UserAccount user = load(userId);
         checkVersion(user, expectedVersion);
         checkIdentityFree(ctx.tenantId(), profile.identityId(), userId);
-        user.updateProfile(profile.email(), profile.mobile(),
+        user.updateProfile(profile.displayName(), profile.email(), profile.mobile(),
                 profile.locale() == null ? user.getLocale() : profile.locale(), profile.identityId(),
                 profile.employmentId(), profile.personId(), profile.expiresAt(), ctx.userAccountId(), clock.now());
         users.saveAndFlush(user);
@@ -140,6 +143,25 @@ public class UserService {
             publish(user);
         }
         return UserView.of(user);
+    }
+
+    @Override
+    @Transactional
+    public int deactivateExpiredUsers() {
+        TenantContext ctx = TenantContext.current();
+        Instant now = clock.now();
+        List<UUID> expired = jdbc.sql("""
+                        select id from core.user_account
+                         where tenant_id = :t and status <> 'DEACTIVATED' and expires_at <= :now""")
+                .param("t", ctx.tenantId()).param("now", Timestamp.from(now))
+                .query(UUID.class).list();
+        for (UUID id : expired) {
+            UserAccount user = load(id);
+            user.deactivate(ctx.userAccountId(), now);
+            users.saveAndFlush(user);
+            publish(user);
+        }
+        return expired.size();
     }
 
     private void publish(UserAccount user) {

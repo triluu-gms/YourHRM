@@ -47,6 +47,16 @@ public final class TestFixtures {
         return id;
     }
 
+    /** An ACTIVE (already scanned) document of the document service, e.g. an evidence file. */
+    public UUID document(UUID tenant, String title) {
+        UUID id = Ids.newId();
+        admin.update("""
+                insert into core.document (tenant_id, id, owner_module, owner_entity_type, document_type_code, title,
+                       retention_class) values (?, ?, 'core', 'core.legal_entity', 'EVIDENCE', ?, 'GENERAL')""",
+                tenant, id, title);
+        return id;
+    }
+
     public UUID location(UUID tenant, UUID legalEntity, String code) {
         UUID id = Ids.newId();
         admin.update("insert into core.location (tenant_id, id, legal_entity_id, code) values (?, ?, ?, ?)",

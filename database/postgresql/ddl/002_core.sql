@@ -147,6 +147,25 @@ CREATE TABLE core.admin_unit_mapping (
   CONSTRAINT admin_unit_mapping_pk PRIMARY KEY (old_code, new_code, effective_date),
   CONSTRAINT admin_unit_mapping_type_ck CHECK (mapping_type IN ('MERGE','SPLIT','RENAME','RECODE'))
 );
+-- Master-data releases loaded from the SaaS back-office (BR-CORE-080/082, US-CORE-084): one row per release,
+-- written by the platform release job in the same transaction as the data it loads (all or nothing). Re-running a
+-- loaded release_no is a no-op. Global, read-only for the application roles.
+CREATE TABLE core.master_data_release (
+  release_no      bigint NOT NULL,                 -- monotonic, assigned by the back-office
+  id              uuid   NOT NULL DEFAULT sys.uuid_v7(),
+  title           text   NOT NULL,
+  datasets        text[] NOT NULL,                 -- COUNTRY, CURRENCY, ADMIN_UNIT, ADMIN_UNIT_MAPPING, BANK, BANK_BRANCH, CODE_LIST, CODE_VALUE
+  item_counts     jsonb  NOT NULL DEFAULT '{}'::jsonb,
+  content_sha256  text   NOT NULL,
+  effective_date  date   NOT NULL,
+  published_at    timestamptz NOT NULL,
+  loaded_at       timestamptz NOT NULL DEFAULT now(),
+  loaded_by       text   NOT NULL DEFAULT current_user,
+  CONSTRAINT master_data_release_pk PRIMARY KEY (release_no),
+  CONSTRAINT master_data_release_id_uq UNIQUE (id)
+);
+COMMENT ON TABLE core.master_data_release IS '[P1] Release history of the global master data (US-CORE-084).';
+
 -- NB: admin unit -> minimum wage REGION is a legal parameter (saas.legal_param_table_row),
 -- not Core master data (gap §5 #1).
 
@@ -258,6 +277,8 @@ CREATE TABLE core.legal_entity (
   version       int NOT NULL DEFAULT 0,
   CONSTRAINT legal_entity_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT legal_entity_code_uq UNIQUE (tenant_id, code),
+  letterhead_doc_id uuid,                          -- BR-CORE-102: letterhead image for generated documents (-> core.document)
+  seal_doc_id   uuid,                              -- BR-CORE-102: company seal image (-> core.document)
   CONSTRAINT legal_entity_status_ck CHECK (status IN ('DRAFT','ACTIVE','DISSOLVED'))
 );
 
@@ -274,6 +295,10 @@ CREATE TABLE core.legal_entity_version (
   tax_code           text NOT NULL,                -- MST (10 digits, or 13 with branch suffix)
   si_unit_code       text,                         -- mã đơn vị BHXH
   business_reg_no    text,
+  business_reg_date  date,                         -- BR-CORE-002: ngày cấp đăng ký kinh doanh
+  business_reg_issuer text,                        -- BR-CORE-002: nơi cấp (issuing authority)
+  phone              text,                         -- BR-CORE-002: employer contact (pii:P1, business data)
+  email              text,                         -- BR-CORE-002: employer contact (pii:P1, business data)
   admin_unit_code    text,                         -- -> core.admin_unit (global, by code)
   address_line       text,
   legal_rep_name     text,
@@ -362,7 +387,7 @@ CREATE TABLE core.location_version (
   valid_to             date,
   valid_during         daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
   name                 text NOT NULL,
-  location_type        text NOT NULL,              -- HEAD_OFFICE | BRANCH | FACTORY | STORE | REMOTE
+  location_type        text NOT NULL,              -- BR-CORE-005; REMOTE = remote / home-based site
   admin_unit_code      text REFERENCES core.admin_unit (admin_unit_code),  -- drives the min-wage region lookup in the
                                                    -- Legal Parameter Service (admin unit -> region map). v0.4 M2: no region
                                                    -- override here; a permitted override is saas.legal_param_override
@@ -381,6 +406,13 @@ CREATE TABLE core.location_version (
   version              int NOT NULL DEFAULT 0,
   CONSTRAINT location_version_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT location_version_location_fk FOREIGN KEY (tenant_id, location_id) REFERENCES core.location (tenant_id, id),
+  CONSTRAINT location_version_type_ck CHECK (location_type IN
+    ('HEAD_OFFICE','BRANCH','REPRESENTATIVE_OFFICE','FACTORY','STORE','CONSTRUCTION_SITE','REMOTE')),
+  CONSTRAINT location_version_dependent_tax_code_ck CHECK (dependent_tax_code IS NULL
+    OR dependent_tax_code ~ '^[0-9]{10}-[0-9]{3}$'),
+  CONSTRAINT location_version_geo_ck CHECK ((latitude IS NULL) = (longitude IS NULL)
+    AND (latitude IS NULL OR latitude BETWEEN -90 AND 90) AND (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+    AND (geofence_radius_m IS NULL OR (latitude IS NOT NULL AND geofence_radius_m > 0))),
   CONSTRAINT location_version_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
   CONSTRAINT location_version_period_ex EXCLUDE USING gist (tenant_id WITH =, location_id WITH =, valid_during WITH &&)
 );
@@ -420,6 +452,8 @@ CREATE TABLE core.org_unit_type (
   name_vi     text NOT NULL,
   name_en     text NOT NULL,
   level_hint  smallint,
+  sort_order  int NOT NULL DEFAULT 0,              -- US-CORE-010
+  is_active   boolean NOT NULL DEFAULT true,       -- US-CORE-010: inactive types cannot be used by new versions
   CONSTRAINT org_unit_type_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT org_unit_type_code_uq UNIQUE (tenant_id, code)
 );
@@ -450,7 +484,9 @@ CREATE TABLE core.org_unit_version (
   legal_entity_id    uuid NOT NULL,
   location_id        uuid,
   cost_centre_id     uuid,
-  manager_position_id uuid,                        -- -> core.position
+  manager_position_id uuid,                        -- -> core.position (P2, positions)
+  manager_user_id    uuid,                         -- US-CORE-011: P1 stores the managing user (no positions yet)
+  sort_order         int NOT NULL DEFAULT 0,       -- BR-CORE-011: order among siblings
   status             text NOT NULL DEFAULT 'ACTIVE',
   reorg_package_id   uuid,                         -- the package that created this version
   created_at         timestamptz NOT NULL DEFAULT now(),
@@ -516,9 +552,14 @@ CREATE TABLE core.job_title (
   hazardous_category   text,                       -- statutory heavy/hazardous classification code (affects leave, OT, retirement)
   occupation_code      text,                       -- national occupation classification (statutory reports)
   jd_document_id       uuid,                       -- -> core.document
+  description          text,                       -- BR-CORE-020: JD summary (the full JD is jd_document_id)
+  default_grade_min_id uuid,                       -- BR-CORE-020: default grade range (-> core.grade, late FK)
+  default_grade_max_id uuid,
   is_active            boolean NOT NULL DEFAULT true,
   created_at           timestamptz NOT NULL DEFAULT now(),
+  created_by           uuid,
   updated_at           timestamptz NOT NULL DEFAULT now(),
+  updated_by           uuid,
   version              int NOT NULL DEFAULT 0,
   CONSTRAINT job_title_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT job_title_code_uq UNIQUE (tenant_id, code),
@@ -542,8 +583,17 @@ CREATE TABLE core.grade (
   name                text NOT NULL,
   rank_order          int  NOT NULL,
   is_active           boolean NOT NULL DEFAULT true,
+  -- BR-CORE-021 / US-CORE-021: grades are effective-dated (single-table pattern A, like cost_centre);
+  -- resolves source conflict (d). Attribute history is the row audit.
+  valid_from          date NOT NULL DEFAULT DATE '1900-01-01',
+  valid_to            date,
+  valid_during        daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
   CONSTRAINT grade_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT grade_code_uq UNIQUE (tenant_id, grade_structure_id, code),
+  CONSTRAINT grade_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
+  -- the rank order is unique within a structure at any date (US-CORE-021 AC)
+  CONSTRAINT grade_rank_ex EXCLUDE USING gist
+    (tenant_id WITH =, grade_structure_id WITH =, rank_order WITH =, valid_during WITH &&),
   CONSTRAINT grade_structure_fk FOREIGN KEY (tenant_id, grade_structure_id) REFERENCES core.grade_structure (tenant_id, id)
 );
 
@@ -638,6 +688,7 @@ CREATE TABLE core.user_account (
   tenant_id      uuid NOT NULL,
   id             uuid NOT NULL DEFAULT sys.uuid_v7(),
   login          text NOT NULL,                    -- employee code / work email / phone (BR-SAAS-045)
+  display_name   text,                             -- BR-CORE-030 (pii:P1)
   email          text,
   mobile         text,
   employment_id  uuid,                             -- -> hr.employment (soft); NULL for non-employee users
@@ -776,6 +827,9 @@ CREATE TABLE core.import_job (
   committed_at       timestamptz,
   rolled_back_at     timestamptz,
   purge_due_at       timestamptz,                    -- committed_at + 30 days (staging rows + DEK)
+  source_columns     jsonb,                          -- BR-CORE-111: the file's own column headers, in order (error file)
+  processed_count    int NOT NULL DEFAULT 0,         -- progress of the running step (parse / validate / commit)
+  failure_reason     text,                           -- why the job FAILED (no row data)
   created_at         timestamptz NOT NULL DEFAULT now(),
   created_by         uuid,
   updated_at         timestamptz NOT NULL DEFAULT now(),
@@ -814,13 +868,15 @@ CREATE TABLE core.import_row (
   messages           jsonb,                          -- [{code, severity, field, message_key, args}]
   target_entity      text,                           -- after commit, e.g. hr.employment (soft)
   target_id          uuid,                           -- soft reference into the owner module
+  commit_action      text,                           -- CREATED | UPDATED (undo removes only what the job created)
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT import_row_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT import_row_job_fk FOREIGN KEY (tenant_id, import_job_id)
     REFERENCES core.import_job (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT import_row_uq UNIQUE (tenant_id, import_job_id, sheet_name, row_no),
-  CONSTRAINT import_row_status_ck CHECK (status IN ('PARSED','VALID','WARNING','ERROR','COMMITTED','SKIPPED'))
+  CONSTRAINT import_row_status_ck CHECK (status IN ('PARSED','VALID','WARNING','ERROR','COMMITTED','SKIPPED')),
+  CONSTRAINT import_row_action_ck CHECK (commit_action IN ('CREATED','UPDATED'))
 );
 -- duplicates inside one file are a validation error, so the business key is NOT unique here
 CREATE INDEX import_row_key_ix    ON core.import_row (tenant_id, import_job_id, business_key);
@@ -1420,8 +1476,20 @@ ALTER TABLE core.document_version ADD CONSTRAINT document_version_template_fk
 -- Hard FKs for document references declared earlier in this schema (same schema: allowed).
 ALTER TABLE core.legal_entity_version ADD CONSTRAINT legal_entity_version_oa_od_doc_fk
   FOREIGN KEY (tenant_id, oa_od_decision_doc_id) REFERENCES core.document (tenant_id, id);
+-- job_title is created before grade, hence the late FKs of the default grade range.
+ALTER TABLE core.job_title ADD CONSTRAINT job_title_grade_min_fk
+  FOREIGN KEY (tenant_id, default_grade_min_id) REFERENCES core.grade (tenant_id, id);
+ALTER TABLE core.job_title ADD CONSTRAINT job_title_grade_max_fk
+  FOREIGN KEY (tenant_id, default_grade_max_id) REFERENCES core.grade (tenant_id, id);
+-- org_unit_version is created before user_account (section 8), hence the late FK (same schema: allowed).
+ALTER TABLE core.org_unit_version ADD CONSTRAINT org_unit_version_mgr_fk
+  FOREIGN KEY (tenant_id, manager_user_id) REFERENCES core.user_account (tenant_id, id);
 ALTER TABLE core.company_group ADD CONSTRAINT company_group_logo_doc_fk
   FOREIGN KEY (tenant_id, logo_doc_id) REFERENCES core.document (tenant_id, id);
+ALTER TABLE core.legal_entity ADD CONSTRAINT legal_entity_letterhead_doc_fk
+  FOREIGN KEY (tenant_id, letterhead_doc_id) REFERENCES core.document (tenant_id, id);
+ALTER TABLE core.legal_entity ADD CONSTRAINT legal_entity_seal_doc_fk
+  FOREIGN KEY (tenant_id, seal_doc_id) REFERENCES core.document (tenant_id, id);
 ALTER TABLE core.job_title ADD CONSTRAINT job_title_jd_doc_fk
   FOREIGN KEY (tenant_id, jd_document_id) REFERENCES core.document (tenant_id, id);
 ALTER TABLE core.import_job ADD CONSTRAINT import_job_file_doc_fk
@@ -1830,6 +1898,7 @@ CREATE TABLE audit.audit_event (
   correlation_id    text,
   client_ip         inet,
   user_agent        text,
+  channel           text        NOT NULL DEFAULT 'SYSTEM', -- BR-CORE-090: UI | API | IMPORT | SYSTEM (app.channel)
   change            jsonb,                         -- masked diff; encrypted columns as "<encrypted:changed>"
   is_sensitive_read boolean     NOT NULL DEFAULT false,
   -- seal columns (written only by yhrm_audit_sealer)
@@ -1838,13 +1907,17 @@ CREATE TABLE audit.audit_event (
   row_hash          bytea,
   sealed_at         timestamptz,
   CONSTRAINT audit_event_pk PRIMARY KEY (tenant_id, id, occurred_at),
-  CONSTRAINT audit_event_actor_ck CHECK (actor_type IN ('USER','OPERATOR','API_CLIENT','SYSTEM','IMPORT'))
+  CONSTRAINT audit_event_actor_ck CHECK (actor_type IN ('USER','OPERATOR','API_CLIENT','SYSTEM','IMPORT')),
+  CONSTRAINT audit_event_channel_ck CHECK (channel IN ('UI','API','IMPORT','SYSTEM'))
 ) PARTITION BY RANGE (occurred_at);
+COMMENT ON COLUMN audit.audit_event.client_ip IS 'pii:P1 client address of the request';
+COMMENT ON COLUMN audit.audit_event.user_agent IS 'pii:P1 client device string of the request';
 
 CREATE INDEX audit_event_object_ix   ON audit.audit_event (tenant_id, object_type, object_id, occurred_at);
 CREATE INDEX audit_event_actor_ix    ON audit.audit_event (tenant_id, actor_id, occurred_at);
 CREATE INDEX audit_event_unsealed_ix ON audit.audit_event (tenant_id, id) WHERE sealed_at IS NULL;
 CREATE INDEX audit_event_chain_ix    ON audit.audit_event (tenant_id, chain_seq) WHERE chain_seq IS NOT NULL;
+CREATE INDEX audit_event_time_ix     ON audit.audit_event (tenant_id, occurred_at);   -- BR-CORE-093 date-range search
 
 CALL sys.create_range_partitions('audit.audit_event', 'month', current_date - 31, 4);
 
@@ -1873,7 +1946,26 @@ RETURNS text LANGUAGE sql STABLE AS $$
            e.id, e.tenant_id, extract(epoch FROM e.occurred_at), e.actor_type, e.actor_id,
            e.on_behalf_of_id, e.operator_id, e.support_grant_id, e.action, e.object_schema,
            e.object_type, e.object_id, e.legal_entity_id, e.purpose, e.request_id,
-           e.correlation_id, host(e.client_ip), e.change, e.is_sensitive_read)::text
+           e.correlation_id, host(e.client_ip), e.change, e.is_sensitive_read, e.user_agent, e.channel)::text
+$$;
+
+-- Request origin of the current transaction (BR-CORE-090), set by the application next to app.tenant_id:
+-- app.channel (UI | API | IMPORT | SYSTEM), app.client_ip, app.user_agent, app.correlation_id (e.g. the import job).
+CREATE OR REPLACE FUNCTION audit.current_channel()
+RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT coalesce(nullif(current_setting('app.channel', true), ''), 'SYSTEM')
+$$;
+CREATE OR REPLACE FUNCTION audit.current_client_ip()
+RETURNS inet LANGUAGE sql STABLE AS $$
+  SELECT nullif(current_setting('app.client_ip', true), '')::inet
+$$;
+CREATE OR REPLACE FUNCTION audit.current_user_agent()
+RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT nullif(current_setting('app.user_agent', true), '')
+$$;
+CREATE OR REPLACE FUNCTION audit.current_correlation_id()
+RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT nullif(current_setting('app.correlation_id', true), '')
 $$;
 
 -- Sealed rows are frozen (defence in depth on top of grants).
@@ -1971,12 +2063,17 @@ DECLARE
   d jsonb := '{}'::jsonb;
   k text;
   v_actor uuid := sys.current_user_id();
+  -- BR-CORE-041: changes made in a platform support session are attributed to the operator and the grant.
+  v_operator uuid := NULLIF(current_setting('app.operator_id', true), '')::uuid;
+  v_grant uuid := NULLIF(current_setting('app.support_grant_id', true), '')::uuid;
 BEGIN
   IF current_setting('app.audit_mode', true) = 'BATCH' THEN
     RETURN NULL;
   END IF;
   FOR k IN SELECT jsonb_object_keys(coalesce(n, o)) LOOP
-    CONTINUE WHEN k IN ('updated_at','updated_by','version','valid_during','created_at','created_by');
+    -- bookkeeping columns, and progress counters of long-running jobs (core.import_job.processed_count)
+    CONTINUE WHEN k IN ('updated_at','updated_by','version','valid_during','created_at','created_by',
+                        'processed_count');
     IF (o -> k) IS DISTINCT FROM (n -> k) THEN
       IF k ~ '_(enc|bidx)$' THEN
         d := d || jsonb_build_object(k, '<encrypted:changed>');
@@ -1988,14 +2085,18 @@ BEGIN
   IF d = '{}'::jsonb THEN
     RETURN NULL;
   END IF;
-  INSERT INTO audit.audit_event (tenant_id, actor_type, actor_id, action, object_schema, object_type,
-                                 object_id, legal_entity_id, purpose, request_id, change)
+  INSERT INTO audit.audit_event (tenant_id, actor_type, actor_id, operator_id, support_grant_id, action,
+                                 object_schema, object_type, object_id, legal_entity_id, purpose, request_id, change,
+                                 channel, client_ip, user_agent, correlation_id)
   VALUES ((coalesce(n, o) ->> 'tenant_id')::uuid,
-          CASE WHEN v_actor IS NULL THEN 'SYSTEM' ELSE 'USER' END, v_actor,
+          CASE WHEN v_operator IS NOT NULL THEN 'OPERATOR' WHEN v_actor IS NULL THEN 'SYSTEM' ELSE 'USER' END,
+          v_actor, v_operator, v_grant,
           TG_OP, TG_TABLE_SCHEMA, TG_TABLE_NAME,
           (coalesce(n, o) ->> 'id')::uuid,
           (coalesce(n, o) ->> 'legal_entity_id')::uuid,
-          sys.current_purpose(), sys.current_request_id(), d);
+          sys.current_purpose(), sys.current_request_id(), d,
+          audit.current_channel(), audit.current_client_ip(), audit.current_user_agent(),
+          audit.current_correlation_id());
   RETURN NULL;
 END $$;
 
@@ -2025,7 +2126,8 @@ CREATE POLICY sealer_all ON audit.chain_anchor FOR ALL TO yhrm_audit_sealer USIN
 GRANT EXECUTE ON FUNCTION audit.seal_batch(uuid, int) TO yhrm_audit_sealer;
 GRANT EXECUTE ON FUNCTION audit.verify_chain(uuid, bigint, bigint), audit.canonical(audit.audit_event)
   TO yhrm_audit_sealer, yhrm_app_core;
-GRANT EXECUTE ON FUNCTION audit.tg_row_audit() TO yhrm_app;
+GRANT EXECUTE ON FUNCTION audit.tg_row_audit(), audit.current_channel(), audit.current_client_ip(),
+  audit.current_user_agent(), audit.current_correlation_id() TO yhrm_app;
 REVOKE EXECUTE ON FUNCTION audit.seal_batch(uuid, int) FROM PUBLIC;
 
 -- =============================================================================
@@ -2090,6 +2192,8 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
+    'core.company_group','core.legal_entity','core.location','core.org_unit_type',   -- BR-CORE-001/005/010
+    'core.job_family','core.job_title','core.grade_structure','core.grade','core.cost_centre',  -- BR-CORE-020/021/025 / US-CORE-001: every profile and LE status change is audited
     'core.legal_entity_version','core.legal_entity_bank_account','core.location_version',
     'core.org_unit_version','core.position_version','core.role_permission','core.role_assignment',
     'core.user_account','core.code_value','core.import_job','core.import_reconciliation',
@@ -2115,6 +2219,8 @@ GRANT SELECT ON core.country, core.currency, core.admin_unit, core.admin_unit_ma
                core.exchange_rate TO yhrm_app;
 GRANT SELECT, INSERT, UPDATE ON core.country, core.currency, core.admin_unit, core.admin_unit_mapping,
                core.bank, core.bank_branch, core.code_list TO yhrm_platform;
+GRANT SELECT ON core.master_data_release TO yhrm_app_core;   -- release history is read by Core only (not X-02)
+GRANT SELECT, INSERT ON core.master_data_release TO yhrm_platform;
 
 -- Core module runtime: full DML on its tenant tables.
 GRANT SELECT, INSERT, UPDATE, DELETE ON

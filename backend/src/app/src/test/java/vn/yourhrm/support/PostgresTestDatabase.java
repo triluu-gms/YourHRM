@@ -15,13 +15,16 @@ import org.testcontainers.utility.MountableFile;
 /**
  * One throw-away PostgreSQL 17 per test JVM with the DDL baseline (database/postgresql/ddl/000..007)
  * loaded by psql INSIDE the container (the files contain psql meta-commands), then the dev seed script.
- * The application connects as the real runtime role yhrm_app_core (a test-only password is set here),
+ * The application connects as the real runtime roles yhrm_app_core and yhrm_app_hr (test-only passwords set here),
  * so RLS is exercised exactly as in production. The developer database (container YHRMDB) is never used.
  */
 public final class PostgresTestDatabase {
 
     public static final String APP_ROLE = "yhrm_app_core";
     public static final String APP_PASSWORD = "test-only-app-core";
+    /** People's own pool (ADR-0021). */
+    public static final String HR_ROLE = "yhrm_app_hr";
+    public static final String HR_PASSWORD = "test-only-app-hr";
 
     private static final PostgreSQLContainer CONTAINER = start();
 
@@ -66,6 +69,7 @@ public final class PostgresTestDatabase {
                 psql(pg, "-f", "/yhrm-ddl/" + f);
             }
             psql(pg, "-c", "ALTER ROLE " + APP_ROLE + " PASSWORD '" + APP_PASSWORD + "'");
+            psql(pg, "-c", "ALTER ROLE " + HR_ROLE + " PASSWORD '" + HR_PASSWORD + "'");
             psql(pg, "-f", "/yhrm-seed/seed-dev-tenant.sql");
         } catch (IOException | InterruptedException e) {
             throw new IllegalStateException("Could not load the DDL baseline", e);

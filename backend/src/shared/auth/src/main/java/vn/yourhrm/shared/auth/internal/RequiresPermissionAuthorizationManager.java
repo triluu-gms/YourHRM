@@ -12,11 +12,13 @@ import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.core.Authentication;
 import vn.yourhrm.shared.auth.api.AuthorizationService;
 import vn.yourhrm.shared.auth.api.RequiresPermission;
+import vn.yourhrm.shared.common.tenancy.SupportSession;
 import vn.yourhrm.shared.common.tenancy.TenantContext;
 
 /**
  * Method-security decision for {@link RequiresPermission} (ADR-0006 decision 2): delegates to the single
- * {@link AuthorizationService}. Denies when no tenant user is bound (fail closed).
+ * {@link AuthorizationService}. Denies when no principal is bound (fail closed): the principal is a tenant user, or
+ * a platform operator in a validated support session (BR-CORE-041), whose permissions come from the grant.
  */
 final class RequiresPermissionAuthorizationManager implements AuthorizationManager<MethodInvocation> {
 
@@ -33,7 +35,7 @@ final class RequiresPermissionAuthorizationManager implements AuthorizationManag
             return new AuthorizationDecision(false);
         }
         var ctx = TenantContext.optional();
-        if (ctx.isEmpty() || ctx.get().userAccountId() == null) {
+        if (ctx.isEmpty() || (ctx.get().userAccountId() == null && SupportSession.optional().isEmpty())) {
             return new AuthorizationDecision(false);
         }
         AuthorizationService service = authorizationService.getObject();

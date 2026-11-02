@@ -31,6 +31,9 @@ public class UserAccount {
     @Column(name = "login", nullable = false)
     private String login;
 
+    @Column(name = "display_name")
+    private String displayName;
+
     @Column(name = "email")
     private String email;
 
@@ -92,8 +95,9 @@ public class UserAccount {
         return u;
     }
 
-    public void updateProfile(String email, String mobile, String locale, UUID identityId, UUID employmentId,
-            UUID personId, Instant expiresAt, UUID actor, Instant now) {
+    public void updateProfile(String displayName, String email, String mobile, String locale, UUID identityId,
+            UUID employmentId, UUID personId, Instant expiresAt, UUID actor, Instant now) {
+        this.displayName = displayName;
         this.email = email;
         this.mobile = mobile;
         this.locale = locale;
@@ -136,6 +140,10 @@ public class UserAccount {
 
     public String getLogin() {
         return login;
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 
     public String getEmail() {

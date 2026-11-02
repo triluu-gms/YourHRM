@@ -11,6 +11,14 @@ spring:
         jwt:
           issuer-uri: ${YHRM_JWT_ISSUER_URI:http://localhost:8180/realms/yourhrm}
 
+yhrm:
+  people:
+    # People's own pool (ADR-0021): same database, login role yhrm_app_hr (infra/docker gives every module role the
+    # same dev password).
+    datasource:
+      username: yhrm_app_hr
+      password: ${YHRM_DB_HR_PASSWORD:${YHRM_DB_PASSWORD}}
+
 server:
   port: ${PORT:8080}
 

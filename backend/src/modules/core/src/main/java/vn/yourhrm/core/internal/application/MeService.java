@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.yourhrm.core.internal.domain.UserAccount;
@@ -57,6 +58,10 @@ public class MeService {
     @Transactional(readOnly = true)
     public Me me() {
         TenantContext ctx = TenantContext.current();
+        if (ctx.userAccountId() == null) {
+            // A platform support session (BR-CORE-041) acts under a grant, not as a tenant user.
+            throw new ApiException(HttpStatus.FORBIDDEN, "no-user-account", "This session has no tenant user account");
+        }
         UserAccount u = users.findByTenantIdAndId(ctx.tenantId(), ctx.userAccountId())
                 .orElseThrow(() -> ApiException.notFound("User", ctx.userAccountId()));
         TenantInfo tenant = masterData.tenant(ctx.tenantId())

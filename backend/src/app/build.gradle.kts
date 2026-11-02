@@ -6,7 +6,9 @@ plugins {
 dependencies {
     implementation(project(":shared:common"))
     implementation(project(":shared:auth"))
+    implementation(project(":shared:workflow"))
     implementation(project(":modules:core"))
+    implementation(project(":modules:people"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -28,6 +30,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
+    testImplementation("org.apache.poi:poi-ooxml:5.4.1")
+    testImplementation("org.apache.pdfbox:pdfbox:3.0.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

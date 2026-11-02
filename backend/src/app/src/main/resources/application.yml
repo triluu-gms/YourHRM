@@ -10,7 +10,8 @@ spring:
     detection-strategy: explicitly-annotated
   datasource:
     # The application ALWAYS connects as a module runtime role (never as owner / superuser) so that
-    # PostgreSQL RLS applies (DESIGN.md §3.4). Phase 1 runs Core only, hence yhrm_app_core.
+    # PostgreSQL RLS applies (DESIGN.md §3.4). This is Core's pool (yhrm_app_core); People opens its own pool as
+    # yhrm_app_hr (ADR-0021, yhrm.people.datasource.*: url defaults to this one, password YHRM_DB_HR_PASSWORD).
     url: ${YHRM_DB_URL:jdbc:postgresql://localhost:5432/yhrm}
     username: ${YHRM_DB_USER:yhrm_app_core}
     password: ${YHRM_DB_PASSWORD:}
@@ -54,6 +55,11 @@ yhrm:
     registration: auto
   authz:
     cache-ttl: 60s
+  people:
+    datasource:
+      username: ${YHRM_DB_HR_USER:yhrm_app_hr}
+      password: ${YHRM_DB_HR_PASSWORD:}
+      maximum-pool-size: ${YHRM_DB_HR_POOL_SIZE:10}
 
 logging:
   pattern:

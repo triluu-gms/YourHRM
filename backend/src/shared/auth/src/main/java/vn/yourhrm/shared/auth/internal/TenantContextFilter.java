@@ -19,6 +19,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.filter.OncePerRequestFilter;
 import vn.yourhrm.shared.auth.api.spi.UserAccountResolver;
 import vn.yourhrm.shared.auth.api.spi.UserAccountResolver.ResolvedUser;
+import vn.yourhrm.shared.common.tenancy.RequestOrigin;
+import vn.yourhrm.shared.common.tenancy.SupportSession;
 import vn.yourhrm.shared.common.tenancy.TenantContext;
 
 /**
@@ -28,13 +30,18 @@ import vn.yourhrm.shared.common.tenancy.TenantContext;
  * (claim {@code tenant_id}, falling back to {@code tid} as named in ADR-0003/0005) and the identity from
  * {@code sub}; request headers and bodies are never consulted for them. The identity is mapped to the
  * tenant user account through Core ({@link UserAccountResolver}); unknown or deactivated users get 403.
- * The rest of the filter chain and the handler run inside the {@link ScopedValue} binding.
+ * The rest of the filter chain and the handler run inside the {@link ScopedValue} binding, together with the
+ * {@link RequestOrigin} of the request for the audit trail (BR-CORE-090: client address, user agent, correlation id).
  */
 public class TenantContextFilter extends OncePerRequestFilter {
 
     public static final String TENANT_CLAIM = "tenant_id";
     public static final String TENANT_CLAIM_ADR = "tid";
+    /** Claims of a platform support operator token (BR-CORE-041). */
+    public static final String OPERATOR_CLAIM = "operator_id";
+    public static final String SUPPORT_GRANT_CLAIM = "support_grant_id";
     private static final Pattern SAFE_REQUEST_ID = Pattern.compile("^[A-Za-z0-9._-]{1,64}$");
+    private static final int MAX_USER_AGENT = 512;
     private static final Logger log = LoggerFactory.getLogger(TenantContextFilter.class);
 
     private final UserAccountResolver userAccountResolver;
@@ -58,14 +65,16 @@ public class TenantContextFilter extends OncePerRequestFilter {
             writeProblem(response, "no-tenant", "The access token carries no valid tenant claim");
             return;
         }
+        if (jwt.hasClaim(OPERATOR_CLAIM) || jwt.hasClaim(SUPPORT_GRANT_CLAIM)) {
+            supportSession(request, response, chain, jwt, tenantId.get());
+            return;
+        }
         Optional<UUID> identityId = parseUuid(jwt.getSubject());
         if (identityId.isEmpty()) {
             writeProblem(response, "invalid-subject", "The access token subject is not a valid identity id");
             return;
         }
-        String requestId = Optional.ofNullable(request.getHeader("X-Request-Id"))
-                .filter(h -> SAFE_REQUEST_ID.matcher(h).matches())
-                .orElseGet(() -> UUID.randomUUID().toString());
+        String requestId = requestId(request);
 
         TenantContext provisional = new TenantContext(tenantId.get(), null, jwt.getSubject(), requestId, null);
         try {
@@ -83,10 +92,11 @@ public class TenantContextFilter extends OncePerRequestFilter {
             MDC.put("tenant_id", ctx.tenantId().toString());
             MDC.put("request_id", requestId);
             response.setHeader("X-Request-Id", requestId);
-            TenantContext.callWith(ctx, () -> {
+            RequestOrigin origin = origin(request, requestId);
+            TenantContext.callWith(ctx, () -> RequestOrigin.callWith(origin, () -> {
                 chain.doFilter(request, response);
                 return null;
-            });
+            }));
         } catch (IOException | ServletException | RuntimeException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -95,6 +105,65 @@ public class TenantContextFilter extends OncePerRequestFilter {
             MDC.remove("tenant_id");
             MDC.remove("request_id");
         }
+    }
+
+    /**
+     * A platform operator acting under a tenant-approved support grant (BR-CORE-041): no tenant user account; Core
+     * validates the grant and logs the request (refusals too) before anything else runs.
+     */
+    private void supportSession(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Jwt jwt,
+            UUID tenantId) throws IOException, ServletException {
+        Optional<UUID> operatorId = parseUuid(jwt.getClaimAsString(OPERATOR_CLAIM));
+        Optional<UUID> grantId = parseUuid(jwt.getClaimAsString(SUPPORT_GRANT_CLAIM));
+        String requestId = requestId(request);
+        TenantContext ctx = new TenantContext(tenantId, null, jwt.getSubject(), requestId, null);
+        try {
+            Optional<SupportSession> session = operatorId.isEmpty() || grantId.isEmpty() ? Optional.empty()
+                    : TenantContext.callWith(ctx, () -> userAccountResolver.resolveSupport(tenantId, operatorId.get(),
+                            grantId.get(), request.getMethod(), request.getRequestURI()));
+            if (session.isEmpty()) {
+                writeProblem(response, "support-grant-invalid",
+                        "No valid, tenant-approved support grant covers this operator access");
+                return;
+            }
+            MDC.put("tenant_id", tenantId.toString());
+            MDC.put("request_id", requestId);
+            response.setHeader("X-Request-Id", requestId);
+            RequestOrigin origin = origin(request, requestId);
+            TenantContext.callWith(ctx, () -> SupportSession.callWith(session.get(), () -> RequestOrigin.callWith(
+                    origin, () -> {
+                        chain.doFilter(request, response);
+                        return null;
+                    })));
+        } catch (IOException | ServletException | RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ServletException(ex);
+        } finally {
+            MDC.remove("tenant_id");
+            MDC.remove("request_id");
+        }
+    }
+
+    private static String requestId(HttpServletRequest request) {
+        return Optional.ofNullable(request.getHeader("X-Request-Id"))
+                .filter(h -> SAFE_REQUEST_ID.matcher(h).matches())
+                .orElseGet(() -> UUID.randomUUID().toString());
+    }
+
+    /**
+     * Interactive users sign in through the web / mobile UI; machine API clients (client-credentials tokens) are a
+     * Phase 2 SaaS feature, so every request accepted here is channel UI. The correlation id of a call chain comes
+     * from {@code X-Correlation-Id} when it is well-formed, otherwise it is the request id.
+     */
+    private static RequestOrigin origin(HttpServletRequest request, String requestId) {
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent != null && userAgent.length() > MAX_USER_AGENT) {
+            userAgent = userAgent.substring(0, MAX_USER_AGENT);
+        }
+        String correlationId = Optional.ofNullable(request.getHeader("X-Correlation-Id"))
+                .filter(h -> SAFE_REQUEST_ID.matcher(h).matches()).orElse(requestId);
+        return new RequestOrigin(RequestOrigin.UI, request.getRemoteAddr(), userAgent, correlationId);
     }
 
     private static Optional<UUID> parseUuid(String value) {

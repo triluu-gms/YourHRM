@@ -43,6 +43,7 @@ class UserController {
 
     record CreateUserRequest(
             @NotBlank @Size(max = 150) String login,
+            @Size(max = 200) String displayName,
             @Email @Size(max = 254) String email,
             @Size(max = 32) String mobile,
             @Pattern(regexp = LOCALE) String locale,
@@ -53,6 +54,7 @@ class UserController {
     }
 
     record UpdateUserRequest(
+            @Size(max = 200) String displayName,
             @Email @Size(max = 254) String email,
             @Size(max = 32) String mobile,
             @Pattern(regexp = LOCALE) String locale,
@@ -81,16 +83,16 @@ class UserController {
     @PostMapping
     @RequiresPermission(value = CorePermissions.USER_CREATE, tenantWide = true)
     public ResponseEntity<UserView> create(@Valid @RequestBody CreateUserRequest req) {
-        UserView created = users.create(req.login().trim(), new Profile(req.email(), req.mobile(), req.locale(),
-                req.identityId(), req.employmentId(), req.personId(), req.expiresAt()));
+        UserView created = users.create(req.login().trim(), new Profile(req.displayName(), req.email(), req.mobile(),
+                req.locale(), req.identityId(), req.employmentId(), req.personId(), req.expiresAt()));
         return ResponseEntity.created(URI.create("/api/v1/core/users/" + created.id())).body(created);
     }
 
     @PutMapping("/{userId}")
     @RequiresPermission(value = CorePermissions.USER_UPDATE, tenantWide = true)
     public UserView update(@PathVariable UUID userId, @Valid @RequestBody UpdateUserRequest req) {
-        return users.update(userId, new Profile(req.email(), req.mobile(), req.locale(), req.identityId(),
-                req.employmentId(), req.personId(), req.expiresAt()), req.version());
+        return users.update(userId, new Profile(req.displayName(), req.email(), req.mobile(), req.locale(),
+                req.identityId(), req.employmentId(), req.personId(), req.expiresAt()), req.version());
     }
 
     @PostMapping("/{userId}/activate")

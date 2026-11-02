@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.yourhrm.core.api.CoreEvents.RoleAssignmentChanged;
 import vn.yourhrm.core.internal.domain.Role;
 import vn.yourhrm.core.internal.domain.RoleAssignment;
+import vn.yourhrm.core.internal.domain.SystemRoleCodes;
 import vn.yourhrm.core.internal.infra.MasterDataQueries;
 import vn.yourhrm.core.internal.infra.RoleAssignmentRepository;
 import vn.yourhrm.core.internal.infra.RoleRepository;
@@ -75,6 +76,11 @@ public class RoleAssignmentService {
         requireUser(tenant, userId);
         Role role = roles.findByTenantIdAndId(tenant, cmd.roleId())
                 .orElseThrow(() -> ApiException.unprocessable("unknown-role", "Role " + cmd.roleId() + " not found"));
+        if (role.isSystem() && SystemRoleCodes.DERIVED.contains(role.getCode())) {
+            // BR-CORE-033: LINE_MANAGER / ESS / FORMER_EMPLOYEE follow org and employment data; never granted by hand.
+            throw ApiException.unprocessable("derived-role",
+                    "Role " + role.getCode() + " is derived from organisation and employment data; it cannot be assigned");
+        }
         Set<UUID> ids = cmd.scopeIds() == null ? Set.of() : new LinkedHashSet<>(cmd.scopeIds());
         if (cmd.scopeType().requiresIds() && ids.isEmpty()) {
             throw ApiException.unprocessable("scope-ids-required", "scopeIds are required for scope " + cmd.scopeType());
