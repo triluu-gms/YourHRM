@@ -1,0 +1,106 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/EmployeeHired.v1.schema.json",
+  "title" : "people.EmployeeHired v1",
+  "description" : "Payload of people.EmployeeHired (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from EmployeeHired; a breaking change needs a new schema version. Also published by [InitialEmployeeHired].",
+  "x-eventType" : "people.EmployeeHired",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "preview", "hireType", "employeeNo", "fullName", "hireDate", "originalHireDate", "seniorityDate", "workerCategoryCode", "employeeCategoryCode", "workingRegimeCode", "previousEmploymentId", "orgUnitId", "positionId", "jobTitleId", "locationId", "managerEmploymentId", "decisionId", "decisionNo", "missingData" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "preview" : {
+      "type" : "boolean"
+    },
+    "hireType" : {
+      "type" : [ "string", "null" ]
+    },
+    "employeeNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "fullName" : {
+      "type" : [ "string", "null" ]
+    },
+    "hireDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "originalHireDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "seniorityDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "workerCategoryCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "employeeCategoryCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "workingRegimeCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "previousEmploymentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "orgUnitId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "positionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "jobTitleId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "locationId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "managerEmploymentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "decisionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "decisionNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "missingData" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    }
+  }
+}

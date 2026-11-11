@@ -179,11 +179,13 @@ public class LegalEntityService {
      * date, or ends the covering version at D-1 and starts a new one at D that keeps the old end date.
      */
     @Transactional
-    public LegalEntityView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a) {
+    public LegalEntityView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a, int expectedVersion) {
         TenantContext ctx = TenantContext.current();
         UUID tenant = ctx.tenantId();
         assertCan(CorePermissions.LEGAL_ENTITY_UPDATE, id, effectiveFrom);
         lockTenantLegalEntities(tenant); // MST uniqueness is checked across entities
+        versions.checkAndBump(EffectiveDatedVersions.LEGAL_ENTITY, tenant, id, expectedVersion, ctx.userAccountId(),
+                "Legal entity " + id);
         Slot slot = versions.slotFor(EffectiveDatedVersions.LEGAL_ENTITY, tenant, id, effectiveFrom);
         Attributes valid = validate(tenant, id, effectiveFrom, a);
         String previousAdminUnit = jdbc.sql(

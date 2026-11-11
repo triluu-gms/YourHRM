@@ -113,7 +113,7 @@ class PersonDetailsIT extends IntegrationTest {
                 .andExpect(status().isUnprocessableContent()).andExpect(jsonPath("$.code").value("address-history-conflict"));
         assertThat(ADMIN.queryForObject("""
                 select count(*) from hr.outbox_event where tenant_id = ? and event_type = 'people.PersonalDataChanged'
-                   and payload->'changedFields' ? 'address.PERMANENT'""", Long.class, w.tenant())).isEqualTo(2L);
+                   and payload->'changedFields' @> '["address.PERMANENT"]'""", Long.class, w.tenant())).isEqualTo(2L);
 
         // an imported three-level address is kept read-only
         UUID legacy = UUID.randomUUID();

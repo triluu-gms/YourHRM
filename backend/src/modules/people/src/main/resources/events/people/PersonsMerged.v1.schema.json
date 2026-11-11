@@ -1,0 +1,35 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/PersonsMerged.v1.schema.json",
+  "title" : "people.PersonsMerged v1",
+  "description" : "Payload of people.PersonsMerged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from PersonsMerged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.PersonsMerged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "personId", "mergedPersonId", "effectiveDate", "movedRows" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "mergedPersonId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "movedRows" : {
+      "type" : [ "object", "null" ],
+      "additionalProperties" : {
+        "type" : "integer"
+      }
+    }
+  }
+}

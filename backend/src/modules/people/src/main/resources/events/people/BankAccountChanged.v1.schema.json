@@ -1,0 +1,75 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/BankAccountChanged.v1.schema.json",
+  "title" : "people.BankAccountChanged v1",
+  "description" : "Payload of people.BankAccountChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from BankAccountChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.BankAccountChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "subtype", "bankAccountId", "bankCode", "branchCode", "accountNoLast4", "currencyCode", "splitType", "splitValue", "priority", "validFrom", "validTo", "status", "initialLoad" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "subtype" : {
+      "type" : [ "string", "null" ]
+    },
+    "bankAccountId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "bankCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "branchCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "accountNoLast4" : {
+      "type" : [ "string", "null" ]
+    },
+    "currencyCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "splitType" : {
+      "type" : [ "string", "null" ]
+    },
+    "splitValue" : {
+      "type" : [ "number", "null" ]
+    },
+    "priority" : {
+      "type" : "integer"
+    },
+    "validFrom" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "validTo" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "status" : {
+      "type" : [ "string", "null" ]
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    }
+  }
+}

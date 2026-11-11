@@ -47,7 +47,8 @@ class OrgUnitTypeController {
             @NotBlank @Size(max = 100) String nameEn,
             @Min(1) Integer levelHint,
             @NotNull Integer sortOrder,
-            @NotNull Boolean active) {
+            @NotNull Boolean active,
+            @NotNull Integer version) {
     }
 
     @GetMapping
@@ -66,6 +67,7 @@ class OrgUnitTypeController {
     @PutMapping("/{typeId}")
     @RequiresPermission(value = CorePermissions.ORG_UNIT_TYPE_UPDATE, tenantWide = true)
     public OrgUnitTypeView update(@PathVariable UUID typeId, @Valid @RequestBody UpdateTypeRequest req) {
-        return types.update(typeId, req.nameVi(), req.nameEn(), req.levelHint(), req.sortOrder(), req.active());
+        return types.update(typeId, req.nameVi(), req.nameEn(), req.levelHint(), req.sortOrder(), req.active(),
+                req.version());
     }
 }

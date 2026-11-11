@@ -75,9 +75,14 @@ public class TaxResidencyService implements PersonResidencyProposals {
     private final HrOutbox outbox;
     private final WorkflowService workflow;
     private final AuditLog audit;
+    private final vn.yourhrm.people.internal.application.EmployeeAccess access;
+    private final vn.yourhrm.shared.auth.api.AuthorizationService authz;
 
     public TaxResidencyService(HrDb db, PersonSupport support, HrOutbox outbox, WorkflowService workflow,
-            AuditLog audit) {
+            AuditLog audit, vn.yourhrm.people.internal.application.EmployeeAccess access,
+            vn.yourhrm.shared.auth.api.AuthorizationService authz) {
+        this.access = access;
+        this.authz = authz;
         this.db = db;
         this.support = support;
         this.outbox = outbox;
@@ -287,13 +292,12 @@ public class TaxResidencyService implements PersonResidencyProposals {
         return r;
     }
 
+    /** In scope without throwing (a thrown 404 would mark the read-only People transaction rollback-only). */
     private boolean visible(UUID personId) {
-        try {
-            support.requirePerson(PeoplePermissions.TAX_RESIDENCY_UPDATE, personId);
-            return true;
-        } catch (ApiException e) {
-            return false;
-        }
+        List<UUID> employments = db.jdbc().sql("select id from hr.employment where tenant_id = :t and person_id = :p")
+                .param("t", support.tenant()).param("p", personId).query(UUID.class).list();
+        return employments.isEmpty() ? authz.hasTenantWidePermission(PeoplePermissions.TAX_RESIDENCY_UPDATE)
+                : employments.stream().anyMatch(e -> access.can(PeoplePermissions.TAX_RESIDENCY_UPDATE, e, support.today()));
     }
 
     // ================================================================================================ presence periods

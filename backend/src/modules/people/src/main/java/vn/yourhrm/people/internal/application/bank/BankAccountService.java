@@ -316,7 +316,7 @@ public class BankAccountService implements PayeeBankAccounts {
     private void startApproval(UUID personId, UUID accountId, Attributes a, boolean ess) {
         // the person's current employment drives the approver resolution (HR of its legal entity)
         Optional<UUID[]> org = db.jdbc().sql("select e.legal_entity_id, pa.org_unit_id, pa.location_id from "
-                        + EmployeeAccess.EMPLOYMENT_SCOPE_JOIN + """
+                        + EmployeeAccess.EMPLOYMENT_SCOPE_JOIN + " " + """
                          where e.tenant_id = :t and e.person_id = :p
                          order by (e.status in ('PRE_HIRE','ACTIVE','SUSPENDED')) desc, e.hire_date desc limit 1""")
                 .param("t", tenant()).param("p", personId).param("asOf", clock.today())

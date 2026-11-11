@@ -32,7 +32,7 @@ public class OrgUnitTypeService {
     }
 
     public record OrgUnitTypeView(UUID id, String code, String nameVi, String nameEn, Integer levelHint, int sortOrder,
-            boolean active) {
+            boolean active, int version) {
     }
 
     /** Idempotently creates the default types for the current tenant (provisioning, US-CORE-010 AC). */
@@ -60,7 +60,8 @@ public class OrgUnitTypeService {
                 .param("t", TenantContext.current().tenantId()).param("all", includeInactive)
                 .query((rs, n) -> new OrgUnitTypeView(rs.getObject("id", UUID.class), rs.getString("code"),
                         rs.getString("name_vi"), rs.getString("name_en"), rs.getObject("level_hint",
-                                Integer.class), rs.getInt("sort_order"), rs.getBoolean("is_active")))
+                                Integer.class), rs.getInt("sort_order"), rs.getBoolean("is_active"),
+                        rs.getInt("version")))
                 .list();
     }
 
@@ -82,20 +83,24 @@ public class OrgUnitTypeService {
         return get(id);
     }
 
-    /** Renames, reorders or (de)activates a type; the code is immutable. */
+    /** Renames, reorders or (de)activates a type; the code is immutable. Optimistic lock on {@code version}. */
     @Transactional
     public OrgUnitTypeView update(UUID id, String nameVi, String nameEn, Integer levelHint, int sortOrder,
-            boolean active) {
+            boolean active, int expectedVersion) {
+        UUID tenant = TenantContext.current().tenantId();
         int updated = jdbc.sql("""
                         update core.org_unit_type
-                           set name_vi = :vi, name_en = :en, level_hint = :level, sort_order = :order, is_active = :active
-                         where tenant_id = :t and id = :id""")
+                           set name_vi = :vi, name_en = :en, level_hint = :level, sort_order = :order, is_active = :active,
+                               version = version + 1
+                         where tenant_id = :t and id = :id and version = :v""")
                 .param("vi", nameVi).param("en", nameEn).param("level", levelHint == null ? null : levelHint.shortValue())
                 .param("order", sortOrder).param("active", active)
-                .param("t", TenantContext.current().tenantId()).param("id", id)
+                .param("t", tenant).param("id", id).param("v", expectedVersion)
                 .update();
         if (updated == 0) {
-            throw ApiException.notFound("Org unit type", id);
+            OrgUnitTypeView current = get(id); // 404 when missing
+            throw ApiException.conflict("stale-version", "Org unit type " + current.code() + " was changed (version "
+                    + current.version() + ", expected " + expectedVersion + "); reload and retry");
         }
         return get(id);
     }

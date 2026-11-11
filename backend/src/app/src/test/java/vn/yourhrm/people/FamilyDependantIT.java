@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -239,9 +238,6 @@ class FamilyDependantIT extends IntegrationTest {
         TestUser foreign = PPL.hrAdmin(FIX.tenant("fam-crud-x"));
         mvc.perform(get(base).with(as(foreign))).andExpect(status().isNotFound());
 
-        mvc.perform(delete(base + "/" + id).param("version", "1").with(as(w.hr())))
-                .andExpect(status().isNoContent());
-        mvc.perform(get(base).with(as(w.hr()))).andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
@@ -287,12 +283,14 @@ class FamilyDependantIT extends IntegrationTest {
 
         decide(w.approver(), claim, "APPROVE");
         assertThat(dependantStatus(claim)).isEqualTo("APPROVED");
+        assertThat(ADMIN.queryForObject("select source from hr.pit_dependant where id = ?", String.class, claim))
+                .isEqualTo("APP");
         List<Map<String, Object>> ev = events(w.tenant());
         assertThat(ev).hasSize(1);
         assertThat(ev.getFirst()).containsEntry("subtype", "REGISTERED")
                 .containsEntry("employment_id", w.emp().employmentId());
-        assertThat((String) ev.getFirst().get("payload")).contains("\"fromMonth\":\"2026-01-01\"")
-                .contains("\"toMonth\":\"2033-03-01\"").doesNotContain("012345").doesNotContain("Bé Ba");
+        assertThat((String) ev.getFirst().get("payload")).contains("\"fromMonth\": \"2026-01-01\"")
+                .contains("\"toMonth\": \"2033-03-01\"").doesNotContain("012345").doesNotContain("Bé Ba");
 
         // the same individual (same identity number) recorded by the spouse, another employee, is already claimed
         Employee spouse = PPL.employee(w.tenant(), w.le(), w.unit(), "Trần", "Bình", HIRED);
@@ -386,13 +384,28 @@ class FamilyDependantIT extends IntegrationTest {
                 .isEqualTo(LocalDate.of(2026, 3, 1));
         Map<String, Object> transferred = events(w.tenant()).getLast();
         assertThat(transferred).containsEntry("subtype", "TRANSFERRED").containsEntry("employment_id", emp2);
-        assertThat((String) transferred.get("payload")).contains("\"previousEmploymentId\":\"" + w.emp().employmentId())
-                .contains("\"previousLegalEntityId\":\"" + w.le());
+        assertThat((String) transferred.get("payload")).contains("\"previousEmploymentId\": \"" + w.emp().employmentId())
+                .contains("\"previousLegalEntityId\": \"" + w.le());
         // the old employment can no longer claim the spouse from April: one claimant per month
         List<UUID> rows = ADMIN.queryForList("""
                 select employment_id from hr.pit_dependant d join hr.family_member f on f.id = d.family_member_id
                  where f.person_id = ? and d.status = 'APPROVED' order by from_month""", UUID.class, person);
         assertThat(rows).containsExactly(w.emp().employmentId(), emp2);
+    }
+
+    @Test
+    void anOpeningBalanceClaimIsMarkedAsLoaded() throws Exception {
+        World w = world("fam-dep-load");
+        UUID person = w.emp().personId();
+        UUID claim = TenantContext.callWith(new TenantContext(w.tenant(), w.hr().userId(),
+                w.hr().identityId().toString(), "t", null), () -> {
+                    UUID spouse = members.createForInitialLoad(person, new FamilyMemberService.Attributes("SPOUSE",
+                            "Lê Vợ Nạp", LocalDate.of(1990, 5, 5), null, null, null, null, false, false));
+                    return dependants.createForInitialLoad(spouse, w.emp().employmentId(), LocalDate.of(2025, 1, 1),
+                            null, "SPOUSE", null, null);
+                });
+        assertThat(ADMIN.queryForMap("select source, status from hr.pit_dependant where id = ?", claim))
+                .containsEntry("source", "OPENING_LOAD").containsEntry("status", "APPROVED");
     }
 
     @Test
@@ -522,9 +535,9 @@ class FamilyDependantIT extends IntegrationTest {
                 select object_key from core.document_version where document_id = ? order by version_no desc limit 1""",
                 String.class, documentId);
         try (PDDocument d = Loader.loadPDF(new TestObjectStorage().get(w.tenant(), key))) {
-            String text = new PDFTextStripper().getText(d).replaceAll("\\R", " ");
-            assertThat(text).contains("ĐĂNG KÝ NGƯỜI PHỤ THUỘC").contains("07/ĐK-NPT-TNCN").contains("Nguyễn Bé Ba")
-                    .contains("01/2026 - 03/2026").contains("Đăng ký").contains("Kết thúc");
+            String text = new PDFTextStripper().getText(d).replaceAll("\\s+", ""); // the renderer may wrap / space
+            assertThat(text).contains("ĐĂNGKÝNGƯỜIPHỤTHUỘC").contains("07/ĐK-NPT-TNCN").contains("NguyễnBéBa")
+                    .contains("01/2026-03/2026").contains("Đăngký").contains("Kếtthúc");
         }
     }
 }

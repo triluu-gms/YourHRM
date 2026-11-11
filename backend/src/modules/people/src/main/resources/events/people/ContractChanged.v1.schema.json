@@ -1,0 +1,97 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/ContractChanged.v1.schema.json",
+  "title" : "people.ContractChanged v1",
+  "description" : "Payload of people.ContractChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from ContractChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.ContractChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "subtype", "contractId", "contractNo", "contractTypeCode", "startDate", "endDate", "definiteSeq", "previousContractId", "definiteExceptionCode", "appendixId", "appendixNo", "changedTerms", "suspensionId", "suspensionReasonCode", "suspendedUntil", "initialLoad", "retro", "earliestAffectedPeriod" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "subtype" : {
+      "type" : [ "string", "null" ]
+    },
+    "contractId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "contractNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "contractTypeCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "startDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "endDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "definiteSeq" : {
+      "type" : [ "integer", "null" ]
+    },
+    "previousContractId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "definiteExceptionCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "appendixId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "appendixNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "changedTerms" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "suspensionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "suspensionReasonCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "suspendedUntil" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    },
+    "retro" : {
+      "type" : "boolean"
+    },
+    "earliestAffectedPeriod" : {
+      "type" : [ "string", "null" ]
+    }
+  }
+}

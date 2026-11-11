@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "people": {
+      "group": "People",
+      "employees": "Employees",
+      "hire": "Hire employee",
+      "salaryRecords": "Salary records",
+      "separations": "Separations",
+      "contractsGroup": "Contracts",
+      "contractsExpiring": "Expiring contracts",
+      "probationsEnding": "Probations ending",
+      "complianceGroup": "Compliance",
+      "expiringDocuments": "Expiring documents",
+      "residencyProposals": "Tax residency proposals",
+      "reportsGroup": "HR reports",
+      "statutoryReports": "Statutory reports",
+      "labourBook": "Labour book",
+      "dependantRegistrations": "Dependant registrations",
+      "concurrentEmployment": "Concurrent employment",
+      "openingBalance": "Opening balances",
+      "integrationInbox": "Integration inbox",
+      "essGroup": "My HR",
+      "myProfile": "My HR profile",
+      "myFamily": "My family & dependants",
+      "myBankAccounts": "My bank accounts",
+      "myDocuments": "My documents",
+      "myResignation": "Resignation"
+    }
+  }
+}

@@ -8,6 +8,7 @@ import vn.yourhrm.people.api.PeoplePermissions;
 import vn.yourhrm.people.internal.application.DecisionService;
 import vn.yourhrm.people.internal.application.contract.ContractRecords.ContractView;
 import vn.yourhrm.people.internal.domain.contract.ContractType;
+import vn.yourhrm.people.internal.infra.HrDb;
 import vn.yourhrm.people.internal.infra.HrOutbox;
 import vn.yourhrm.people.internal.infra.HrTransactional;
 import vn.yourhrm.shared.common.error.ApiException;
@@ -23,8 +24,8 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  *       continues.</li>
  *   <li>FAIL: the event is the hook of the separation flow (US-PPL-061), which opens the separation.</li>
  * </ul>
- * The DDL has no result column on {@code hr.contract}: the result is the decision plus the outbox event (read back by
- * {@link ContractRecords}).
+ * The result, its date and the decision are stored on the contract ({@code hr.contract.probation_result},
+ * {@code probation_result_date}, {@code probation_result_decision_id}).
  */
 @Service
 public class ProbationService {
@@ -40,14 +41,16 @@ public class ProbationService {
     public record Recorded(ContractView contract, UUID decisionId, String decisionNo, ContractView nextContract) {
     }
 
+    private final HrDb db;
     private final ContractRecords records;
     private final ContractService contracts;
     private final DecisionService decisions;
     private final HrOutbox outbox;
     private final BusinessClock clock;
 
-    public ProbationService(ContractRecords records, ContractService contracts, DecisionService decisions,
+    public ProbationService(HrDb db, ContractRecords records, ContractService contracts, DecisionService decisions,
             HrOutbox outbox, BusinessClock clock) {
+        this.db = db;
         this.records = records;
         this.contracts = contracts;
         this.decisions = decisions;
@@ -97,6 +100,17 @@ public class ProbationService {
         DecisionService.Decision decision = decisions.issue(new DecisionService.Issue(c.legalEntityId(),
                 "PROBATION_RESULT", c.employmentId(), c.probationEndDate().plusDays(1), r.signatoryName(),
                 r.signatoryTitle(), null));
+        int updated = db.jdbc().sql("""
+                        update hr.contract set probation_result = :r, probation_result_date = :d,
+                               probation_result_decision_id = :dec, version = version + 1, updated_by = :actor
+                         where tenant_id = :t and id = :id and version = :v and probation_result is null""")
+                .param("r", r.result()).param("d", date).param("dec", decision.id())
+                .param("actor", TenantContext.current().userAccountId()).param("t", TenantContext.current().tenantId())
+                .param("id", c.id()).param("v", c.version())
+                .update();
+        if (updated == 0) {
+            throw ContractService.stale(c);
+        }
         ContractView next = null;
         if (PASS.equals(r.result()) && agreement) {
             next = contracts.afterProbation(c, r.nextContract());

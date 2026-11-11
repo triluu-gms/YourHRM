@@ -133,7 +133,7 @@ class PersonComplianceIT extends IntegrationTest {
                 select payload::text from hr.outbox_event where tenant_id = ? and person_id = ?
                    and payload->>'reason' = 'TAX_RESIDENCY_APPROVED' and payload->'taxResidency'->>'taxResidencyId' = ?""",
                 String.class, w.tenant(), w.emp().personId(), second.toString());
-        assertThat(payload).contains("\"status\":\"RESIDENT\"", "\"basis\":\"DAYS_183\"", "\"validFrom\":\"2025-07-01\"");
+        assertThat(payload.replace(" ", "")).contains("\"status\":\"RESIDENT\"", "\"basis\":\"DAYS_183\"", "\"validFrom\":\"2025-07-01\"");
 
         // history is closed forward only; basis must fit the status
         postJson(w.hr(), url, """
@@ -243,8 +243,9 @@ class PersonComplianceIT extends IntegrationTest {
 
         // masked for a viewer without unmasked level (sensitive types read RESTRICTED)
         TestUser viewer = PPL.userWith(w.tenant(), "TENANT", List.of(), PeoplePermissions.SPECIAL_STATUS_VIEW);
-        ADMIN.update("update core.role_assignment set field_mask_level = 'PII' where user_account_id = ?",
-                viewer.userId());
+        ADMIN.update("""
+                update core.role_permission rp set field_mask_level = 'PII' from core.role_assignment ra
+                 where ra.user_id = ? and rp.tenant_id = ra.tenant_id and rp.role_id = ra.role_id""", viewer.userId());
         mvc.perform(get(url).with(as(viewer))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '" + pregnancy + "')].statusType").value("RESTRICTED"));
 

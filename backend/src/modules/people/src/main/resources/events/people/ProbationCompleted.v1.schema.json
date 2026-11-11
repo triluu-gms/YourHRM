@@ -1,0 +1,59 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/ProbationCompleted.v1.schema.json",
+  "title" : "people.ProbationCompleted v1",
+  "description" : "Payload of people.ProbationCompleted (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from ProbationCompleted; a breaking change needs a new schema version.",
+  "x-eventType" : "people.ProbationCompleted",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "contractId", "contractNo", "result", "resultDate", "probationEndDate", "decisionId", "nextContractId" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "contractId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "contractNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "result" : {
+      "type" : [ "string", "null" ]
+    },
+    "resultDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "probationEndDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "decisionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "nextContractId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    }
+  }
+}

@@ -80,7 +80,7 @@ public class PersonSupport {
         String v = value.trim();
         if (!masterData.isValidCode(list, v, asOf)) {
             throw ApiException.unprocessable("unknown-code", "Code " + v + " is not an active value of list " + list,
-                    Map.of("list", list, "code", v));
+                    Map.of("list", list, "value", v));
         }
         return v;
     }

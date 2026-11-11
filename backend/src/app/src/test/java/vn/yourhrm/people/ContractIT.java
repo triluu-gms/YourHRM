@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,6 +156,15 @@ class ContractIT extends ContractTestBase {
                 .andReturn().getResponse().getContentAsString());
         assertThat(ADMIN.queryForObject("select count(*) from audit.audit_event where tenant_id = ? and action = 'APPLY_EXCEPTION' and object_id = ?",
                 Integer.class, w.tenant(), third)).isEqualTo(1);
+        // v0.6: the exception is stored on the contract (and shown in the view); APP source
+        assertThat(ADMIN.queryForMap("select definite_exception_code, definite_exception_note, source from hr.contract where id = ?",
+                third)).containsEntry("definite_exception_code", "ELDERLY_WORKER")
+                .containsEntry("definite_exception_note", "Retired, re-employed").containsEntry("source", "APP");
+        mvc.perform(get("/api/v1/people/contracts/" + third).with(as(w.hr())))
+                .andExpect(jsonPath("$.definiteExceptionCode").value("ELDERLY_WORKER"))
+                .andExpect(jsonPath("$.source").value("APP"));
+        assertThat(ADMIN.queryForObject("select definite_exception_code from hr.contract where id = ?", String.class,
+                secondId)).isNull();
         postJson(w.hr(), "/api/v1/people/contracts/" + third + "/cancel", "{\"version\":0}").andExpect(status().isOk());
 
         UUID indefinite = id(postJson(w.hr(), "/api/v1/people/contracts/" + secondId + "/convert", "{}")
@@ -178,6 +188,9 @@ class ContractIT extends ContractTestBase {
         assertThat(c.status()).isEqualTo("ACTIVE");
         assertThat(c.contractNo()).isEqualTo("HD-LEGACY-77");
         assertThat(c.definiteSeq()).isEqualTo(2);
+        assertThat(c.source()).isEqualTo("OPENING_LOAD");
+        assertThat(ADMIN.queryForObject("select source from hr.contract where id = ?", String.class, c.id()))
+                .isEqualTo("OPENING_LOAD");
         assertThat(ADMIN.queryForObject("select headers::text from hr.outbox_event where tenant_id = ? and event_type = 'people.ContractChanged'",
                 String.class, w.tenant())).contains("initial_load");
         assertThatThrownBy(() -> as(w.hr(), () -> contracts.createInitial(emp, new ContractTerms("INDEFINITE",
@@ -269,6 +282,16 @@ class ContractIT extends ContractTestBase {
         assertThat(JsonPath.<String>read(event, "$.decisionId")).isEqualTo(JsonPath.read(recorded, "$.decisionId"));
         assertThat(ADMIN.queryForObject("select decision_type_code from hr.decision where tenant_id = ? and id = ?::uuid",
                 String.class, w.tenant(), JsonPath.read(recorded, "$.decisionId"))).isEqualTo("PROBATION_RESULT");
+        // v0.6: result, date, decision and the probation level are stored on the contract
+        Map<String, Object> stored = ADMIN.queryForMap("select probation_result, probation_result_date::text as d, "
+                + "probation_result_decision_id::text as dec, probation_level_code from hr.contract where id = ?", p);
+        assertThat(stored).containsEntry("probation_result", "PASS").containsEntry("d", "2025-02-25")
+                .containsEntry("dec", JsonPath.read(recorded, "$.decisionId"))
+                .containsEntry("probation_level_code", "COLLEGE_OR_ABOVE");
+        mvc.perform(get("/api/v1/people/contracts/" + p).with(as(w.hr())))
+                .andExpect(jsonPath("$.probationResult").value("PASS"))
+                .andExpect(jsonPath("$.probationResultDate").value("2025-02-25"))
+                .andExpect(jsonPath("$.probationLevelCode").value("COLLEGE_OR_ABOVE"));
         postJson(w.hr(), path, "{\"result\":\"FAIL\",\"resultDate\":\"2025-02-26\"}").andExpect(status().isConflict());
 
         // a failed probation clause: event only (the separation flow listens to it)
@@ -278,6 +301,8 @@ class ContractIT extends ContractTestBase {
         postJson(w.hr(), "/api/v1/people/contracts/" + c + "/probation-result",
                 "{\"result\":\"FAIL\",\"resultDate\":\"2025-01-28\"}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.nextContract").doesNotExist());
+        assertThat(ADMIN.queryForObject("select probation_result from hr.contract where id = ?", String.class, c))
+                .isEqualTo("FAIL");
         assertThat(events(w.tenant(), "people.ProbationCompleted")).last()
                 .satisfies(e -> assertThat(JsonPath.<String>read(e, "$.result")).isEqualTo("FAIL"));
     }

@@ -1,10 +1,11 @@
 # Local development (infra/docker): PostgreSQL 17 on localhost:5432 with the DDL baseline loaded,
 # Keycloak on localhost:8180 (realm "yourhrm"). Start with:  SPRING_PROFILES_ACTIVE=dev
+# Passwords default to the infra/docker values (every yhrm_* login role gets YHRM_APP_PASSWORD, default yhrm_dev).
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/yhrm
     username: yhrm_app_core
-    password: ${YHRM_DB_PASSWORD}
+    password: ${YHRM_DB_PASSWORD:yhrm_dev}
   security:
     oauth2:
       resourceserver:
@@ -17,7 +18,15 @@ yhrm:
     # same dev password).
     datasource:
       username: yhrm_app_hr
-      password: ${YHRM_DB_HR_PASSWORD:${YHRM_DB_PASSWORD}}
+      password: ${YHRM_DB_HR_PASSWORD:${YHRM_DB_PASSWORD:yhrm_dev}}
+  # Stand-ins for SaaS platform services that do not exist yet (package vn.yourhrm.dev, profile dev only):
+  # DevReleaseJob, DevTenantProvisioner, DevLegalParameters (dev/legal-parameters.json), DevKeys, DevObjectStorage.
+  dev:
+    tenant-id: 01900000-0000-7000-8000-000000000001
+    storage-dir: ${user.home}/.yourhrm/dev-storage
+    release-job:
+      username: yhrm_platform
+      password: ${YHRM_DB_PASSWORD:yhrm_dev}
 
 server:
   port: ${PORT:8080}

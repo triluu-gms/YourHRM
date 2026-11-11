@@ -1,0 +1,133 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/SalaryChanged.v1.schema.json",
+  "title" : "people.SalaryChanged v1",
+  "description" : "Payload of people.SalaryChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from SalaryChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.SalaryChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "changeKind", "salaryRecordId", "supersededRecordId", "payBasis", "salaryKind", "baseSalaryAmount", "agreedNetAmount", "netGuaranteedScope", "siSalaryAmount", "currencyCode", "payScaleCode", "payScaleStepCode", "probationPct", "allowances", "actionCode", "reasonCode", "validFrom", "validTo", "decisionId", "decisionNo", "contractAppendixId", "appendixNo", "retro", "earliestAffectedPeriod", "initialLoad" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "changeKind" : {
+      "type" : [ "string", "null" ]
+    },
+    "salaryRecordId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "supersededRecordId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "payBasis" : {
+      "type" : [ "string", "null" ]
+    },
+    "salaryKind" : {
+      "type" : [ "string", "null" ]
+    },
+    "baseSalaryAmount" : {
+      "type" : [ "number", "null" ]
+    },
+    "agreedNetAmount" : {
+      "type" : [ "number", "null" ]
+    },
+    "netGuaranteedScope" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "siSalaryAmount" : {
+      "type" : [ "number", "null" ]
+    },
+    "currencyCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "payScaleCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "payScaleStepCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "probationPct" : {
+      "type" : [ "number", "null" ]
+    },
+    "allowances" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "required" : [ "componentCode", "amount", "inSiSalary" ],
+        "properties" : {
+          "componentCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "amount" : {
+            "type" : [ "number", "null" ]
+          },
+          "inSiSalary" : {
+            "type" : "boolean"
+          }
+        }
+      }
+    },
+    "actionCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "reasonCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "validFrom" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "validTo" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "decisionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "decisionNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "contractAppendixId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "appendixNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "retro" : {
+      "type" : "boolean"
+    },
+    "earliestAffectedPeriod" : {
+      "type" : [ "string", "null" ]
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    }
+  }
+}

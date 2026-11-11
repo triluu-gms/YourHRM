@@ -38,13 +38,19 @@ public class ContractRecords {
     /**
      * A contract with its employment's legal entity and person. {@code probationEndDate}: last probation day (the end
      * of a PROBATION agreement, or start + probation days - 1 for a probation clause), null without probation.
-     * {@code probationResult}: PASS / FAIL once recorded (US-PPL-049).
+     * {@code probationLevelCode}: the level whose legal maximum applied. {@code probationResult} / {@code
+     * probationResultDate} / {@code probationResultDecisionId}: PASS / FAIL once recorded (US-PPL-049, BR-PPL-052).
+     * {@code definiteExceptionCode} / {@code definiteExceptionNote}: the legal exception that allowed a further definite
+     * contract (BR-PPL-053). {@code autoConversionDueSince}: first day the contract counts as converted to indefinite,
+     * set by the daily monitor (BR-PPL-054). {@code source}: APP | OPENING_LOAD | IMPORT | REC_HANDOFF.
      */
     public record ContractView(UUID id, UUID employmentId, UUID legalEntityId, UUID personId, String employeeNo,
             String contractNo, String contractTypeCode, Integer definiteSeq, LocalDate signDate, LocalDate startDate,
-            LocalDate endDate, Integer probationDays, LocalDate probationEndDate, String probationResult,
-            String signatoryName, String signatoryTitle, UUID documentId, UUID previousContractId, String status,
-            Instant createdAt, Instant updatedAt, int version) {
+            LocalDate endDate, Integer probationDays, String probationLevelCode, LocalDate probationEndDate,
+            String probationResult, LocalDate probationResultDate, UUID probationResultDecisionId,
+            String signatoryName, String signatoryTitle, UUID documentId, UUID previousContractId,
+            String definiteExceptionCode, String definiteExceptionNote, LocalDate autoConversionDueSince,
+            String source, String status, Instant createdAt, Instant updatedAt, int version) {
 
         public ContractType type() {
             return ContractType.of(contractTypeCode).orElseThrow();
@@ -58,12 +64,10 @@ public class ContractRecords {
     static final String SELECT = """
             select c.id, c.employment_id, e.legal_entity_id, e.person_id, e.employee_no, c.contract_no,
                    c.contract_type_code, c.definite_seq, c.sign_date, c.start_date, c.end_date, c.probation_days,
-                   c.signatory_name, c.signatory_title, c.document_id, c.previous_contract_id, c.status,
-                   c.created_at, c.updated_at, c.version,
-                   (select o.payload ->> 'result' from hr.outbox_event o
-                     where o.tenant_id = c.tenant_id and o.event_type = 'people.ProbationCompleted'
-                       and o.employment_id = c.employment_id and o.payload ->> 'contractId' = c.id::text
-                     order by o.id desc limit 1) as probation_result
+                   c.probation_level_code, c.probation_result, c.probation_result_date,
+                   c.probation_result_decision_id, c.signatory_name, c.signatory_title, c.document_id,
+                   c.previous_contract_id, c.definite_exception_code, c.definite_exception_note,
+                   c.auto_conversion_due_since, c.source, c.status, c.created_at, c.updated_at, c.version
               from hr.contract c
               join hr.employment e on e.tenant_id = c.tenant_id and e.id = c.employment_id
             """;
@@ -128,9 +132,13 @@ public class ContractRecords {
                 rs.getObject("legal_entity_id", UUID.class), rs.getObject("person_id", UUID.class),
                 rs.getString("employee_no"), rs.getString("contract_no"), type,
                 rs.getObject("definite_seq", Integer.class), rs.getObject("sign_date", LocalDate.class),
-                start, end, probationDays, probationEnd, rs.getString("probation_result"),
+                start, end, probationDays, rs.getString("probation_level_code"), probationEnd,
+                rs.getString("probation_result"), rs.getObject("probation_result_date", LocalDate.class),
+                rs.getObject("probation_result_decision_id", UUID.class),
                 rs.getString("signatory_name"), rs.getString("signatory_title"),
                 rs.getObject("document_id", UUID.class), rs.getObject("previous_contract_id", UUID.class),
+                rs.getString("definite_exception_code"), rs.getString("definite_exception_note"),
+                rs.getObject("auto_conversion_due_since", LocalDate.class), rs.getString("source"),
                 rs.getString("status"), instant(rs, "created_at"), instant(rs, "updated_at"), rs.getInt("version"));
     }
 

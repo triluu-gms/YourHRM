@@ -70,7 +70,14 @@ class LegalEntityApiIT extends IntegrationTest {
     private ResultActions change(TestUser user, UUID id, String effectiveFrom, String attributes) throws Exception {
         return mvc.perform(post("/api/v1/core/legal-entities/" + id + "/versions").with(as(user))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"effectiveFrom\":\"" + effectiveFrom + "\",\"attributes\":" + attributes + "}"));
+                .content("{\"effectiveFrom\":\"" + effectiveFrom + "\",\"attributes\":" + attributes + ",\"version\":"
+                        + version(id) + "}"));
+    }
+
+    /** The entity's current optimistic-lock token (0 for an unknown id, so scope tests still reach the API). */
+    static int version(UUID id) {
+        return ADMIN.queryForObject("select coalesce((select version from core.legal_entity where id = ?), 0)",
+                Integer.class, id);
     }
 
     private UUID createdId(TestUser user, String json) throws Exception {
@@ -278,6 +285,24 @@ class LegalEntityApiIT extends IntegrationTest {
         // other mid-year changes keep the year's frequency and are fine
         change(owner, id, "2027-05-01", attrs("A", "0630000001", "\"pitDeclarationFrequency\":\"QUARTERLY\""))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void anEffectiveDatedChangeNeedsTheCurrentVersion() throws Exception {
+        UUID tenant = FIX.tenant("le-stale");
+        TestUser owner = FIX.owner(tenant);
+        UUID id = createdId(owner, body("A", "0650000001"));
+        change(owner, id, "2026-06-01", attrs("A", "0650000001", "")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(post("/api/v1/core/legal-entities/" + id + "/versions").with(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"effectiveFrom\":\"2026-07-01\",\"attributes\":" + attrs("A", "0650000001", "")
+                                + ",\"version\":0}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        mvc.perform(post("/api/v1/core/legal-entities/" + id + "/versions").with(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"effectiveFrom\":\"2026-07-01\",\"attributes\":" + attrs("A", "0650000001", "") + "}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

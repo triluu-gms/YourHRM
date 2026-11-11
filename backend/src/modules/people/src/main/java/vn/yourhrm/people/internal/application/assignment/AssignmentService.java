@@ -23,6 +23,7 @@ import vn.yourhrm.people.api.AssignmentEvents.TemporaryTransferChanged;
 import vn.yourhrm.people.api.AssignmentEvents.WageProtection;
 import vn.yourhrm.people.api.PeoplePermissions;
 import vn.yourhrm.people.internal.application.DecisionService;
+import vn.yourhrm.people.internal.application.integration.HireApprovalGate;
 import vn.yourhrm.people.internal.application.EmployeeAccess;
 import vn.yourhrm.people.internal.application.assignment.EmploymentFacts.Employment;
 import vn.yourhrm.people.internal.application.assignment.RetroFlags.Retro;
@@ -107,11 +108,14 @@ public class AssignmentService {
     private final RetroFlags retro;
     private final AuditLog audit;
     private final BusinessClock clock;
+    /** Integration fix F1: holds the first events of a hire that is not approved yet. */
+    private final HireApprovalGate hireGate;
 
     public AssignmentService(HrDb db, AssignmentStore store, ProcessedMarkers markers, EmploymentFacts employments,
             EmployeeAccess access, ChangeReasonCatalogue reasons, AssignmentReferences references,
             TemporaryTransferPolicy transfers, DecisionService decisions, WorkflowService workflow, HrOutbox outbox,
-            RetroFlags retro, AuditLog audit, BusinessClock clock) {
+            RetroFlags retro, AuditLog audit, BusinessClock clock, HireApprovalGate hireGate) {
+        this.hireGate = hireGate;
         this.db = db;
         this.store = store;
         this.markers = markers;
@@ -157,10 +161,42 @@ public class AssignmentService {
         AssignmentRow row = newRow(Ids.newId(), Ids.newId(), emp, "PRIMARY", resolved.attributes(), "HIRE", null,
                 decisionId, validFrom, null, source == null ? "APP" : source);
         store.insert(row);
-        if (!validFrom.isAfter(clock.today())) {
+        // F1 (integration): a hire that still waits for approval is announced by HireService on approval /
+        // activation (releaseHeldInitialEvents); the due marker makes every later publisher skip this version.
+        if (!validFrom.isAfter(clock.today()) && !hireGate.pending(employmentId)) {
             publishChanged(emp, row, "HIRE", null, null, "OPENING_LOAD".equals(source));
+            markers.mark(AssignmentDueJob.DUE_MARKER, row.id(), "people.AssignmentChanged", "PROCESSED");
         }
         return view(store.find(row.id()).orElseThrow());
+    }
+
+    /**
+     * Integration fix F1: publishes the {@code AssignmentChanged} (and temporary-transfer) events of the current
+     * versions of {@code employmentId} in force on or before {@code through} that were held while the hire waited for
+     * approval. Called by the hire flow on approval / activation; idempotent through the daily-job markers (a version
+     * the daily job or {@link #createInitial} already published is skipped). Runs in the caller's People transaction.
+     *
+     * @return number of versions published
+     */
+    @HrTransactional
+    public int releaseHeldInitialEvents(UUID employmentId, LocalDate through) {
+        Employment emp = employments.require(employmentId);
+        if ("CANCELLED".equals(emp.status()) || hireGate.pending(employmentId)) {
+            return 0;
+        }
+        int n = 0;
+        for (AssignmentRow row : store.current(employmentId).stream()
+                .filter(r -> !r.validFrom().isAfter(through))
+                .sorted(java.util.Comparator.comparing(AssignmentRow::validFrom)).toList()) {
+            markers.lock(AssignmentDueJob.DUE_MARKER, row.id());
+            if (markers.exists(AssignmentDueJob.DUE_MARKER, row.id())) {
+                continue;
+            }
+            publishDue(emp, row, false);
+            markers.mark(AssignmentDueJob.DUE_MARKER, row.id(), "people.AssignmentChanged", "PROCESSED");
+            n++;
+        }
+        return n;
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -282,6 +318,55 @@ public class AssignmentService {
         Applied applied = apply(proposalId, workflowInstanceId);
         markers.mark(PROPOSAL_MARKER, proposalId, "core.WorkflowCompleted", "PROCESSED");
         return Optional.of(applied);
+    }
+
+    /**
+     * Integration fix F4 (BR-PPL-055, US-PPL-053): a signed contract appendix that changes assignment terms (org unit,
+     * position, job title, work location; ids) creates the new PRIMARY version itself, linked to the appendix (document
+     * kind APPENDIX: no decision, no workflow; the signed appendix is the agreement). Unchanged attributes are carried
+     * over from the version in force; the reference checks of a job change apply ({@link AssignmentReferences}). The
+     * reason is LOCATION_CHANGE (location only), TRANSFER (org unit) or JOB_TITLE_CHANGE. Runs in the caller's People
+     * transaction, no permission check (the appendix flow authorised).
+     */
+    @HrTransactional
+    public Applied applyFromAppendix(UUID employmentId, UUID appendixId, LocalDate effectiveDate, UUID orgUnitId,
+            UUID positionId, UUID jobTitleId, UUID locationId) {
+        Employment emp = employments.require(employmentId);
+        if (!emp.live() || !emp.covers(effectiveDate)) {
+            throw ApiException.unprocessable("outside-employment", "The appendix effective date is outside employment "
+                    + emp.employeeNo());
+        }
+        AssignmentRow primary = store.primaryOn(employmentId, effectiveDate).orElseThrow(() ->
+                ApiException.unprocessable("no-assignment-at-date", "Employment " + emp.employeeNo()
+                        + " has no primary assignment on " + effectiveDate));
+        if (primary.validFrom().equals(effectiveDate)) {
+            throw ApiException.unprocessable("assignment-version-exists", "A version already starts on "
+                    + effectiveDate + "; the appendix cannot add another one");
+        }
+        boolean positionChanged = positionId != null && !positionId.equals(primary.positionId());
+        Attributes attributes = new Attributes(orgUnitId != null ? orgUnitId : primary.orgUnitId(),
+                positionId != null ? positionId : primary.positionId(),
+                jobTitleId != null ? jobTitleId : primary.jobTitleId(), primary.gradeId(),
+                positionChanged ? null : primary.managerEmploymentId(),
+                locationId != null ? locationId : primary.locationId(), primary.costCentreId(), primary.costSplit(),
+                primary.fte());
+        var resolved = references.resolve(emp, attributes, effectiveDate);
+        String reasonCode = orgUnitId != null && !orgUnitId.equals(primary.orgUnitId()) ? "TRANSFER"
+                : orgUnitId == null && positionId == null && jobTitleId == null ? "LOCATION_CHANGE" : "JOB_TITLE_CHANGE";
+        String actionCode = ChangeReason.DEFAULTS.stream().filter(r -> r.code().equals(reasonCode))
+                .map(ChangeReason::actionCode).findFirst().orElse(reasonCode);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reasonCode", reasonCode);
+        payload.put("documentKind", "APPENDIX");
+        payload.put("contractAppendixId", appendixId.toString());
+        put(payload, "previousManagerEmploymentId", primary.managerEmploymentId());
+        payload.put("managerDerived", resolved.managerDerived());
+        UUID proposalId = Ids.newId();
+        store.insertProposal(newRow(proposalId, primary.assignmentKey(), emp, "PRIMARY", resolved.attributes(),
+                actionCode, reasonCode, null, effectiveDate, null, "APP"), payload);
+        Applied applied = apply(proposalId, null);
+        markers.mark(PROPOSAL_MARKER, proposalId, "people.ContractChanged", "PROCESSED");
+        return applied;
     }
 
     /** What applying a proposal produced. */
@@ -598,10 +683,10 @@ public class AssignmentService {
     }
 
     private Map<UUID, String> decisionNumbers(Collection<UUID> ids) {
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
         Map<UUID, String> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
         db.jdbc().sql("select id, decision_no from hr.decision where tenant_id = :t and id in (:ids)")
                 .param("t", TenantContext.current().tenantId()).param("ids", Set.copyOf(ids))
                 .query((rs, n) -> out.put(rs.getObject(1, UUID.class), rs.getString(2))).list();

@@ -173,7 +173,7 @@ class BankAccountIT extends IntegrationTest {
         assertThat(ev).extracting(e -> e.get("subtype")).containsExactly("ACTIVATED", "ACTIVATED");
         assertThat(ev).allSatisfy(e -> assertThat((String) e.get("payload")).doesNotContain("00110022")
                 .doesNotContain("7777888899"));
-        assertThat((String) ev.getFirst().get("payload")).contains("\"accountNoLast4\":\"3456\"");
+        assertThat((String) ev.getFirst().get("payload")).contains("\"accountNoLast4\": \"3456\"");
 
         // a new default account from June ends the previous one the day before (one ACTIVE default per day)
         UUID newDefault = id(create(w.hr(), person, account("2222333344", "NGUYEN ANH", "REMAINDER", "null",

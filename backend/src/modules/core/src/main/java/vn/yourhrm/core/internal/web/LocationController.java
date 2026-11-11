@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,10 +71,13 @@ class LocationController {
             @NotNull @Valid AttributesRequest attributes) {
     }
 
-    record ChangeLocationRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes) {
+    /** {@code version} = the location's version as read (optimistic lock over its whole history). */
+    record ChangeLocationRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes,
+            @NotNull Integer version) {
     }
 
-    record CloseLocationRequest(@NotNull Integer version) {
+    /** Closed from {@code effectiveFrom} (the history ends the day before), like org units. */
+    record CloseLocationRequest(@NotNull LocalDate effectiveFrom, @NotNull Integer version) {
     }
 
     @GetMapping
@@ -116,12 +120,20 @@ class LocationController {
     @PostMapping("/{locationId}/versions")
     @RequiresPermission(CorePermissions.LOCATION_UPDATE)
     public LocationView changeFrom(@PathVariable UUID locationId, @Valid @RequestBody ChangeLocationRequest req) {
-        return locations.changeFrom(locationId, req.effectiveFrom(), req.attributes().toAttributes());
+        return locations.changeFrom(locationId, req.effectiveFrom(), req.attributes().toAttributes(), req.version());
     }
 
     @PostMapping("/{locationId}/close")
     @RequiresPermission(CorePermissions.LOCATION_UPDATE)
     public LocationView close(@PathVariable UUID locationId, @Valid @RequestBody CloseLocationRequest req) {
-        return locations.close(locationId, req.version());
+        return locations.close(locationId, req.effectiveFrom(), req.version());
+    }
+
+    /** Removes a planned (not yet effective) version, e.g. one that blocks a close ({@code future-versions-exist}). */
+    @DeleteMapping("/{locationId}/versions/{versionId}")
+    @RequiresPermission(CorePermissions.LOCATION_UPDATE)
+    public LocationView removePlannedVersion(@PathVariable UUID locationId, @PathVariable UUID versionId,
+            @RequestParam("version") int version) {
+        return locations.removePlannedVersion(locationId, versionId, version);
     }
 }

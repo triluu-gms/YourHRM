@@ -36,6 +36,9 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  * <p>Not stored (no DDL column, v0.5): occupation and contact details of the family member (reported to the lead);
  * student status is captured per dependant claim (reason {@code CHILD_STUDENT} + evidence).
  *
+ * <p>No delete: the People role has no DELETE grant on {@code hr.family_member} (DDL v0.5, reported); a claim is
+ * ended instead.
+ *
  * <p>Identifier updates follow "null = keep, blank = clear" because masked screens never hold the plain value.
  */
 @Service
@@ -169,31 +172,6 @@ public class FamilyMemberService {
             throw ApiException.conflict("stale-version", "The family member was changed by someone else; reload it");
         }
         return view(load(personId, id), false);
-    }
-
-    @HrTransactional
-    public void delete(UUID personId, UUID id, int version) {
-        access.requirePerson(PeoplePermissions.DEPENDANT_UPDATE, personId, clock.today());
-        Member m = load(personId, id);
-        if (m.version() != version) {
-            throw ApiException.conflict("stale-version", "The family member was changed by someone else; reload it");
-        }
-        UUID tenant = TenantContext.current().tenantId();
-        boolean claimed = db.jdbc().sql("""
-                        select exists (select 1 from hr.pit_dependant
-                                        where tenant_id = :t and family_member_id = :id and status <> 'REJECTED')""")
-                .param("t", tenant).param("id", id).query(Boolean.class).single();
-        boolean contact = db.jdbc().sql("""
-                        select exists (select 1 from hr.emergency_contact where tenant_id = :t and family_member_id = :id)""")
-                .param("t", tenant).param("id", id).query(Boolean.class).single();
-        if (claimed || contact) {
-            throw ApiException.conflict("family-member-in-use",
-                    "The family member has PIT dependant claims or is an emergency contact; end the claim instead");
-        }
-        db.jdbc().sql("delete from hr.pit_dependant where tenant_id = :t and family_member_id = :id")
-                .param("t", tenant).param("id", id).update();
-        db.jdbc().sql("delete from hr.family_member where tenant_id = :t and id = :id")
-                .param("t", tenant).param("id", id).update();
     }
 
     /** The unmasked identifiers: needs {@code hr.person.view_sensitive} on the person; audited (BR-CORE-034). */

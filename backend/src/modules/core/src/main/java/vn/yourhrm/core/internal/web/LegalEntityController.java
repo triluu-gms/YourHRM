@@ -89,7 +89,9 @@ class LegalEntityController {
             @NotNull @Valid AttributesRequest attributes) {
     }
 
-    record ChangeLegalEntityRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes) {
+    /** {@code version} = the entity's version as read (optimistic lock over its whole history). */
+    record ChangeLegalEntityRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes,
+            @NotNull Integer version) {
     }
 
     record ChangeStatusRequest(@NotNull LegalEntityStatus status, @NotNull Integer version) {
@@ -142,7 +144,8 @@ class LegalEntityController {
     @PostMapping("/{legalEntityId}/versions")
     @RequiresPermission(CorePermissions.LEGAL_ENTITY_UPDATE)
     public LegalEntityView changeFrom(@PathVariable UUID legalEntityId, @Valid @RequestBody ChangeLegalEntityRequest req) {
-        return legalEntities.changeFrom(legalEntityId, req.effectiveFrom(), req.attributes().toAttributes());
+        return legalEntities.changeFrom(legalEntityId, req.effectiveFrom(), req.attributes().toAttributes(),
+                req.version());
     }
 
     @PutMapping("/{legalEntityId}/status")

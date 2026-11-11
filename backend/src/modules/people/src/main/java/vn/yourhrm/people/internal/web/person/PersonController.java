@@ -79,7 +79,7 @@ class PersonController {
     }
 
     record CreatePersonRequest(@NotNull @Valid PersonDataRequest person, @Valid IdentifiersRequest identifiers,
-            boolean acknowledgeWarnings) {
+            Boolean acknowledgeWarnings) {
     }
 
     record UpdatePersonRequest(@NotNull Integer version, @NotNull @Valid PersonDataRequest person) {
@@ -103,7 +103,7 @@ class PersonController {
     @RequiresPermission(PeoplePermissions.PERSON_CREATE)
     public ResponseEntity<PersonView> create(@Valid @RequestBody CreatePersonRequest req) {
         PersonView created = persons.create(new CreatePerson(req.person().toData(),
-                req.identifiers() == null ? null : req.identifiers().toIdentifiers(), "APP", req.acknowledgeWarnings()));
+                req.identifiers() == null ? null : req.identifiers().toIdentifiers(), "APP", Boolean.TRUE.equals(req.acknowledgeWarnings())));
         return ResponseEntity.created(URI.create("/api/v1/people/persons/" + created.id())).body(created);
     }
 

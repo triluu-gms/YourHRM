@@ -15,11 +15,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.yourhrm.core.api.AuditLog;
+import vn.yourhrm.core.api.AuditLog.BusinessAction;
 import vn.yourhrm.core.api.CoreEvents.LocationChanged;
 import vn.yourhrm.core.api.CorePermissions;
+import vn.yourhrm.core.internal.domain.LocationStatus;
 import vn.yourhrm.core.internal.domain.LocationType;
 import vn.yourhrm.core.internal.domain.TaxCode;
 import vn.yourhrm.core.internal.infra.EffectiveDatedVersions;
+import vn.yourhrm.core.internal.infra.EffectiveDatedVersions.Removal;
 import vn.yourhrm.core.internal.infra.EffectiveDatedVersions.Slot;
 import vn.yourhrm.shared.auth.api.AuthorizationService;
 import vn.yourhrm.shared.auth.api.AuthorizationTarget;
@@ -48,15 +52,17 @@ public class LocationService {
     private final EffectiveDatedVersions versions;
     private final MinWageRegionService regions;
     private final ApplicationEventPublisher events;
+    private final AuditLog audit;
     private final BusinessClock clock;
 
     public LocationService(JdbcClient jdbc, AuthorizationService authz, EffectiveDatedVersions versions,
-            MinWageRegionService regions, ApplicationEventPublisher events, BusinessClock clock) {
+            MinWageRegionService regions, ApplicationEventPublisher events, AuditLog audit, BusinessClock clock) {
         this.jdbc = jdbc;
         this.authz = authz;
         this.versions = versions;
         this.regions = regions;
         this.events = events;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -71,8 +77,12 @@ public class LocationService {
             BigDecimal latitude, BigDecimal longitude, Integer geofenceRadiusM, String dependentTaxCode) {
     }
 
-    public record LocationView(UUID id, String code, UUID legalEntityId, String status, int version,
-            VersionView current) {
+    /**
+     * Anchor + the version shown for the requested date. {@code status} is as of that date (CLOSED from
+     * {@code closedFrom} on); {@code version} is the optimistic-lock token for every write.
+     */
+    public record LocationView(UUID id, String code, UUID legalEntityId, LocationStatus status, LocalDate closedFrom,
+            int version, VersionView current) {
     }
 
     @Transactional(readOnly = true)
@@ -141,9 +151,11 @@ public class LocationService {
 
     /** Applies {@code a} from {@code effectiveFrom}: correction of the version starting then, or a split. */
     @Transactional
-    public LocationView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a) {
+    public LocationView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a, int expectedVersion) {
         UUID tenant = TenantContext.current().tenantId();
         assertCan(CorePermissions.LOCATION_UPDATE, id, effectiveFrom);
+        versions.checkAndBump(EffectiveDatedVersions.LOCATION, tenant, id, expectedVersion,
+                TenantContext.current().userAccountId(), "Location " + id);
         Slot slot = versions.slotFor(EffectiveDatedVersions.LOCATION, tenant, id, effectiveFrom);
         UUID legalEntityId = legalEntityOf(tenant, id);
         Attributes valid = validate(tenant, id, legalEntityId, effectiveFrom, a);
@@ -167,26 +179,77 @@ public class LocationService {
         return find(id, effectiveFrom).orElseThrow();
     }
 
-    /** Closes a location (ACTIVE -> CLOSED, final). Required before its legal entity can be dissolved. */
+    /**
+     * Closes a location from {@code effectiveFrom} (US-CORE-007, like org units): the version covering that date ends
+     * the day before, the anchor becomes CLOSED (final) with {@code closed_from}. Refused when a version starts on or
+     * after that date ({@code future-versions-exist}: remove the planned version first) and on the first day of the
+     * location's history. Required before its legal entity can be dissolved.
+     */
     @Transactional
-    public LocationView close(UUID id, int expectedVersion) {
+    public LocationView close(UUID id, LocalDate effectiveFrom, int expectedVersion) {
         TenantContext ctx = TenantContext.current();
         UUID tenant = ctx.tenantId();
-        assertCan(CorePermissions.LOCATION_UPDATE, id, clock.today());
-        int updated = jdbc.sql("""
-                        update core.location set status = 'CLOSED', version = version + 1, updated_by = :actor
-                         where tenant_id = :t and id = :id and version = :v and status = 'ACTIVE'""")
-                .param("actor", ctx.userAccountId()).param("t", tenant).param("id", id).param("v", expectedVersion)
-                .update();
-        LocationView current = find(id, clock.today()).orElseThrow(() -> ApiException.notFound("Location", id));
-        if (updated == 0) {
-            throw "CLOSED".equals(current.status())
-                    ? ApiException.unprocessable("invalid-status-transition", "Location " + current.code() + " is already closed")
-                    : ApiException.conflict("stale-version", "Location " + current.code() + " was changed (version "
-                            + current.version() + "); reload and retry");
+        assertCan(CorePermissions.LOCATION_UPDATE, id, effectiveFrom);
+        versions.checkAndBump(EffectiveDatedVersions.LOCATION, tenant, id, expectedVersion, ctx.userAccountId(),
+                "Location " + id);
+        String code = jdbc.sql("select code from core.location where tenant_id = :t and id = :id and status = 'ACTIVE'")
+                .param("t", tenant).param("id", id).query(String.class).optional()
+                .orElseThrow(() -> ApiException.unprocessable("invalid-status-transition", "Location " + id
+                        + " is already closed"));
+        Slot slot = versions.slotFor(EffectiveDatedVersions.LOCATION, tenant, id, effectiveFrom);
+        boolean laterVersions = jdbc.sql("""
+                        select exists (select 1 from core.location_version
+                                        where tenant_id = :t and location_id = :id and valid_from > :d)""")
+                .param("t", tenant).param("id", id).param("d", effectiveFrom).query(Boolean.class).single();
+        if (laterVersions || (!slot.split() && hasVersionEndingAt(tenant, id, effectiveFrom))) {
+            throw ApiException.conflict("future-versions-exist", "Location " + code + " has changes planned from "
+                    + effectiveFrom + " on; remove them before closing it from that date");
         }
-        events.publishEvent(new LocationChanged(tenant, id, current.legalEntityId(), "CLOSED", clock.today()));
+        if (!slot.split()) {
+            throw ApiException.unprocessable("invalid-close-date", "Location " + code + " starts on " + effectiveFrom
+                    + "; it can only be closed after its first day");
+        }
+        versions.closeAt(EffectiveDatedVersions.LOCATION, tenant, slot.covering().id(), effectiveFrom);
+        jdbc.sql("""
+                        update core.location set status = 'CLOSED', closed_from = :d, updated_by = :actor
+                         where tenant_id = :t and id = :id""")
+                .param("d", effectiveFrom).param("actor", ctx.userAccountId()).param("t", tenant).param("id", id)
+                .update();
+        LocationView current = find(id, effectiveFrom).orElseThrow();
+        events.publishEvent(new LocationChanged(tenant, id, current.legalEntityId(), "CLOSED", effectiveFrom));
         return current;
+    }
+
+    /**
+     * Removes a planned (not yet effective) version; the version before it is extended over the freed period
+     * (the min-wage region is re-diffed for the address that now applies). Audited as {@code REMOVE_PLANNED_VERSION}.
+     */
+    @Transactional
+    public LocationView removePlannedVersion(UUID id, UUID versionId, int expectedVersion) {
+        UUID tenant = TenantContext.current().tenantId();
+        LocalDate today = clock.today();
+        assertCan(CorePermissions.LOCATION_UPDATE, id, today);
+        versions.checkAndBump(EffectiveDatedVersions.LOCATION, tenant, id, expectedVersion,
+                TenantContext.current().userAccountId(), "Location " + id);
+        String removedAdminUnit = jdbc.sql(
+                        "select admin_unit_code from core.location_version where tenant_id = :t and location_id = :l and id = :id")
+                .param("t", tenant).param("l", id).param("id", versionId)
+                .query((rs, n) -> Optional.ofNullable(rs.getString(1))).optional().flatMap(o -> o).orElse(null);
+        Removal removal = versions.removePlanned(EffectiveDatedVersions.LOCATION, tenant, id, versionId, today);
+        UUID legalEntityId = legalEntityOf(tenant, id);
+        audit.record(new BusinessAction("REMOVE_PLANNED_VERSION", "core", "location", id, legalEntityId,
+                Map.of("versionId", versionId.toString(), "validFrom", removal.removed().validFrom().toString())));
+        events.publishEvent(new LocationChanged(tenant, id, legalEntityId, "VERSION_REMOVED", removal.removed().validFrom()));
+        regions.locationAddressChanged(id, legalEntityId, removal.removed().validFrom(), removedAdminUnit,
+                adminUnitOf(tenant, removal.extended().id()), false);
+        return find(id, removal.removed().validFrom()).orElseThrow();
+    }
+
+    private boolean hasVersionEndingAt(UUID tenant, UUID id, LocalDate date) {
+        return jdbc.sql("""
+                        select exists (select 1 from core.location_version
+                                        where tenant_id = :t and location_id = :id and valid_to = :d)""")
+                .param("t", tenant).param("id", id).param("d", date).query(Boolean.class).single();
     }
 
     private Attributes validate(UUID tenant, UUID id, UUID legalEntityId, LocalDate validFrom, Attributes a) {
@@ -302,8 +365,11 @@ public class LocationService {
 
     /** Anchor plus the version valid on {@code :d}, else the latest one (same rule as legal entities). */
     private static final String SELECT = """
-            select l.id as l_id, l.code as l_code, l.legal_entity_id as l_le, l.status as l_status,
-                   l.version as l_version, v.*
+            select l.id as l_id, l.code as l_code, l.legal_entity_id as l_le,
+                   case when l.closed_from is not null and l.closed_from <= cast(:d as date) then 'CLOSED'
+                        when l.closed_from is null and l.status = 'CLOSED' then 'CLOSED'
+                        else 'ACTIVE' end as l_status,
+                   l.closed_from as l_closed_from, l.version as l_version, v.*
               from core.location l
               left join lateral (
                     select * from core.location_version x
@@ -313,7 +379,8 @@ public class LocationService {
 
     private static LocationView map(ResultSet rs) throws SQLException {
         return new LocationView(rs.getObject("l_id", UUID.class), rs.getString("l_code"),
-                rs.getObject("l_le", UUID.class), rs.getString("l_status"), rs.getInt("l_version"),
+                rs.getObject("l_le", UUID.class), LocationStatus.valueOf(rs.getString("l_status")),
+                rs.getObject("l_closed_from", LocalDate.class), rs.getInt("l_version"),
                 rs.getObject("id", UUID.class) == null ? null : mapVersion(rs));
     }
 

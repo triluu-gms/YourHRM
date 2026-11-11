@@ -1,0 +1,52 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/HireCancelled.v1.schema.json",
+  "title" : "people.HireCancelled v1",
+  "description" : "Payload of people.HireCancelled (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from HireCancelled; a breaking change needs a new schema version.",
+  "x-eventType" : "people.HireCancelled",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "employeeNo", "hireDate", "cancelKind", "reasonCode", "reason", "previewPublished" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "employeeNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "hireDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "cancelKind" : {
+      "type" : [ "string", "null" ]
+    },
+    "reasonCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "reason" : {
+      "type" : [ "string", "null" ]
+    },
+    "previewPublished" : {
+      "type" : "boolean"
+    }
+  }
+}

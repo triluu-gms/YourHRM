@@ -18,7 +18,6 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  * and the employee's SELF scope both apply.
  */
 @Component
-@HrTransactional(readOnly = true)
 public class FamilyDocumentOwners implements DocumentOwnerResolver {
 
     private final HrDb db;
@@ -37,6 +36,7 @@ public class FamilyDocumentOwners implements DocumentOwnerResolver {
     }
 
     @Override
+    @HrTransactional(readOnly = true)
     public Optional<AuthorizationTarget> target(String ownerEntityType, UUID ownerEntityId) {
         var today = clock.today();
         Optional<UUID> employment = db.jdbc().sql("""

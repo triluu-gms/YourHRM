@@ -60,6 +60,8 @@ import vn.yourhrm.shared.workflow.api.WorkflowService.StartRequest;
 public class DependantService {
 
     static final List<String> LIVE_EMPLOYMENT = List.of("PRE_HIRE", "ACTIVE", "SUSPENDED");
+    /** {@code hr.pit_dependant.source} of the claims registered by the opening-balance load. */
+    public static final String SOURCE_OPENING_LOAD = "OPENING_LOAD";
 
     /** A registration request; {@code employmentId} null = the claimant the rules determine. Months: first days. */
     public record Registration(UUID familyMemberId, UUID employmentId, LocalDate fromMonth, LocalDate toMonth,
@@ -258,7 +260,7 @@ public class DependantService {
         }
         UUID id = Ids.newId();
         insert(id, m.id(), e.id(), from, to, reasonCode, "APPROVED", taxRegistrationRef,
-                registeredAt == null ? clock.today() : registeredAt);
+                registeredAt == null ? clock.today() : registeredAt, SOURCE_OPENING_LOAD);
         outbox.publish(new DependantChanged(TenantContext.current().tenantId(), e.legalEntityId(), m.personId(),
                 e.id(), from, FamilyEvents.REGISTERED, id, m.id(), m.relationshipCode(), reasonCode, from, to, null,
                 null, null, true));
@@ -673,14 +675,21 @@ public class DependantService {
 
     private void insert(UUID id, UUID familyMemberId, UUID employmentId, LocalDate from, LocalDate to, String reason,
             String status, String taxRegistrationRef, LocalDate registeredAt) {
+        insert(id, familyMemberId, employmentId, from, to, reason, status, taxRegistrationRef, registeredAt, "APP");
+    }
+
+    /** {@code source}: APP, or OPENING_LOAD for the initial load (lets its rollback find the claims it created). */
+    private void insert(UUID id, UUID familyMemberId, UUID employmentId, LocalDate from, LocalDate to, String reason,
+            String status, String taxRegistrationRef, LocalDate registeredAt, String source) {
         boolean approved = "APPROVED".equals(status);
         try {
             db.jdbc().sql("""
                             insert into hr.pit_dependant (tenant_id, id, family_member_id, employment_id, from_month,
                                    to_month, dependant_reason_code, status, tax_registration_ref, registered_at,
-                                   approved_by, approved_at, created_by, updated_by)
+                                   approved_by, approved_at, source, created_by, updated_by)
                             values (:t, :id, :fm, :emp, :from, :to, :reason, :status, :ref, :reg, :appBy,
-                                    case when :approved then now() end, :actor, :actor)""")
+                                    case when :approved then now() end, :source, :actor, :actor)""")
+                    .param("source", source)
                     .param("t", TenantContext.current().tenantId()).param("id", id).param("fm", familyMemberId)
                     .param("emp", employmentId).param("from", from).param("to", to).param("reason", reason)
                     .param("status", status).param("ref", taxRegistrationRef).param("reg", registeredAt)

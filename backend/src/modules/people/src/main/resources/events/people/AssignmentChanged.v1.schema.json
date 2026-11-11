@@ -1,0 +1,133 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/AssignmentChanged.v1.schema.json",
+  "title" : "people.AssignmentChanged v1",
+  "description" : "Payload of people.AssignmentChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from AssignmentChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.AssignmentChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "changeKind", "assignmentId", "assignmentKey", "assignmentType", "actionCode", "reasonCode", "orgUnitId", "positionId", "jobTitleId", "gradeId", "managerEmploymentId", "previousManagerEmploymentId", "locationId", "costCentreId", "costSplit", "fte", "validFrom", "validTo", "decisionId", "decisionNo", "contractAppendixId", "retro", "earliestAffectedPeriod", "initialLoad" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "changeKind" : {
+      "type" : [ "string", "null" ]
+    },
+    "assignmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "assignmentKey" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "assignmentType" : {
+      "type" : [ "string", "null" ]
+    },
+    "actionCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "reasonCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "orgUnitId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "positionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "jobTitleId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "gradeId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "managerEmploymentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "previousManagerEmploymentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "locationId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "costCentreId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "costSplit" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "required" : [ "costCentreId", "pct" ],
+        "properties" : {
+          "costCentreId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "pct" : {
+            "type" : [ "number", "null" ]
+          }
+        }
+      }
+    },
+    "fte" : {
+      "type" : [ "number", "null" ]
+    },
+    "validFrom" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "validTo" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "decisionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "decisionNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "contractAppendixId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "retro" : {
+      "type" : "boolean"
+    },
+    "earliestAffectedPeriod" : {
+      "type" : [ "string", "null" ]
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    }
+  }
+}

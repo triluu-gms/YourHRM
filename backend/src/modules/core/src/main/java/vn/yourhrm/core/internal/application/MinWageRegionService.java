@@ -80,7 +80,9 @@ public class MinWageRegionService implements MinWageRegions {
         UUID tenant = TenantContext.current().tenantId();
         List<LocalDate> dates = event.changedFrom().isEmpty() ? List.of(clock.today()) : event.changedFrom();
         int changes = 0;
-        List<UUID> locations = jdbc.sql("select id from core.location where tenant_id = :t and status = 'ACTIVE'")
+        // Open locations, and closed ones whose closing date is still ahead (closure recorded, history not ended yet).
+        List<UUID> locations = jdbc.sql("select id from core.location where tenant_id = :t"
+                        + " and (status = 'ACTIVE' or closed_from > current_date)")
                 .param("t", tenant).query(UUID.class).list();
         for (UUID location : locations) {
             for (LocalDate d : dates) {

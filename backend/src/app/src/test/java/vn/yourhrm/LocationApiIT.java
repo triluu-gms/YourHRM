@@ -1,6 +1,8 @@
 package vn.yourhrm;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,7 +51,20 @@ class LocationApiIT extends IntegrationTest {
     private ResultActions change(TestUser user, UUID id, String effectiveFrom, String attributes) throws Exception {
         return mvc.perform(post("/api/v1/core/locations/" + id + "/versions").with(as(user))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"effectiveFrom\":\"" + effectiveFrom + "\",\"attributes\":" + attributes + "}"));
+                .content("{\"effectiveFrom\":\"" + effectiveFrom + "\",\"attributes\":" + attributes + ",\"version\":"
+                        + version(id) + "}"));
+    }
+
+    private ResultActions close(TestUser user, UUID id, String effectiveFrom, int version) throws Exception {
+        return mvc.perform(post("/api/v1/core/locations/" + id + "/close").with(as(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"effectiveFrom\":\"" + effectiveFrom + "\",\"version\":" + version + "}"));
+    }
+
+    /** The location's current optimistic-lock token (0 for an unknown id, so scope tests still reach the API). */
+    private static int version(UUID id) {
+        return ADMIN.queryForObject("select coalesce((select version from core.location where id = ?), 0)",
+                Integer.class, id);
     }
 
     private UUID createdId(TestUser user, String json) throws Exception {
@@ -85,13 +100,62 @@ class LocationApiIT extends IntegrationTest {
         mvc.perform(get("/api/v1/core/locations?legalEntityId=" + le).with(as(owner)))
                 .andExpect(jsonPath("$[*].code", contains("HCM")));
 
-        mvc.perform(post("/api/v1/core/locations/" + id + "/close").with(as(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"version\":0}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CLOSED"));
-        mvc.perform(post("/api/v1/core/locations/" + id + "/close").with(as(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}"))
-                .andExpect(status().isUnprocessableContent())
+        // the change bumped the version: the token read before it is stale for every write
+        change(owner, id, "2026-10-01", attrs("x", "")).andExpect(status().isOk());
+        int stale = version(id) - 1;
+        close(owner, id, "2026-12-01", stale).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("stale-version"));
+        mvc.perform(post("/api/v1/core/locations/" + id + "/versions").with(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"effectiveFrom\":\"2026-11-01\",\"attributes\":" + attrs("y", "") + ",\"version\":" + stale + "}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+
+        // closing is effective-dated: in effect until the day before, CLOSED from the date on
+        close(owner, id, "2026-12-01", version(id)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedFrom").value("2026-12-01"));
+        mvc.perform(get("/api/v1/core/locations/" + id + "?asOf=2026-11-30").with(as(owner)))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.closedFrom").value("2026-12-01"));
+        mvc.perform(get("/api/v1/core/locations/" + id + "/versions").with(as(owner)))
+                .andExpect(jsonPath("$[*].validTo", contains("2026-09-01", "2026-10-01", "2026-12-01")));
+        close(owner, id, "2027-01-01", version(id)).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("invalid-status-transition"));
+    }
+
+    @Test
+    void aCloseIsRefusedBeforePlannedChangesUntilTheyAreRemoved() throws Exception {
+        UUID tenant = FIX.tenant("loc-planned");
+        TestUser owner = FIX.owner(tenant);
+        UUID le = FIX.legalEntity(tenant, "HQ");
+        UUID id = createdId(owner, body("HN", le, ""));
+        String planned = change(owner, id, "2099-03-01", attrs("Chi nhánh HN 2099", "")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID plannedVersion = ADMIN.queryForObject(
+                "select id from core.location_version where location_id = ? and valid_from = '2099-03-01'", UUID.class, id);
+        assertThat(planned).contains("2099-03-01");
+
+        close(owner, id, "2027-01-01", version(id)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("future-versions-exist"));
+        close(owner, id, "2099-03-01", version(id)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("future-versions-exist"));
+
+        mvc.perform(delete("/api/v1/core/locations/" + id + "/versions/" + plannedVersion + "?version=" + (version(id) - 1))
+                        .with(as(owner)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        mvc.perform(delete("/api/v1/core/locations/" + id + "/versions/" + plannedVersion + "?version=" + version(id))
+                        .with(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.current.name").value("Chi nhánh HN"))
+                .andExpect(jsonPath("$.current.validTo").doesNotExist());
+        assertThat(ADMIN.queryForObject("""
+                select count(*) from audit.audit_event
+                 where tenant_id = ? and action = 'REMOVE_PLANNED_VERSION' and object_type = 'location' and object_id = ?""",
+                Integer.class, tenant, id)).isOne();
+        // the first day of a location's history cannot be its closing date
+        close(owner, id, "2026-01-01", version(id)).andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("invalid-close-date"));
+        close(owner, id, "2027-01-01", version(id)).andExpect(status().isOk());
     }
 
     @Test

@@ -59,6 +59,10 @@ class MinWageRegionIT extends IntegrationTest {
         return UUID.fromString(JsonPath.read(json, "$.id"));
     }
 
+    private static int locationVersion(UUID location) {
+        return ADMIN.queryForObject("select version from core.location where id = ?", Integer.class, location);
+    }
+
     private static List<LocationRegionChanged> locationEvents(UUID tenant) {
         return RecordedEvents.of(LocationRegionChanged.class).stream().filter(e -> e.tenantId().equals(tenant)).toList();
     }
@@ -73,7 +77,8 @@ class MinWageRegionIT extends IntegrationTest {
         // the factory's address moves to a rural commune from 01/07/2026
         mvc.perform(post("/api/v1/core/locations/" + loc + "/versions").with(as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"effectiveFrom\":\"2026-07-01\",\"attributes\":" + locationAttrs("RG-RURAL") + "}"))
+                        .content("{\"effectiveFrom\":\"2026-07-01\",\"attributes\":" + locationAttrs("RG-RURAL")
+                                + ",\"version\":" + locationVersion(loc) + "}"))
                 .andExpect(status().isOk());
 
         mvc.perform(get("/api/v1/core/locations/" + loc + "/min-wage-region?asOf=2026-06-30").with(as(owner)))
@@ -110,7 +115,8 @@ class MinWageRegionIT extends IntegrationTest {
         UUID loc = createLocation(owner, FIX.legalEntity(tenant, "HQ"), "F1", "RG-URBAN");
         mvc.perform(post("/api/v1/core/locations/" + loc + "/versions").with(as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"effectiveFrom\":\"2026-03-01\",\"attributes\":" + locationAttrs("RG-RURAL") + "}"))
+                        .content("{\"effectiveFrom\":\"2026-03-01\",\"attributes\":" + locationAttrs("RG-RURAL")
+                                + ",\"version\":" + locationVersion(loc) + "}"))
                 .andExpect(status().isOk());
         assertThat(locationEvents(tenant)).extracting(LocationRegionChanged::cause).containsExactly("CREATED");
     }
@@ -148,7 +154,9 @@ class MinWageRegionIT extends IntegrationTest {
         mvc.perform(post("/api/v1/core/legal-entities/" + le + "/versions").with(as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"effectiveFrom\":\"2026-04-01\",\"attributes\":"
-                                + LegalEntityApiIT.attrs("HQ", "0101234567", "").replace("IT-01", "RG-RURAL") + "}"))
+                                + LegalEntityApiIT.attrs("HQ", "0101234567", "").replace("IT-01", "RG-RURAL")
+                                + ",\"version\":" + ADMIN.queryForObject("select version from core.legal_entity where id = ?",
+                                        Integer.class, le) + "}"))
                 .andExpect(status().isOk());
         assertThat(RecordedEvents.of(LegalEntityRegionChanged.class).stream()
                         .filter(e -> e.tenantId().equals(tenant)).toList())

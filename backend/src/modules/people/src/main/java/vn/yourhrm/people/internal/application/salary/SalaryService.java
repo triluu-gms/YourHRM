@@ -26,6 +26,7 @@ import vn.yourhrm.people.internal.application.EmployeeAccess;
 import vn.yourhrm.people.internal.application.HrMasking;
 import vn.yourhrm.people.internal.application.assignment.EmploymentFacts;
 import vn.yourhrm.people.internal.application.assignment.EmploymentFacts.Employment;
+import vn.yourhrm.people.internal.application.integration.HireApprovalGate;
 import vn.yourhrm.people.internal.application.assignment.RetroFlags;
 import vn.yourhrm.people.internal.application.assignment.RetroFlags.Retro;
 import vn.yourhrm.people.internal.application.assignment.Warning;
@@ -119,11 +120,14 @@ public class SalaryService {
     private final RetroFlags retro;
     private final AuditLog audit;
     private final BusinessClock clock;
+    /** Integration fix F1: holds the first events of a hire that is not approved yet. */
+    private final HireApprovalGate hireGate;
 
     public SalaryService(HrDb db, HrJson json, SalaryStore store, SalaryRules rules, ProcessedMarkers markers,
             EmploymentFacts employments, EmployeeAccess access, HrMasking masking, CompensationPurposes purposes,
             DecisionService decisions, WorkflowService workflow, HrOutbox outbox, RetroFlags retro, AuditLog audit,
-            BusinessClock clock) {
+            BusinessClock clock, HireApprovalGate hireGate) {
+        this.hireGate = hireGate;
         this.db = db;
         this.json = json;
         this.store = store;
@@ -178,10 +182,45 @@ public class SalaryService {
         store.insert(row);
         audit.record(new BusinessAction("CREATE_SALARY_RECORD", "hr", "salary_record", row.id(), emp.legalEntityId(),
                 details("employmentId", emp.id(), "source", src, "purpose", "HIRE")));
-        if (!validFrom.isAfter(clock.today())) {
+        // F1 (integration): a hire that still waits for approval is announced by HireService on approval /
+        // activation (releaseHeldInitialEvents); the due marker makes every later publisher skip this version.
+        if (!validFrom.isAfter(clock.today()) && !hireGate.pending(employmentId)) {
             publish(emp, row, "HIRE", null, "OPENING_LOAD".equals(src));
+            markers.mark(DUE_MARKER, row.id(), "people.SalaryChanged", "PROCESSED");
         }
         return new Created(row.id(), warnings);
+    }
+
+    /**
+     * Integration fix F1: publishes the {@code SalaryChanged} of the current versions of {@code employmentId} in force
+     * on or before {@code through} that were held while the hire waited for approval. Called by the hire flow on
+     * approval / activation; idempotent through the daily-job marker. Runs in the caller's People transaction.
+     *
+     * @return number of versions published
+     */
+    @HrTransactional
+    public int releaseHeldInitialEvents(UUID employmentId, LocalDate through) {
+        Employment emp = employments.require(employmentId);
+        if ("CANCELLED".equals(emp.status()) || hireGate.pending(employmentId)) {
+            return 0;
+        }
+        List<SalaryRow> line = store.line(employmentId);
+        int n = 0;
+        for (SalaryRow row : line) {
+            if (row.validFrom().isAfter(through)) {
+                continue;
+            }
+            markers.lock(DUE_MARKER, row.id());
+            if (markers.exists(DUE_MARKER, row.id())) {
+                continue;
+            }
+            UUID previous = line.stream().filter(r -> row.validFrom().equals(r.validTo())).map(SalaryRow::id)
+                    .findFirst().orElse(null);
+            publish(emp, row, previous == null ? "HIRE" : "CHANGE", previous, "OPENING_LOAD".equals(row.source()));
+            markers.mark(DUE_MARKER, row.id(), "people.SalaryChanged", "PROCESSED");
+            n++;
+        }
+        return n;
     }
 
     public record Created(UUID salaryRecordId, List<Warning> warnings) {
@@ -278,6 +317,49 @@ public class SalaryService {
             }
         }
         return new ChangeResult(proposalId, "PENDING_APPROVAL", started.instanceId(), null, null, null, warnings);
+    }
+
+    /**
+     * Integration fix F4 (BR-PPL-055, US-PPL-053): a signed contract appendix that carries pay terms creates the new
+     * salary-record version itself, with {@code contract_appendix_id} instead of a decision (the signed appendix is the
+     * agreement, so no workflow runs). {@code amend} turns the terms in force on {@code effectiveDate} into the amended
+     * ones; the same structure and business validations as a salary change apply (regional minimum wage blocks with
+     * 422, band deviations are returned as warnings). Runs in the caller's People transaction, no permission check (the
+     * appendix flow required {@code hr.compensation.update} when the pay terms were entered).
+     *
+     * @return the applied version, empty when the employment has no salary record on {@code effectiveDate} to amend
+     */
+    @HrTransactional
+    public Optional<Applied> applyFromAppendix(UUID employmentId, UUID appendixId, LocalDate effectiveDate,
+            java.util.function.UnaryOperator<SalaryTerms> amend) {
+        Employment emp = employments.require(employmentId);
+        if (!emp.live() || !emp.covers(effectiveDate)) {
+            throw ApiException.unprocessable("outside-employment", "The appendix effective date is outside employment "
+                    + emp.employeeNo());
+        }
+        Optional<SalaryRow> current = store.line(employmentId).stream().filter(r -> r.covers(effectiveDate))
+                .findFirst();
+        if (current.isEmpty()) {
+            return Optional.empty();
+        }
+        SalaryRow c = current.get();
+        if (c.validFrom().equals(effectiveDate)) {
+            throw ApiException.unprocessable("salary-version-exists", "A salary version already starts on "
+                    + effectiveDate + "; the appendix cannot add another one");
+        }
+        SalaryTerms in = new SalaryTerms(c.payBasis(), c.salaryKind(), c.baseSalaryAmount(), c.agreedNetAmount(),
+                c.netGuaranteedScope(), c.siSalaryAmount(), c.currencyCode(), c.payScaleCode(), c.payScaleStepCode(),
+                c.probationPct(), c.allowances());
+        SalaryTerms t = rules.structure(amend.apply(in), effectiveDate);
+        List<Warning> warnings = rules.business(emp, t, effectiveDate);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("kind", "CHANGE");
+        payload.put("source", "CONTRACT_APPENDIX");
+        payload.put("warnings", warnings.stream().map(Warning::code).toList());
+        UUID proposalId = Ids.newId();
+        store.insertProposal(newRow(proposalId, emp.id(), t, "ADJUSTMENT", "CONTRACT_APPENDIX", null, appendixId,
+                effectiveDate, null, "APP", null), payload);
+        return resolveProposal(proposalId, null, "APPROVED");
     }
 
     /** Applies (APPROVED) or closes a salary proposal after its workflow; idempotent per proposal. */
@@ -528,6 +610,9 @@ public class SalaryService {
             if ("CANCELLED".equals(emp.status())) {
                 markers.mark(DUE_MARKER, row.id(), "people.SalaryChanged", "SKIPPED");
                 continue;
+            }
+            if (hireGate.pending(emp.id())) {
+                continue; // F1 (integration): held until the hire is approved (no marker: released / retried later)
             }
             List<SalaryRow> line = store.line(emp.id());
             boolean first = line.stream().noneMatch(r -> row.validFrom().equals(r.validTo()));
