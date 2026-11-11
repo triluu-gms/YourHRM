@@ -1,0 +1,73 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/DependantChanged.v1.schema.json",
+  "title" : "people.DependantChanged v1",
+  "description" : "Payload of people.DependantChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from DependantChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.DependantChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "subtype", "dependantId", "familyMemberId", "relationshipCode", "reasonCode", "fromMonth", "toMonth", "previousEmploymentId", "previousLegalEntityId", "previousDependantId", "initialLoad" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "subtype" : {
+      "type" : [ "string", "null" ]
+    },
+    "dependantId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "familyMemberId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "relationshipCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "reasonCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "fromMonth" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "toMonth" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "previousEmploymentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "previousLegalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "previousDependantId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "initialLoad" : {
+      "type" : "boolean"
+    }
+  }
+}

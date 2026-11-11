@@ -237,10 +237,11 @@ public class ContractSuspensionService {
     }
 
     private void publish(ContractView c, String subtype, SuspensionView s, LocalDate effective) {
-        outbox.publish(new ContractChanged(tenant(), c.legalEntityId(), c.personId(), c.employmentId(), effective,
-                subtype, c.id(), c.contractNo(), c.contractTypeCode(), c.startDate(), c.endDate(), c.definiteSeq(),
-                c.previousContractId(), null, null, null, List.of(), s.id(), s.reasonCode(), s.plannedEndDate(),
-                false));
+        // retro flag: US-PPL-080 (integration stream)
+        outbox.publish(contracts.flagRetro(new ContractChanged(tenant(), c.legalEntityId(), c.personId(),
+                c.employmentId(), effective, subtype, c.id(), c.contractNo(), c.contractTypeCode(), c.startDate(),
+                c.endDate(), c.definiteSeq(), c.previousContractId(), null, null, null, List.of(), s.id(),
+                s.reasonCode(), s.plannedEndDate(), false)));
     }
 
     private SuspensionView find(UUID id) {

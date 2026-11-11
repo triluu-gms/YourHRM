@@ -187,10 +187,12 @@ public class ContractAppendixService {
         if (updated == 0) {
             throw stale(a);
         }
-        outbox.publish(new ContractChanged(tenant(), c.legalEntityId(), c.personId(), c.employmentId(),
-                a.effectiveDate(), ContractEvents.APPENDIX, c.id(), c.contractNo(), c.contractTypeCode(),
-                c.startDate(), c.endDate(), c.definiteSeq(), c.previousContractId(), null, a.id(), a.appendixNo(),
-                new ArrayList<>(new java.util.TreeSet<>(a.changes().keySet())), null, null, null, false));
+        // retro flag: US-PPL-080 (integration stream)
+        outbox.publish(contracts.flagRetro(new ContractChanged(tenant(), c.legalEntityId(), c.personId(),
+                c.employmentId(), a.effectiveDate(), ContractEvents.APPENDIX, c.id(), c.contractNo(),
+                c.contractTypeCode(), c.startDate(), c.endDate(), c.definiteSeq(), c.previousContractId(), null, a.id(),
+                a.appendixNo(), new ArrayList<>(new java.util.TreeSet<>(a.changes().keySet())), null, null, null,
+                false)));
         return get(appendixId);
     }
 
@@ -234,7 +236,7 @@ public class ContractAppendixService {
                                a.effective_date, a.changes::text, a.document_id, a.status, a.created_at, a.version
                           from hr.contract_appendix a
                           join hr.contract c on c.tenant_id = a.tenant_id and c.id = a.contract_id
-                          join hr.employment e on e.tenant_id = c.tenant_id and e.id = c.employment_id""" + where)
+                          join hr.employment e on e.tenant_id = c.tenant_id and e.id = c.employment_id""" + " " + where)
                 .param("t", tenant());
         for (var p : params.entrySet()) {
             spec = spec.param(p.getKey(), p.getValue());

@@ -1,0 +1,83 @@
+{
+  "_comment": "LOCAL DEVELOPMENT ONLY (profile dev, DevLegalParameters). Example statutory values copied from the integration tests; all [verify-legal]. Region map rows match the sample admin units of dev/seed-sample-reference.sql.",
+  "values": {
+    "assignment.temp_transfer.max_working_days_per_year": 60,
+    "assignment.temp_transfer.notice_working_days": 3,
+    "assignment.temp_transfer.previous_wage_working_days": 30,
+    "assignment.temp_transfer.wage_floor_pct": 85,
+
+    "contract.definite.max_months": 36,
+    "contract.definite.max_consecutive": 2,
+    "contract.definite.consecutive_exceptions": ["ELDERLY_WORKER", "FOREIGN_WORKER", "SOE_MANAGER", "UNION_OFFICER_TERM"],
+    "contract.definite.auto_convert_after_days": 30,
+    "contract.short_term.threshold_months": 1,
+    "contract.probation.max_days": {"ENTERPRISE_MANAGER": 180, "COLLEGE_OR_ABOVE": 60, "INTERMEDIATE": 30, "OTHER": 6},
+    "contract.probation.min_pay_pct": 85,
+    "contract.suspension.return_window_days": 15,
+
+    "salary.min_wage.monthly_by_region": {"I": 4960000, "II": 4410000, "III": 3860000, "IV": 3450000},
+    "salary.min_wage.hourly_by_region": {"I": 23800, "II": 21200, "III": 18600, "IV": 16600},
+    "salary.probation.min_pct": 85,
+
+    "insurance.multi_contract_rule": {"SI": "FIRST_CONTRACT", "HI": "FIRST_CONTRACT", "UI": "FIRST_CONTRACT", "OA_OD": "EACH_EMPLOYER"},
+
+    "person.elderly_worker.age_months": {"M": 744, "F": 720},
+    "person.minor.age_years": 18,
+    "person.tax_code.personal_id_as_tax_code_from": "2025-07-01",
+
+    "dependant.child.max_age": 18,
+    "dependant.income.monthly_threshold": 1000000,
+    "dependant.registration.form_code": "07/ĐK-NPT-TNCN",
+    "dependant.relationship.categories": {"CHILD": ["CHILD"], "SPOUSE": ["SPOUSE"], "PARENT": ["FATHER", "MOTHER"], "OTHER": []},
+
+    "privacy.retention.labour_records_years": 5,
+
+    "separation.legal_grounds": {
+      "CONTRACT_EXPIRY":      {"statutory_code": "TV-HHD",  "notice_side": "NONE",     "severance": "SEVERANCE_ALLOWANCE"},
+      "MUTUAL_AGREEMENT":     {"statutory_code": "TV-TT",   "notice_side": "NONE",     "severance": "SEVERANCE_ALLOWANCE"},
+      "EMPLOYEE_RESIGNATION": {"statutory_code": "TV-NLD",  "notice_side": "EMPLOYEE", "severance": "SEVERANCE_ALLOWANCE"},
+      "EMPLOYER_UNILATERAL":  {"statutory_code": "TV-NSDLD","notice_side": "EMPLOYER", "severance": "SEVERANCE_ALLOWANCE"},
+      "REDUNDANCY":           {"statutory_code": "TV-MVL",  "notice_side": "EMPLOYER", "severance": "JOB_LOSS_ALLOWANCE"},
+      "DISMISSAL":            {"statutory_code": "TV-ST",   "notice_side": "NONE",     "severance": "NONE"},
+      "PROBATION_FAILED":     {"statutory_code": "TV-TV",   "notice_side": "NONE",     "severance": "NONE"},
+      "RETIREMENT":           {"statutory_code": "TV-NH",   "notice_side": "NONE",     "severance": "NONE"},
+      "DEATH":                {"statutory_code": "TV-CHET", "notice_side": "NONE",     "severance": "SEVERANCE_ALLOWANCE"},
+      "MISSING_DECLARED":     {"statutory_code": "TV-MT",   "notice_side": "NONE",     "severance": "SEVERANCE_ALLOWANCE"},
+      "ENTITY_CLOSURE":       {"statutory_code": "TV-CDHD", "notice_side": "NONE",     "severance": "JOB_LOSS_ALLOWANCE"}
+    },
+    "separation.notice.days": {
+      "EMPLOYEE": {"INDEFINITE": {"days": 45, "basis": "CALENDAR"}, "DEFINITE_LONG": {"days": 30, "basis": "CALENDAR"},
+                   "DEFINITE_SHORT": {"days": 3, "basis": "WORKING"}, "PROBATION": {"days": 0, "basis": "CALENDAR"}},
+      "EMPLOYER": {"INDEFINITE": {"days": 45, "basis": "CALENDAR"}, "DEFINITE_LONG": {"days": 30, "basis": "CALENDAR"},
+                   "DEFINITE_SHORT": {"days": 3, "basis": "WORKING"}, "PROBATION": {"days": 0, "basis": "CALENDAR"}}
+    },
+    "separation.notice.definite_long_min_months": 12,
+    "separation.notice.special_trades": {
+      "AVIATION_CREW": {"INDEFINITE": {"days": 120}, "DEFINITE_LONG": {"days": 120}, "DEFINITE_SHORT": {"term_fraction": "0.25"}}
+    },
+    "separation.notice.exempt_reasons": {"EMPLOYEE": ["NOT_PAID", "MALTREATED"], "EMPLOYER": ["ABSENT_5_DAYS"]},
+    "separation.notice.shortfall_consequences": {
+      "EMPLOYEE": ["NO_SEVERANCE", "PAY_HALF_MONTH_SALARY", "PAY_WAGES_FOR_SHORTFALL_DAYS"],
+      "EMPLOYER": ["PAY_WAGES_FOR_SHORTFALL_DAYS"]
+    },
+
+    "report.labour_change_6m.form": {"form_code": "01/PLI", "title_vi": "Báo cáo tình hình thay đổi về lao động"},
+    "report.labour_change_6m.periods": {
+      "JUNE":     {"start_month": 1, "end_month": 6,  "due_month": 6,  "due_day": 5},
+      "DECEMBER": {"start_month": 7, "end_month": 12, "due_month": 12, "due_day": 5}
+    },
+    "report.labour_fluctuation.due": {"month_offset": 1, "day": 3},
+    "report.labour_fluctuation.layout": {
+      "form_code": "TB-BDLD", "title_vi": "Thông báo biến động lao động",
+      "columns": ["employee_no", "full_name", "national_id", "movement_type", "movement_date", "reason"]
+    }
+  },
+  "minWageRegionMap": {
+    "00004": "I", "00008": "I", "00070": "I", "00091": "I", "09619": "III",
+    "26734": "I", "26740": "I", "26743": "I",
+    "20194": "I",
+    "11311": "I",
+    "07210": "II",
+    "31117": "I"
+  }
+}

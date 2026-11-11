@@ -24,8 +24,8 @@ public class RetroFlags {
     private final PayPeriodLocks locks;
 
     public RetroFlags(ObjectProvider<PayPeriodLocks> locks) {
-        // Payroll implements PayPeriodLocks; until then nothing is locked (documented stub).
-        this.locks = locks.getIfAvailable(() -> PayPeriodLocks.NONE);
+        // a Payroll bean wins; otherwise People's projection of Payroll's lock events (@Fallback PayPeriodLockProjection)
+        this.locks = locks.getObject();
     }
 
     public Retro of(UUID legalEntityId, LocalDate effectiveDate) {

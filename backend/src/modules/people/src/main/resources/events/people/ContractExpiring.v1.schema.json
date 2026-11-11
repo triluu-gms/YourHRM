@@ -1,0 +1,53 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/ContractExpiring.v1.schema.json",
+  "title" : "people.ContractExpiring v1",
+  "description" : "Payload of people.ContractExpiring (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from ContractExpiring; a breaking change needs a new schema version.",
+  "x-eventType" : "people.ContractExpiring",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "contractId", "contractNo", "contractTypeCode", "endDate", "daysBefore", "autoConversionDue" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "contractId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "contractNo" : {
+      "type" : [ "string", "null" ]
+    },
+    "contractTypeCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "endDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "daysBefore" : {
+      "type" : "integer"
+    },
+    "autoConversionDue" : {
+      "type" : "boolean"
+    }
+  }
+}

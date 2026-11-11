@@ -83,7 +83,7 @@ public class OrgUnitImport implements ImportType {
             OrgUnitView current = orgUnits.get(id.get(), from);
             orgUnits.changeFrom(id.get(), from, new Attributes(row.text("name_vi"), row.text("name_en"),
                     row.id("unit_type"), parentId, row.id("legal_entity"), row.id("location"), current.costCentreId(),
-                    current.managerUserId(), current.sortOrder()));
+                    current.managerUserId(), current.sortOrder()), null); // an import overwrites: no lock token
             return CommitResult.updated(ENTITY, id.get());
         }
         OrgUnitView created = orgUnits.create(row.text("code"), from, new Attributes(row.text("name_vi"),

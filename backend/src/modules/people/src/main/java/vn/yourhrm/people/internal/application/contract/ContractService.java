@@ -20,6 +20,7 @@ import vn.yourhrm.people.api.ContractEvents;
 import vn.yourhrm.people.api.ContractEvents.ContractChanged;
 import vn.yourhrm.people.api.PeoplePermissions;
 import vn.yourhrm.people.internal.application.EmployeeAccess;
+import vn.yourhrm.people.internal.application.assignment.RetroFlags;
 import vn.yourhrm.people.internal.application.PeopleLegalParameters;
 import vn.yourhrm.people.internal.application.contract.ContractRecords.ContractView;
 import vn.yourhrm.people.internal.application.contract.ContractRecords.Employment;
@@ -84,10 +85,13 @@ public class ContractService {
     private final HrOutbox outbox;
     private final EmployeeAccess access;
     private final BusinessClock clock;
+    /** US-PPL-080 (integration stream): retro flag of {@code ContractChanged}. */
+    private final RetroFlags retro;
 
     public ContractService(HrDb db, ContractRecords records, ProbationRules probation, PeopleLegalParameters legal,
             Settings settings, Numbering numbering, Documents documents, AuditLog audit, HrOutbox outbox,
-            EmployeeAccess access, BusinessClock clock) {
+            EmployeeAccess access, BusinessClock clock, RetroFlags retro) {
+        this.retro = retro;
         this.db = db;
         this.records = records;
         this.probation = probation;
@@ -186,9 +190,9 @@ public class ContractService {
 
     /**
      * The labour contract following a passed probation (US-PPL-049), created in the probation-result transaction.
-     * Package-private: {@link ProbationService} checked the permission.
+     * No permission check: {@link ProbationService} checked it.
      */
-    ContractView afterProbation(ContractView probationContract, ContractTerms terms) {
+    public ContractView afterProbation(ContractView probationContract, ContractTerms terms) {
         LocalDate start = terms.startDate() != null ? terms.startDate() : probationContract.endDate().plusDays(1);
         return insert(records.requireEmployment(probationContract.employmentId()),
                 terms.withTerm(terms.contractTypeCode(), start, terms.endDate()), probationContract.id(),
@@ -255,14 +259,16 @@ public class ContractService {
             throw ApiException.unprocessable("contract-overlap",
                     "The period overlaps another contract of the employment");
         }
-        Integer probationDays = probation.check(emp, type, t);
+        ProbationRules.Probation prob = probation.check(emp, type, t);
         Integer seq = definiteSeq(emp, type, start, previousId == null ? source.priorDefiniteCount() : 0, t);
         checkWorkPermit(emp.id(), end);
 
         String number = source.legacyContractNo() != null ? source.legacyContractNo() : nextNumber(emp, start);
         boolean active = source.imported();
         UUID id = Ids.newId();
-        if (seq != null && t.definiteExceptionCode() != null && exceeds(emp, start, seq)) {
+        // the exception is stored (and audited) only when it actually allowed a further definite contract
+        boolean exception = seq != null && t.definiteExceptionCode() != null && exceeds(emp, start, seq);
+        if (exception) {
             Map<String, String> details = new HashMap<>();
             details.put("exception", t.definiteExceptionCode());
             details.put("definiteSeq", String.valueOf(seq));
@@ -276,14 +282,18 @@ public class ContractService {
         try {
             db.jdbc().sql("""
                             insert into hr.contract (tenant_id, id, employment_id, contract_no, contract_type_code,
-                                   definite_seq, sign_date, start_date, end_date, probation_days, signatory_name,
-                                   signatory_title, previous_contract_id, status, created_by, updated_by)
-                            values (:t, :id, :e, :no, :type, :seq, :sd, :start, :end, :pd, :sn, :st, :prev, :status,
-                                    :actor, :actor)""")
+                                   definite_seq, sign_date, start_date, end_date, probation_days, probation_level_code,
+                                   signatory_name, signatory_title, previous_contract_id, definite_exception_code,
+                                   definite_exception_note, source, status, created_by, updated_by)
+                            values (:t, :id, :e, :no, :type, :seq, :sd, :start, :end, :pd, :pl, :sn, :st, :prev,
+                                    :exc, :excNote, :source, :status, :actor, :actor)""")
                     .param("t", tenant()).param("id", id).param("e", emp.id()).param("no", number)
                     .param("type", type.name()).param("seq", seq).param("sd", active ? source.signDate() : null)
-                    .param("start", start).param("end", end).param("pd", probationDays)
+                    .param("start", start).param("end", end).param("pd", prob == null ? null : prob.days())
+                    .param("pl", prob == null ? null : prob.levelCode())
                     .param("sn", t.signatoryName()).param("st", t.signatoryTitle()).param("prev", previousId)
+                    .param("exc", exception ? t.definiteExceptionCode() : null)
+                    .param("excNote", exception ? t.definiteExceptionNote() : null).param("source", source.source())
                     .param("status", active ? "ACTIVE" : "DRAFT").param("actor", actor())
                     .update();
         } catch (DataIntegrityViolationException ex) {
@@ -291,7 +301,7 @@ public class ContractService {
         }
         ContractView created = records.require(id);
         if (active) {
-            publish(created, ContractEvents.SIGNED, t.definiteExceptionCode(), "OPENING_LOAD".equals(source.source()));
+            publish(created, ContractEvents.SIGNED, "OPENING_LOAD".equals(source.source()));
         }
         return created;
     }
@@ -476,7 +486,7 @@ public class ContractService {
                 subtype = signed.type() == ContractType.INDEFINITE ? ContractEvents.CONVERTED : ContractEvents.RENEWED;
             }
         }
-        publish(signed, subtype, null, false);
+        publish(signed, subtype, false);
         return signed;
     }
 
@@ -502,13 +512,27 @@ public class ContractService {
 
     // ------------------------------------------------------------------------------------------------ helpers
 
-    void publish(ContractView c, String subtype, String exceptionCode, boolean initialLoad) {
-        outbox.publish(new ContractChanged(tenant(), c.legalEntityId(), c.personId(), c.employmentId(), c.startDate(),
-                subtype, c.id(), c.contractNo(), c.contractTypeCode(), c.startDate(), c.endDate(), c.definiteSeq(),
-                c.previousContractId(), exceptionCode, null, null, List.of(), null, null, null, initialLoad));
+    /** {@code definiteExceptionCode} comes from the stored exception ({@code hr.contract.definite_exception_code}). */
+    void publish(ContractView c, String subtype, boolean initialLoad) {
+        outbox.publish(flagRetro(new ContractChanged(tenant(), c.legalEntityId(), c.personId(), c.employmentId(),
+                c.startDate(), subtype, c.id(), c.contractNo(), c.contractTypeCode(), c.startDate(), c.endDate(),
+                c.definiteSeq(), c.previousContractId(), c.definiteExceptionCode(), null, null, List.of(), null, null,
+                null, initialLoad)));
     }
 
-    void requireScope(String permission, ContractView c) {
+    /**
+     * US-PPL-039/080 (added by the integration stream): sets {@code retro} when the effective date falls into a locked
+     * pay period of the legal entity ({@code PayPeriodLocks}); opening-load events are never retro.
+     */
+    public ContractChanged flagRetro(ContractChanged e) {
+        if (e.initialLoad()) {
+            return e;
+        }
+        RetroFlags.Retro r = retro.of(e.legalEntityId(), e.effectiveDate());
+        return e.withRetro(r.retro(), r.earliestAffectedPeriod());
+    }
+
+    public void requireScope(String permission, ContractView c) {
         access.require(permission, c.employmentId(), clock.today());
     }
 

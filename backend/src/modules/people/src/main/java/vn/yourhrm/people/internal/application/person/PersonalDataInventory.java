@@ -102,17 +102,17 @@ public final class PersonalDataInventory {
         basic(PiiClass.P2, "PAY", "salary_record_allowance", "amount", "component_code", "is_in_si_salary");
         basic(PiiClass.P1, "EMPLOYMENT", "contract", "contract_no", "definite_seq", "sign_date", "start_date",
                 "end_date", "probation_days", "signatory_name", "signatory_title", "esign_status",
-                "national_platform_ref", "contract_type_code");
+                "national_platform_ref", "contract_type_code", "contract_period");
         basic(PiiClass.P1, "EMPLOYMENT", "contract_appendix", "appendix_no", "effective_date", "changes");
-        basic(PiiClass.P1, "EMPLOYMENT", "contract_suspension", "return_date");
+        basic(PiiClass.P1, "EMPLOYMENT", "contract_suspension", "return_date", "reason_code");
         basic(PiiClass.P2, "FAMILY", "family_member", "full_name", "birth_date", "has_income_above_threshold",
                 "relationship_code", "is_deceased");
         basic(PiiClass.P2, "FAMILY", "pit_dependant", "from_month", "to_month", "month_range", "tax_registration_ref",
                 "dependant_reason_code", "registered_at");
         basic(PiiClass.P2, "CONTACT", "emergency_contact", "full_name", "phone", "alt_phone", "email",
-                "address_text", "relationship_code");
+                "address_text", "relationship_code", "priority");
         basic(PiiClass.P2, "FINANCIAL", "bank_account", "holder_name", "split_type", "split_value",
-                "step_up_auth_ref", "bank_code", "branch_code", "currency_code");
+                "step_up_auth_ref", "bank_code", "branch_code", "currency_code", "priority");
         basic(PiiClass.P1, "EMPLOYMENT", "special_status", "override_reason", "scope_id");
         basic(PiiClass.P2, "EMPLOYMENT", "work_permit", "permit_type", "permit_no", "job_title_on_permit",
                 "work_location_text", "issuing_authority", "issue_date");
@@ -128,17 +128,17 @@ public final class PersonalDataInventory {
                 "template_version", "row_count", "submission_channel", "submission_ref");
         // Phase-2 shells
         basic(PiiClass.P1, "EMPLOYMENT", "certificate", "name", "issuer", "certificate_no", "issue_date",
-                "expiry_date", "certificate_type_code");
+                "expiry_date", "certificate_type_code", "is_safety_training");
         basic(PiiClass.P2, "EMPLOYMENT", "discipline_case", "violation_date", "rule_reference", "description",
                 "hearing_date", "sanction_from", "sanction_to", "expunge_date", "damages_amount", "sanction_code");
-        basic(PiiClass.P2, "PAY", "reward", "reward_type", "reward_level", "amount", "target_pay_month");
+        basic(PiiClass.P2, "PAY", "reward", "reward_type", "reward_level", "amount", "target_pay_month", "currency_code", "is_taxable");
         basic(PiiClass.P2, "EMPLOYMENT", "appraisal", "appraisal_type", "period_start", "period_end", "score",
-                "rating_code");
+                "rating_code", "cycle_code", "finalised_at");
         basic(PiiClass.P1, "EMPLOYMENT", "training_record", "course_name", "provider", "start_date", "end_date",
-                "hours_qty", "cost_amount", "bond_end_date", "bond_amount");
-        basic(PiiClass.P0, "TECHNICAL", "checklist_template", "event_type", "name", "task_definitions");
+                "hours_qty", "cost_amount", "bond_end_date", "bond_amount", "course_code", "result_code");
+        basic(PiiClass.P0, "TECHNICAL", "checklist_template", "event_type", "name", "task_definitions", "is_active");
         basic(PiiClass.P0, "TECHNICAL", "checklist", "event_type");
-        basic(PiiClass.P1, "EMPLOYMENT", "checklist_task", "title", "due_date", "requires_attachment", "seq");
+        basic(PiiClass.P1, "EMPLOYMENT", "checklist_task", "title", "due_date", "requires_attachment", "seq", "owner_role_code", "is_mandatory");
     }
 
     private static void p3(String table, String column, String category, LawfulBasis basis) {

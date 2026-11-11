@@ -76,10 +76,10 @@ class PersonDetailsController {
     record EndAddressRequest(@NotNull Integer version, @NotNull LocalDate validTo) {
     }
 
-    record ContactRequest(@NotBlank String contactType, @NotBlank @Size(max = 254) String value, boolean primary) {
+    record ContactRequest(@NotBlank String contactType, @NotBlank @Size(max = 254) String value, Boolean primary) {
     }
 
-    record ChangeContactRequest(@NotNull Integer version, @NotBlank @Size(max = 254) String value, boolean primary) {
+    record ChangeContactRequest(@NotNull Integer version, @NotBlank @Size(max = 254) String value, Boolean primary) {
     }
 
     record DocumentRequest(String docType, @Size(max = 32) String docNo, @Size(min = 2, max = 2) String issuingCountryCode,
@@ -103,11 +103,11 @@ class PersonDetailsController {
 
     record QualificationRequest(@NotBlank String qualificationLevelCode, String vocationalSkillLevelCode,
             String generalEducationCode, @Size(max = 200) String fieldOfStudy, @Size(max = 200) String institutionName,
-            Integer graduationYear, boolean highest) {
+            Integer graduationYear, Boolean highest) {
 
         QualificationData toData() {
             return new QualificationData(qualificationLevelCode, vocationalSkillLevelCode, generalEducationCode,
-                    fieldOfStudy, institutionName, graduationYear, highest);
+                    fieldOfStudy, institutionName, graduationYear, Boolean.TRUE.equals(highest));
         }
     }
 
@@ -156,14 +156,14 @@ class PersonDetailsController {
     @ResponseStatus(HttpStatus.CREATED)
     @RequiresPermission(PeoplePermissions.PERSON_UPDATE)
     public ContactView addContact(@PathVariable UUID personId, @Valid @RequestBody ContactRequest req) {
-        return contacts.add(personId, new ContactData(req.contactType(), req.value(), req.primary()));
+        return contacts.add(personId, new ContactData(req.contactType(), req.value(), Boolean.TRUE.equals(req.primary())));
     }
 
     @PutMapping("/{personId}/contacts/{contactId}")
     @RequiresPermission(PeoplePermissions.PERSON_UPDATE)
     public ContactView changeContact(@PathVariable UUID personId, @PathVariable UUID contactId,
             @Valid @RequestBody ChangeContactRequest req) {
-        return contacts.change(personId, contactId, req.version(), req.value(), req.primary());
+        return contacts.change(personId, contactId, req.version(), req.value(), Boolean.TRUE.equals(req.primary()));
     }
 
     @DeleteMapping("/{personId}/contacts/{contactId}")

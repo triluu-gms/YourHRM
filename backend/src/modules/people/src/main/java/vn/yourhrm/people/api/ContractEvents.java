@@ -31,16 +31,39 @@ public final class ContractEvents {
      * @param definiteSeq            n-th consecutive definite contract (BR-PPL-053), null for other types
      * @param definiteExceptionCode  the legal exception that allowed a third definite contract, if any
      * @param changedTerms           APPENDIX only: names of the amended terms (no values)
+     * @param retro                  the effective date falls into a locked pay period (US-PPL-039, catalogue envelope
+     *                               field; added by the integration stream, US-PPL-080)
+     * @param earliestAffectedPeriod {@code yyyy-MM} of the earliest affected pay period when {@code retro}
      */
     public record ContractChanged(UUID tenantId, UUID legalEntityId, UUID personId, UUID employmentId,
             LocalDate effectiveDate, String subtype, UUID contractId, String contractNo, String contractTypeCode,
             LocalDate startDate, LocalDate endDate, Integer definiteSeq, UUID previousContractId,
             String definiteExceptionCode, UUID appendixId, String appendixNo, List<String> changedTerms,
-            UUID suspensionId, String suspensionReasonCode, LocalDate suspendedUntil, boolean initialLoad)
-            implements PeopleEvent {
+            UUID suspensionId, String suspensionReasonCode, LocalDate suspendedUntil, boolean initialLoad,
+            boolean retro, String earliestAffectedPeriod) implements PeopleEvent {
 
         public ContractChanged {
             changedTerms = changedTerms == null ? List.of() : List.copyOf(changedTerms);
+        }
+
+        /** Not retro (kept for publishers that have no locked-period information). */
+        public ContractChanged(UUID tenantId, UUID legalEntityId, UUID personId, UUID employmentId,
+                LocalDate effectiveDate, String subtype, UUID contractId, String contractNo, String contractTypeCode,
+                LocalDate startDate, LocalDate endDate, Integer definiteSeq, UUID previousContractId,
+                String definiteExceptionCode, UUID appendixId, String appendixNo, List<String> changedTerms,
+                UUID suspensionId, String suspensionReasonCode, LocalDate suspendedUntil, boolean initialLoad) {
+            this(tenantId, legalEntityId, personId, employmentId, effectiveDate, subtype, contractId, contractNo,
+                    contractTypeCode, startDate, endDate, definiteSeq, previousContractId, definiteExceptionCode,
+                    appendixId, appendixNo, changedTerms, suspensionId, suspensionReasonCode, suspendedUntil,
+                    initialLoad, false, null);
+        }
+
+        /** The same event with the retro flag of {@code retro} / {@code period}. */
+        public ContractChanged withRetro(boolean retro, String period) {
+            return new ContractChanged(tenantId, legalEntityId, personId, employmentId, effectiveDate, subtype,
+                    contractId, contractNo, contractTypeCode, startDate, endDate, definiteSeq, previousContractId,
+                    definiteExceptionCode, appendixId, appendixNo, changedTerms, suspensionId, suspensionReasonCode,
+                    suspendedUntil, initialLoad, retro, period);
         }
 
         @Override

@@ -44,12 +44,16 @@ class SalaryApprovals {
             return;
         }
         try {
-            var applied = hrTx.execute(s -> salaries.resolveProposal(e.subjectId(), e.instanceId(), e.outcome()));
-            Map<String, Object> result = applied != null && applied.isPresent()
-                    ? Map.of("salaryRecordId", applied.get().row().id().toString(), "status",
-                            applied.get().inForce() ? "APPLIED" : "SCHEDULED")
-                    : Map.of("status", "APPROVED".equals(e.outcome()) ? "ALREADY_APPLIED" : "CLOSED");
-            coreTx.executeWithoutResult(s -> workflow.acknowledgeCallback(e.callbackId(), result));
+            // A fresh Core transaction around the People one: the Core calls of the change (numbering, audit) and
+            // the acknowledgement must not join the workflow's already committed transaction (AFTER_COMMIT phase).
+            coreTx.executeWithoutResult(c -> {
+                var applied = hrTx.execute(s -> salaries.resolveProposal(e.subjectId(), e.instanceId(), e.outcome()));
+                Map<String, Object> result = applied != null && applied.isPresent()
+                        ? Map.of("salaryRecordId", applied.get().row().id().toString(), "status",
+                                applied.get().inForce() ? "APPLIED" : "SCHEDULED")
+                        : Map.of("status", "APPROVED".equals(e.outcome()) ? "ALREADY_APPLIED" : "CLOSED");
+                workflow.acknowledgeCallback(e.callbackId(), result);
+            });
         } catch (RuntimeException ex) {
             log.warn("Salary change {} could not be applied after workflow {}", e.subjectId(), e.instanceId(), ex);
             coreTx.executeWithoutResult(s -> workflow.reportCallbackFailure(e.callbackId(),

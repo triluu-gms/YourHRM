@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "people": {
+      "group": "Nhân sự",
+      "employees": "Danh sách nhân viên",
+      "hire": "Tiếp nhận nhân viên",
+      "salaryRecords": "Diễn biến lương",
+      "separations": "Nghỉ việc",
+      "contractsGroup": "Hợp đồng",
+      "contractsExpiring": "Hợp đồng sắp hết hạn",
+      "probationsEnding": "Sắp hết thử việc",
+      "complianceGroup": "Tuân thủ",
+      "expiringDocuments": "Giấy tờ sắp hết hạn",
+      "residencyProposals": "Đề xuất cư trú thuế",
+      "reportsGroup": "Báo cáo nhân sự",
+      "statutoryReports": "Báo cáo theo luật định",
+      "labourBook": "Sổ quản lý lao động",
+      "dependantRegistrations": "Đăng ký người phụ thuộc",
+      "concurrentEmployment": "Kiêm nhiệm nhiều pháp nhân",
+      "openingBalance": "Số dư đầu kỳ",
+      "integrationInbox": "Hộp thư tích hợp",
+      "essGroup": "Hồ sơ của tôi",
+      "myProfile": "Hồ sơ nhân sự của tôi",
+      "myFamily": "Gia đình & người phụ thuộc",
+      "myBankAccounts": "Tài khoản ngân hàng",
+      "myDocuments": "Tài liệu của tôi",
+      "myResignation": "Xin nghỉ việc"
+    }
+  }
+}

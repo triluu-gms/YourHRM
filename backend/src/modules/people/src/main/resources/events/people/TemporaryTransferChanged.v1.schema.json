@@ -1,0 +1,93 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/TemporaryTransferChanged.v1.schema.json",
+  "title" : "people.TemporaryTransferChanged v1",
+  "description" : "Payload of people.TemporaryTransferChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from TemporaryTransferChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.TemporaryTransferChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "status", "assignmentId", "assignmentKey", "startDate", "endDate", "orgUnitId", "positionId", "jobTitleId", "workingDaysInYear", "consentDocumentId", "wageProtection", "retro", "earliestAffectedPeriod" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "status" : {
+      "type" : [ "string", "null" ]
+    },
+    "assignmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "assignmentKey" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "startDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "endDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "orgUnitId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "positionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "jobTitleId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "workingDaysInYear" : {
+      "type" : "integer"
+    },
+    "consentDocumentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "wageProtection" : {
+      "type" : [ "object", "null" ],
+      "additionalProperties" : false,
+      "required" : [ "previousWageWorkingDays", "newWageMinPctOfPrevious", "notBelowRegionalMinimum" ],
+      "properties" : {
+        "previousWageWorkingDays" : {
+          "type" : "integer"
+        },
+        "newWageMinPctOfPrevious" : {
+          "type" : [ "number", "null" ]
+        },
+        "notBelowRegionalMinimum" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "retro" : {
+      "type" : "boolean"
+    },
+    "earliestAffectedPeriod" : {
+      "type" : [ "string", "null" ]
+    }
+  }
+}

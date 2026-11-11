@@ -32,9 +32,11 @@ import vn.yourhrm.shared.common.time.BusinessClock;
 /**
  * The daily contract monitor (BR-PPL-052/054/056, US-PPL-049/051/054) behind {@link ContractJobs}. Alerts go to the
  * holders of {@code hr.contract.update} (HR) and {@code hr.contract.view} (e.g. managers with a reports scope) whose
- * data scope covers the employee, through Core's notification centre. Expiry alerts and the auto-conversion flag are
- * published once per contract and offset ({@code people.ContractExpiring}, deduplicated on the outbox); probation and
- * return-to-work reminders repeat daily until HR records the result / return (Core deduplicates within a day).
+ * data scope covers the employee, through Core's notification centre. Expiry alerts are published once per contract
+ * and offset ({@code people.ContractExpiring}, deduplicated on the outbox). The auto-conversion flag is recorded once in
+ * {@code hr.contract.auto_conversion_due_since} (first day the contract counts as converted) and published with it;
+ * probation and return-to-work reminders repeat daily until HR records the result / return (Core deduplicates within a
+ * day).
  */
 @Service
 public class ContractMonitor implements ContractJobs {
@@ -84,15 +86,23 @@ public class ContractMonitor implements ContractJobs {
 
     // ----------------------------------------------------------------------------------- expiry (BR-PPL-054)
 
-    /** {@code status}: the employment status (expiry rows) or the contract / suspension status (others). */
+    /**
+     * {@code status}: the employment status (expiry rows) or the contract / suspension status (others);
+     * {@code autoConversionDueSince}: expiry rows only.
+     */
     record Row(UUID contractId, UUID employmentId, UUID personId, UUID legalEntityId, String employeeNo,
-            String contractNo, String type, LocalDate endDate, String status) {
+            String contractNo, String type, LocalDate endDate, String status, LocalDate autoConversionDueSince) {
+
+        Row(UUID contractId, UUID employmentId, UUID personId, UUID legalEntityId, String employeeNo,
+                String contractNo, String type, LocalDate endDate, String status) {
+            this(contractId, employmentId, personId, legalEntityId, employeeNo, contractNo, type, endDate, status, null);
+        }
     }
 
     private int[] expiryAlerts(LocalDate today) {
         List<Row> rows = db.jdbc().sql("""
                         select c.id, c.employment_id, e.person_id, e.legal_entity_id, e.employee_no, c.contract_no,
-                               c.contract_type_code, c.end_date, e.status
+                               c.contract_type_code, c.end_date, e.status, c.auto_conversion_due_since
                           from hr.contract c
                           join hr.employment e on e.tenant_id = c.tenant_id and e.id = c.employment_id
                          where c.tenant_id = :t and c.end_date is not null and c.contract_type_code <> 'PROBATION'
@@ -101,7 +111,8 @@ public class ContractMonitor implements ContractJobs {
                 .param("t", tenant())
                 .query((rs, n) -> new Row(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getObject(3, UUID.class), rs.getObject(4, UUID.class), rs.getString(5), rs.getString(6),
-                        rs.getString(7), rs.getObject(8, LocalDate.class), rs.getString(9)))
+                        rs.getString(7), rs.getObject(8, LocalDate.class), rs.getString(9),
+                        rs.getObject(10, LocalDate.class)))
                 .list();
         Map<UUID, TreeSet<Integer>> offsetsByLe = new HashMap<>();
         Map<UUID, Optional<Integer>> convertByLe = new HashMap<>();
@@ -111,7 +122,7 @@ public class ContractMonitor implements ContractJobs {
             long left = ChronoUnit.DAYS.between(today, r.endDate());
             if (left >= 0) {
                 Integer offset = offsetsByLe.computeIfAbsent(r.legalEntityId(), le -> offsets(le, today)).ceiling((int) left);
-                if (offset != null && !alreadyPublished(r, offset, false)) {
+                if (offset != null && !alreadyPublished(r, offset)) {
                     outbox.publish(new ContractExpiring(tenant(), r.legalEntityId(), r.personId(), r.employmentId(),
                             r.endDate(), r.contractId(), r.contractNo(), r.type(), r.endDate(), offset, false));
                     notify(ContractNotificationTemplates.CONTRACT_EXPIRING, r, today, Map.of("employeeNo",
@@ -122,7 +133,8 @@ public class ContractMonitor implements ContractJobs {
             } else if (("DEFINITE".equals(r.type()) || "SEASONAL".equals(r.type())) && !"PRE_HIRE".equals(r.status())) {
                 Optional<Integer> days = convertByLe.computeIfAbsent(r.legalEntityId(), le -> legal.find(
                         ContractKeys.DEFINITE_AUTO_CONVERT_DAYS, new Scope(le, null), today).map(v -> v.asInt()));
-                if (days.isPresent() && -left > days.get() && !alreadyPublished(r, 0, true)) {
+                if (days.isPresent() && -left > days.get() && r.autoConversionDueSince() == null
+                        && flagAutoConversion(r, r.endDate().plusDays(days.get() + 1L))) {
                     outbox.publish(new ContractExpiring(tenant(), r.legalEntityId(), r.personId(), r.employmentId(),
                             r.endDate(), r.contractId(), r.contractNo(), r.type(), r.endDate(), (int) left, true));
                     notify(ContractNotificationTemplates.AUTO_CONVERSION_DUE, r, today, Map.of("employeeNo",
@@ -145,16 +157,29 @@ public class ContractMonitor implements ContractJobs {
         return out;
     }
 
-    private boolean alreadyPublished(Row r, int offset, boolean autoConversion) {
+    /** The expiry alert of this contract and offset was already published. */
+    private boolean alreadyPublished(Row r, int offset) {
         return db.jdbc().sql("""
                         select exists (select 1 from hr.outbox_event
                                         where tenant_id = :t and event_type = 'people.ContractExpiring'
                                           and employment_id = :e and payload ->> 'contractId' = :c
-                                          and (payload ->> 'autoConversionDue')::boolean = :auto
-                                          and (:auto or (payload ->> 'daysBefore')::int = :o))""")
+                                          and not (payload ->> 'autoConversionDue')::boolean
+                                          and (payload ->> 'daysBefore')::int = :o)""")
                 .param("t", tenant()).param("e", r.employmentId()).param("c", r.contractId().toString())
-                .param("auto", autoConversion).param("o", offset)
+                .param("o", offset)
                 .query(Boolean.class).single();
+    }
+
+    /**
+     * Records the first day the contract counts as converted to indefinite (BR-PPL-054); false when another run set it
+     * first. A system update: the version is bumped so that pending edits of the contract reload.
+     */
+    private boolean flagAutoConversion(Row r, LocalDate dueSince) {
+        return db.jdbc().sql("""
+                        update hr.contract set auto_conversion_due_since = :since, version = version + 1
+                         where tenant_id = :t and id = :id and auto_conversion_due_since is null""")
+                .param("since", dueSince).param("t", tenant()).param("id", r.contractId())
+                .update() == 1;
     }
 
     // ------------------------------------------------------------------------------- probation (BR-PPL-052)

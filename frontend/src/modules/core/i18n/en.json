@@ -1,0 +1,24 @@
+{
+  "home": {
+    "welcome": "Hello, {name}",
+    "tasksPending": "Tasks to handle",
+    "unreadNotifications": "Unread notifications",
+    "quickLinks": "Quick links"
+  },
+  "me": {
+    "title": "My profile",
+    "login": "Login",
+    "email": "E-mail",
+    "tenant": "Tenant",
+    "locale": "Locale",
+    "roles": "Assigned roles",
+    "permissions": "Effective permissions",
+    "scope": "Scope",
+    "scopeType": { "TENANT": "Whole tenant", "LEGAL_ENTITY": "Legal entity", "LOCATION": "Location", "ORG_UNIT": "Org unit", "LINE_MANAGER": "Line manager", "SELF": "Self" },
+    "includeSubtree": "incl. subtree"
+  },
+  "placeholder": {
+    "title": "Under construction",
+    "body": "The {area} screens will follow."
+  }
+}

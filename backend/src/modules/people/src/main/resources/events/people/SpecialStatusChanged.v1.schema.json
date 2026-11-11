@@ -1,0 +1,43 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/SpecialStatusChanged.v1.schema.json",
+  "title" : "people.SpecialStatusChanged v1",
+  "description" : "Payload of people.SpecialStatusChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from SpecialStatusChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.SpecialStatusChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "personId", "employmentId", "specialStatusId", "statusType", "validFrom", "validTo", "change" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "specialStatusId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "statusType" : {
+      "type" : [ "string", "null" ]
+    },
+    "validFrom" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "validTo" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "change" : {
+      "type" : [ "string", "null" ]
+    }
+  }
+}

@@ -12,12 +12,13 @@ import java.util.UUID;
  * @param probationDays         probation clause of a DEFINITE / INDEFINITE contract (a PROBATION agreement derives it
  *                              from its term)
  * @param probationLevelCode    key of the legal parameter {@code contract.probation.max_days}; when null it is derived
- *                              from the employee's grade through the tenant setting {@code hr.probation_level_by_grade}
+ *                              from the employee's grade through the tenant setting {@code hr.probation_level_by_grade};
+ *                              the level applied is stored in {@code hr.contract.probation_level_code}
  * @param probationPayPct       probation pay in % of the job's salary, checked against the legal floor (the salary
  *                              record's {@code probation_pct} is checked too)
  * @param jobTitleId            the job probation is for ("once per job"); null = the primary assignment's job title
  * @param definiteExceptionCode legal exception allowing a further definite contract (BR-PPL-053)
- * @param definiteExceptionNote free-text justification of the exception (kept in the audit log)
+ * @param definiteExceptionNote free-text justification of the exception (stored on the contract and audited)
  */
 public record ContractTerms(String contractTypeCode, LocalDate startDate, LocalDate endDate, Integer probationDays,
         String signatoryName, String signatoryTitle, String probationLevelCode, BigDecimal probationPayPct,

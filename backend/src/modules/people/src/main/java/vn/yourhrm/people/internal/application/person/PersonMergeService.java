@@ -252,13 +252,13 @@ public class PersonMergeService {
         }
     }
 
-    /** Every hr base table with a person_id column, except the person itself and the outbox / inbox. */
+    /** Every hr base table with a person_id column, except the person itself and the outbox / inbox (and their partitions: the event history is never rewritten). */
     private List<String> childTables() {
         return db.jdbc().sql("""
                         select c.table_name from information_schema.columns c
                           join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name
                          where c.table_schema = 'hr' and c.column_name = 'person_id' and t.table_type = 'BASE TABLE'
-                           and c.table_name not in ('person','outbox_event','inbox_message')
+                           and c.table_name <> 'person' and c.table_name !~ '^(outbox_event|inbox_message)'
                          order by c.table_name""")
                 .query(String.class).list();
     }

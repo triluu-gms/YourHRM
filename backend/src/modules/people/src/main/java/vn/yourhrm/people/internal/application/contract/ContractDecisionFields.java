@@ -56,18 +56,19 @@ public class ContractDecisionFields {
             public Map<String, Object> values(Decision d) {
                 Map<String, Object> v = new HashMap<>(Map.of("contract.no", "", "probation.end_date", "",
                         "probation.result_vi", "", "probation.result_en", ""));
-                // the event of this decision, else (re-issued decision) the employment's latest result
-                db.jdbc().sql("""
-                                select payload ->> 'contractNo', payload ->> 'probationEndDate', payload ->> 'result'
-                                  from hr.outbox_event
-                                 where tenant_id = :t and event_type = 'people.ProbationCompleted' and employment_id = :e
-                                 order by (payload ->> 'decisionId' = :d) desc, id desc limit 1""")
+                // the contract this decision recorded, else (re-issued decision) the employment's latest result
+                db.jdbc().sql("select c.contract_no, " + ContractExpiryService.PROBATION_END + """
+                                       , c.probation_result
+                                  from hr.contract c
+                                 where c.tenant_id = :t and c.employment_id = :e and c.probation_result is not null
+                                 order by (c.probation_result_decision_id = :d) desc, c.probation_result_date desc,
+                                          c.updated_at desc limit 1""")
                         .param("t", TenantContext.current().tenantId()).param("e", d.employmentId())
-                        .param("d", d.id().toString())
+                        .param("d", d.id())
                         .query(rs -> {
                             v.put("contract.no", nz(rs.getString(1)));
-                            String end = rs.getString(2);
-                            v.put("probation.end_date", end == null ? "" : VN.format(LocalDate.parse(end)));
+                            LocalDate end = rs.getObject(2, LocalDate.class);
+                            v.put("probation.end_date", end == null ? "" : VN.format(end));
                             boolean pass = ProbationService.PASS.equals(rs.getString(3));
                             v.put("probation.result_vi", pass ? "Đạt" : "Không đạt");
                             v.put("probation.result_en", pass ? "Passed" : "Not passed");

@@ -141,4 +141,39 @@ class DecisionIT extends ContractTestBase {
                     .contains("31/05/2027").contains("001/2025/HĐLĐ-LE");
         }
     }
+
+    @Test
+    void aProbationResultDecisionPrintsTheResultStoredOnTheContract() throws Exception {
+        World w = world("dec-probation");
+        UUID c = signedContract(w, w.emp().employmentId(), "{\"contractTypeCode\":\"DEFINITE\",\"startDate\":\"2025-01-01\","
+                + "\"endDate\":\"2025-12-31\",\"probationDays\":30,\"probationLevelCode\":\"INTERMEDIATE\"}");
+        String r = postJson(w.hr(), "/api/v1/people/contracts/" + c + "/probation-result",
+                "{\"result\":\"PASS\",\"resultDate\":\"2025-01-28\",\"signatoryName\":\"Lê Văn Giám\"}")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        UUID decision = UUID.fromString(JsonPath.read(r, "$.decisionId"));
+        assertThat(ADMIN.queryForObject("select probation_result_decision_id from hr.contract where id = ?", UUID.class, c))
+                .isEqualTo(decision);
+
+        UUID template = id(mvc.perform(post("/api/v1/core/document-templates").with(as(w.hr()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"HR_DECISION_PROBATION_RESULT\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        String html = "<html><body><h1>{{decision.no}}</h1><p>{{contract.no}} {{probation.end_date}}</p>"
+                + "<p>{{probation.result_vi}} / {{probation.result_en}}</p></body></html>";
+        String uploaded = mvc.perform(multipart("/api/v1/core/document-templates/" + template + "/versions")
+                        .file(new MockMultipartFile("file", "qd.html", "text/html", html.getBytes(StandardCharsets.UTF_8)))
+                        .param("validFrom", "2025-01-01").with(as(w.hr())))
+                .andReturn().getResponse().getContentAsString();
+        UUID version = UUID.fromString(JsonPath.read(uploaded, "$.versions[0].id"));
+        mvc.perform(post("/api/v1/core/document-templates/" + template + "/versions/" + version + "/publish")
+                .with(as(w.hr()))).andExpect(status().isOk());
+        String generated = mvc.perform(post("/api/v1/people/decisions/" + decision + "/document").with(as(w.hr())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String key = ADMIN.queryForObject("""
+                select dv.object_key from core.document_version dv where dv.tenant_id = ? and dv.document_id = ?""",
+                String.class, w.tenant(), UUID.fromString(JsonPath.read(generated, "$.documentId")));
+        try (PDDocument d = Loader.loadPDF(new TestObjectStorage().get(w.tenant(), key))) {
+            String text = new PDFTextStripper().getText(d).replaceAll("\\R", "");
+            assertThat(text).contains("001/2025/HĐLĐ-LE").contains("30/01/2025").contains("Đạt").contains("Passed");
+        }
+    }
 }

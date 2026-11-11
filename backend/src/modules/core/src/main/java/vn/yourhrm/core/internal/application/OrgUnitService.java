@@ -13,13 +13,17 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.yourhrm.core.api.AuditLog;
+import vn.yourhrm.core.api.AuditLog.BusinessAction;
 import vn.yourhrm.core.api.CoreEvents.OrgUnitChanged;
 import vn.yourhrm.core.api.CorePermissions;
 import vn.yourhrm.core.api.OrgUnitAssignments;
 import vn.yourhrm.core.internal.infra.EffectiveDatedVersions;
+import vn.yourhrm.core.internal.infra.EffectiveDatedVersions.Removal;
 import vn.yourhrm.core.internal.infra.EffectiveDatedVersions.Slot;
 import vn.yourhrm.shared.auth.api.AuthorizationService;
 import vn.yourhrm.shared.auth.api.AuthorizationTarget;
@@ -54,16 +58,19 @@ public class OrgUnitService {
     private final EffectiveDatedVersions versions;
     private final OrgUnitAssignments assignments;
     private final ApplicationEventPublisher events;
+    private final AuditLog audit;
     private final BusinessClock clock;
 
     public OrgUnitService(JdbcClient jdbc, AuthorizationService authz, EffectiveDatedVersions versions,
-            ObjectProvider<OrgUnitAssignments> assignments, ApplicationEventPublisher events, BusinessClock clock) {
+            ObjectProvider<OrgUnitAssignments> assignments, ApplicationEventPublisher events, AuditLog audit,
+            BusinessClock clock) {
         this.jdbc = jdbc;
         this.authz = authz;
         this.versions = versions;
         // People implements OrgUnitAssignments; until then the documented stub (no assignments) applies.
         this.assignments = assignments.getIfAvailable(() -> OrgUnitAssignments.NONE);
         this.events = events;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -72,9 +79,21 @@ public class OrgUnitService {
             UUID locationId, UUID costCentreId, UUID managerUserId, Integer sortOrder) {
     }
 
+    /**
+     * One version of a unit plus display names of what it references (as of the requested date, or of the version's
+     * start for the history), so clients need no extra lookups. {@code version} is the unit's optimistic-lock token
+     * (anchor, whole history): send it back with every change, close or removal.
+     */
     public record OrgUnitView(UUID id, String code, UUID versionId, LocalDate validFrom, LocalDate validTo,
-            String nameVi, String nameEn, UUID typeId, String typeCode, UUID parentId, UUID legalEntityId,
-            UUID locationId, UUID costCentreId, UUID managerUserId, int sortOrder, String status, int depth) {
+            String nameVi, String nameEn, UUID typeId, String typeCode, String typeNameVi, String typeNameEn,
+            UUID parentId, UUID legalEntityId, String legalEntityCode, String legalEntityName,
+            UUID locationId, String locationCode, String locationName,
+            UUID costCentreId, String costCentreCode, String costCentreName,
+            UUID managerUserId, String managerName, int sortOrder, String status, int depth, int version) {
+    }
+
+    /** Minimal picker entry (id + code + display name): nothing else leaves the server. */
+    public record LookupItem(UUID id, String code, String name) {
     }
 
     // ------------------------------------------------------------------------------------------------ reads
@@ -101,7 +120,7 @@ public class OrgUnitService {
                            and (cast(:q as text) is null or lower(u.code) like :q or lower(v.name_vi) like :q
                                 or lower(coalesce(v.name_en, '')) like :q)
                            and\s""" + scope.sql() + " order by v.path")
-                .param("t", tenant).param("d", date).param("closed", includeClosed).param("root", rootPath)
+                .param("t", tenant).param("d", date).param("nd", date).param("closed", includeClosed).param("root", rootPath)
                 .param("q", q).params(scope.params())
                 .query((rs, n) -> map(rs)).list();
     }
@@ -119,7 +138,7 @@ public class OrgUnitService {
     public List<OrgUnitView> history(UUID id) {
         assertCan(CorePermissions.ORG_UNIT_VIEW, id, clock.today());
         List<OrgUnitView> history = jdbc.sql(SELECT + " where v.tenant_id = :t and v.org_unit_id = :id order by v.valid_from")
-                .param("t", TenantContext.current().tenantId()).param("id", id)
+                .param("t", TenantContext.current().tenantId()).param("id", id).param("nd", null)
                 .query((rs, n) -> map(rs)).list();
         if (history.isEmpty()) {
             throw ApiException.notFound("Org unit", id);
@@ -148,7 +167,8 @@ public class OrgUnitService {
         SqlFragment scope = authz.scopeFor(CorePermissions.ORG_UNIT_VIEW, date).toSql(SCOPE_COLUMNS, "s");
         return jdbc.sql(SELECT + " where v.tenant_id = :t and v.valid_during @> cast(:d as date) and v.org_unit_id <> :id"
                         + " and " + pathCondition + " and " + scope.sql() + " order by v.path")
-                .param("t", tenant).param("d", date).param("id", id).param("p", path).params(scope.params())
+                .param("t", tenant).param("d", date).param("nd", date).param("id", id).param("p", path)
+                .params(scope.params())
                 .query((rs, n) -> map(rs)).list();
     }
 
@@ -188,10 +208,12 @@ public class OrgUnitService {
      * are. Moving a unit re-paths its whole subtree from D.
      */
     @Transactional
-    public OrgUnitView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a) {
+    public OrgUnitView changeFrom(UUID id, LocalDate effectiveFrom, Attributes a, Integer expectedVersion) {
         UUID tenant = TenantContext.current().tenantId();
         assertCan(CorePermissions.ORG_UNIT_UPDATE, id, effectiveFrom);
         lockTenantTree(tenant);
+        versions.checkAndBump(EffectiveDatedVersions.ORG_UNIT, tenant, id, expectedVersion,
+                TenantContext.current().userAccountId(), "Org unit " + id);
         Slot slot = versions.slotFor(EffectiveDatedVersions.ORG_UNIT, tenant, id, effectiveFrom);
         OrgUnitView before = find(id, effectiveFrom).orElseThrow();
         if (!Objects.equals(before.parentId(), a.parentId()) && a.parentId() != null
@@ -215,6 +237,7 @@ public class OrgUnitService {
                     .params(p).update();
         }
         Set<UUID> moved = normalisePaths(tenant);
+        bumpOthers(tenant, id, moved);
         String change = Objects.equals(before.parentId(), a.parentId()) ? "CHANGED" : "MOVED";
         events.publishEvent(new OrgUnitChanged(tenant, id, change, effectiveFrom, Set.copyOf(moved)));
         return find(id, effectiveFrom).orElseThrow();
@@ -226,10 +249,12 @@ public class OrgUnitService {
      * one covering that date (conflicting future changes must be removed first).
      */
     @Transactional
-    public OrgUnitView close(UUID id, LocalDate effectiveFrom) {
+    public OrgUnitView close(UUID id, LocalDate effectiveFrom, int expectedVersion) {
         UUID tenant = TenantContext.current().tenantId();
         assertCan(CorePermissions.ORG_UNIT_UPDATE, id, effectiveFrom);
         lockTenantTree(tenant);
+        versions.checkAndBump(EffectiveDatedVersions.ORG_UNIT, tenant, id, expectedVersion,
+                TenantContext.current().userAccountId(), "Org unit " + id);
         Slot slot = versions.slotFor(EffectiveDatedVersions.ORG_UNIT, tenant, id, effectiveFrom);
         OrgUnitView current = find(id, effectiveFrom).orElseThrow();
         if ("CLOSED".equals(current.status())) {
@@ -265,6 +290,114 @@ public class OrgUnitService {
         return find(id, effectiveFrom).orElseThrow();
     }
 
+    /**
+     * Removes a planned (not yet effective) version of a unit, e.g. a planned move or close that blocks a close
+     * ({@code future-versions-exist}). The version before it is extended over the freed period and re-validated
+     * there; paths are re-derived. Audited as {@code REMOVE_PLANNED_VERSION}.
+     */
+    @Transactional
+    public OrgUnitView removePlannedVersion(UUID id, UUID versionId, int expectedVersion) {
+        UUID tenant = TenantContext.current().tenantId();
+        LocalDate today = clock.today();
+        assertCan(CorePermissions.ORG_UNIT_UPDATE, id, today);
+        lockTenantTree(tenant);
+        versions.checkAndBump(EffectiveDatedVersions.ORG_UNIT, tenant, id, expectedVersion,
+                TenantContext.current().userAccountId(), "Org unit " + id);
+        Removal removal = versions.removePlanned(EffectiveDatedVersions.ORG_UNIT, tenant, id, versionId, today);
+        OrgUnitView extended = find(id, removal.extended().validFrom()).orElseThrow();
+        if ("ACTIVE".equals(extended.status())) {
+            validate(tenant, id, removal.removed().validFrom(), removal.removed().validTo(), new Attributes(
+                    extended.nameVi(), extended.nameEn(), extended.typeId(), extended.parentId(),
+                    extended.legalEntityId(), extended.locationId(), extended.costCentreId(), extended.managerUserId(),
+                    extended.sortOrder()));
+        }
+        Set<UUID> moved = normalisePaths(tenant);
+        bumpOthers(tenant, id, moved);
+        audit.record(new BusinessAction("REMOVE_PLANNED_VERSION", "core", "org_unit", id, extended.legalEntityId(),
+                Map.of("versionId", versionId.toString(), "validFrom", removal.removed().validFrom().toString())));
+        events.publishEvent(new OrgUnitChanged(tenant, id, "VERSION_REMOVED", removal.removed().validFrom(),
+                Set.copyOf(moved)));
+        return find(id, removal.removed().validFrom()).orElseThrow();
+    }
+
+    // ------------------------------------------------------------------------------------------------ pickers
+
+    /**
+     * Active users to pick as a unit manager (P1 {@code manager_user_id}): id, login, display name only. For callers
+     * who may create or change org units, so the org form works without {@code core.user.view}.
+     */
+    @Transactional(readOnly = true)
+    public List<LookupItem> managerCandidates(String query, int limit) {
+        assertMayWriteSomeUnit();
+        String q = query == null || query.isBlank() ? null : "%" + query.trim().toLowerCase() + "%";
+        return jdbc.sql("""
+                        select id, login, coalesce(display_name, login) as name from core.user_account
+                         where tenant_id = :t and status = 'ACTIVE'
+                           and (cast(:q as text) is null or lower(login) like :q or lower(coalesce(display_name, '')) like :q)
+                         order by lower(coalesce(display_name, login)) limit :limit""")
+                .param("t", TenantContext.current().tenantId()).param("q", q).param("limit", limit)
+                .query((rs, n) -> new LookupItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)))
+                .list();
+    }
+
+    /**
+     * Cost centres of {@code legalEntityId} valid on {@code asOf} (id, code, name) for the org form, without
+     * {@code core.cost_centre.view}. Data scope: the caller must be able to create a root in that legal entity or to
+     * create / change at least one unit of it on that date; otherwise the legal entity looks missing (404).
+     */
+    @Transactional(readOnly = true)
+    public List<LookupItem> costCentreCandidates(UUID legalEntityId, LocalDate asOf) {
+        assertMayWriteSomeUnit();
+        LocalDate date = asOf == null ? clock.today() : asOf;
+        UUID tenant = TenantContext.current().tenantId();
+        if (!mayWriteInLegalEntity(tenant, legalEntityId, date)) {
+            throw ApiException.notFound("Legal entity", legalEntityId);
+        }
+        return jdbc.sql("""
+                        select id, code, name from core.cost_centre
+                         where tenant_id = :t and legal_entity_id = :le
+                           and valid_from <= :d and (valid_to is null or valid_to > :d)
+                         order by code""")
+                .param("t", tenant).param("le", legalEntityId).param("d", date)
+                .query((rs, n) -> new LookupItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)))
+                .list();
+    }
+
+    private void assertMayWriteSomeUnit() {
+        if (!authz.hasPermission(CorePermissions.ORG_UNIT_CREATE) && !authz.hasPermission(CorePermissions.ORG_UNIT_UPDATE)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "forbidden",
+                    "Picking org unit references needs core.org_unit.create or core.org_unit.update");
+        }
+    }
+
+    private boolean mayWriteInLegalEntity(UUID tenant, UUID legalEntityId, LocalDate date) {
+        if (authz.can(CorePermissions.ORG_UNIT_CREATE, new AuthorizationTarget.LegalEntity(legalEntityId), date)
+                || authz.can(CorePermissions.ORG_UNIT_UPDATE, new AuthorizationTarget.LegalEntity(legalEntityId), date)) {
+            return true;
+        }
+        for (String permission : List.of(CorePermissions.ORG_UNIT_CREATE, CorePermissions.ORG_UNIT_UPDATE)) {
+            SqlFragment scope = authz.scopeFor(permission, date).toSql(SCOPE_COLUMNS, "s");
+            if (jdbc.sql("select exists (select 1 from core.org_unit_version v where v.tenant_id = :t"
+                            + " and v.legal_entity_id = :le and v.valid_during @> cast(:d as date) and " + scope.sql() + ")")
+                    .param("t", tenant).param("le", legalEntityId).param("d", date).params(scope.params())
+                    .query(Boolean.class).single()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Units whose versions were split or re-pathed by a write of another unit get a new lock token too. */
+    private void bumpOthers(UUID tenant, UUID id, Set<UUID> moved) {
+        List<UUID> others = moved.stream().filter(m -> !m.equals(id)).toList();
+        if (!others.isEmpty()) {
+            jdbc.sql("update core.org_unit set version = version + 1, updated_at = now(), updated_by = :actor"
+                            + " where tenant_id = :t and id in (:ids)")
+                    .param("actor", TenantContext.current().userAccountId()).param("t", tenant).param("ids", others)
+                    .update();
+        }
+    }
+
     // ------------------------------------------------------------------------------------------------ validation
 
     /** Validates a version over [from, to) ({@code to} null = open-ended). */
@@ -289,7 +422,7 @@ public class OrgUnitService {
         }
         if (a.locationId() != null && !exists("""
                         select 1 from core.location where tenant_id = :t and id = :loc and legal_entity_id = :le
-                           and status = 'ACTIVE'""", with(w, "loc", a.locationId()))) {
+                           and (status = 'ACTIVE' or closed_from > :from)""", with(w, "loc", a.locationId()))) {
             throw ApiException.unprocessable("invalid-location",
                     "Location " + a.locationId() + " is not an active location of the unit's legal entity");
         }
@@ -489,15 +622,36 @@ public class OrgUnitService {
 
     private Optional<OrgUnitView> find(UUID id, LocalDate date) {
         return jdbc.sql(SELECT + " where v.tenant_id = :t and v.org_unit_id = :id and v.valid_during @> cast(:d as date)")
-                .param("t", TenantContext.current().tenantId()).param("id", id).param("d", date)
+                .param("t", TenantContext.current().tenantId()).param("id", id).param("d", date).param("nd", date)
                 .query((rs, n) -> map(rs)).optional();
     }
 
+    /**
+     * Version + anchor + display names. {@code :nd} is the date the referenced names are taken at (null = the
+     * version's own start, used by the history); a reference without a version on that date falls back to its
+     * latest name.
+     */
     private static final String SELECT = """
-            select u.code as unit_code, t.code as type_code, v.*
+            select u.code as unit_code, u.version as unit_version, t.code as type_code, t.name_vi as type_name_vi,
+                   t.name_en as type_name_en, le.code as le_code, lev.le_name, loc.code as loc_code, locv.loc_name,
+                   cc.code as cc_code, cc.name as cc_name, coalesce(mgr.display_name, mgr.login) as mgr_name, v.*
               from core.org_unit_version v
               join core.org_unit u on u.tenant_id = v.tenant_id and u.id = v.org_unit_id
               join core.org_unit_type t on t.tenant_id = v.tenant_id and t.id = v.org_unit_type_id
+              join core.legal_entity le on le.tenant_id = v.tenant_id and le.id = v.legal_entity_id
+              left join lateral (
+                    select coalesce(x.short_name, x.legal_name_vi) as le_name from core.legal_entity_version x
+                     where x.tenant_id = v.tenant_id and x.legal_entity_id = v.legal_entity_id
+                     order by (x.valid_during @> coalesce(cast(:nd as date), v.valid_from)) desc, x.valid_from desc
+                     limit 1) lev on true
+              left join core.location loc on loc.tenant_id = v.tenant_id and loc.id = v.location_id
+              left join lateral (
+                    select x.name as loc_name from core.location_version x
+                     where x.tenant_id = v.tenant_id and x.location_id = v.location_id
+                     order by (x.valid_during @> coalesce(cast(:nd as date), v.valid_from)) desc, x.valid_from desc
+                     limit 1) locv on true
+              left join core.cost_centre cc on cc.tenant_id = v.tenant_id and cc.id = v.cost_centre_id
+              left join core.user_account mgr on mgr.tenant_id = v.tenant_id and mgr.id = v.manager_user_id
             """;
 
     private static OrgUnitView map(ResultSet rs) throws SQLException {
@@ -505,9 +659,12 @@ public class OrgUnitService {
                 rs.getObject("id", UUID.class), rs.getObject("valid_from", LocalDate.class),
                 rs.getObject("valid_to", LocalDate.class), rs.getString("name_vi"), rs.getString("name_en"),
                 rs.getObject("org_unit_type_id", UUID.class), rs.getString("type_code"),
+                rs.getString("type_name_vi"), rs.getString("type_name_en"),
                 rs.getObject("parent_id", UUID.class), rs.getObject("legal_entity_id", UUID.class),
-                rs.getObject("location_id", UUID.class), rs.getObject("cost_centre_id", UUID.class),
-                rs.getObject("manager_user_id", UUID.class), rs.getInt("sort_order"), rs.getString("status"),
-                rs.getInt("depth"));
+                rs.getString("le_code"), rs.getString("le_name"),
+                rs.getObject("location_id", UUID.class), rs.getString("loc_code"), rs.getString("loc_name"),
+                rs.getObject("cost_centre_id", UUID.class), rs.getString("cc_code"), rs.getString("cc_name"),
+                rs.getObject("manager_user_id", UUID.class), rs.getString("mgr_name"), rs.getInt("sort_order"),
+                rs.getString("status"), rs.getInt("depth"), rs.getInt("unit_version"));
     }
 }

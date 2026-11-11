@@ -1,0 +1,24 @@
+{
+  "home": {
+    "welcome": "Xin chào, {name}",
+    "tasksPending": "Việc cần xử lý",
+    "unreadNotifications": "Thông báo chưa đọc",
+    "quickLinks": "Truy cập nhanh"
+  },
+  "me": {
+    "title": "Hồ sơ của tôi",
+    "login": "Tên đăng nhập",
+    "email": "E-mail",
+    "tenant": "Tenant",
+    "locale": "Ngôn ngữ",
+    "roles": "Vai trò được gán",
+    "permissions": "Quyền hiệu lực",
+    "scope": "Phạm vi",
+    "scopeType": { "TENANT": "Toàn tenant", "LEGAL_ENTITY": "Pháp nhân", "LOCATION": "Địa điểm", "ORG_UNIT": "Đơn vị tổ chức", "LINE_MANAGER": "Quản lý trực tiếp", "SELF": "Bản thân" },
+    "includeSubtree": "gồm cây con"
+  },
+  "placeholder": {
+    "title": "Đang phát triển",
+    "body": "Màn hình {area} sẽ được bổ sung."
+  }
+}

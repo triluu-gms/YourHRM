@@ -172,7 +172,9 @@ class AccessControlIT extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"effectiveFrom\":\"" + clock.today() + "\",\"attributes\":{\"nameVi\":\"Kinh doanh\","
                                 + "\"typeId\":\"" + unitType(tenant) + "\",\"parentId\":\"" + root + "\",\"legalEntityId\":\""
-                                + le + "\",\"managerUserId\":\"" + successor.userId() + "\"}}"))
+                                + le + "\",\"managerUserId\":\"" + successor.userId() + "\"},\"version\":"
+                                + ADMIN.queryForObject("select version from core.org_unit where id = ?::uuid", Integer.class, sales)
+                                + "}"))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/v1/core/org-units").with(as(manager))).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/core/org-units").with(as(successor)))

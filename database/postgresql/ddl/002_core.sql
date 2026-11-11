@@ -373,10 +373,13 @@ CREATE TABLE core.location (
   updated_at       timestamptz NOT NULL DEFAULT now(),
   updated_by       uuid,
   version          int NOT NULL DEFAULT 0,
+  closed_from      date,                           -- US-CORE-007: closed from this date (history ends the day before);
+                                                   -- set together with status CLOSED (the closure is final)
   CONSTRAINT location_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT location_code_uq UNIQUE (tenant_id, code),
   CONSTRAINT location_le_fk FOREIGN KEY (tenant_id, legal_entity_id) REFERENCES core.legal_entity (tenant_id, id),
-  CONSTRAINT location_status_ck CHECK (status IN ('ACTIVE','CLOSED'))
+  CONSTRAINT location_status_ck CHECK (status IN ('ACTIVE','CLOSED')),
+  CONSTRAINT location_closed_from_ck CHECK (closed_from IS NULL OR status = 'CLOSED')
 );
 
 CREATE TABLE core.location_version (
@@ -454,6 +457,7 @@ CREATE TABLE core.org_unit_type (
   level_hint  smallint,
   sort_order  int NOT NULL DEFAULT 0,              -- US-CORE-010
   is_active   boolean NOT NULL DEFAULT true,       -- US-CORE-010: inactive types cannot be used by new versions
+  version     int NOT NULL DEFAULT 0,              -- optimistic locking of PUT /org-unit-types/{id}
   CONSTRAINT org_unit_type_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT org_unit_type_code_uq UNIQUE (tenant_id, code)
 );
@@ -464,6 +468,10 @@ CREATE TABLE core.org_unit (
   code          text NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   created_by    uuid,
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  updated_by    uuid,
+  version       int NOT NULL DEFAULT 0,            -- optimistic lock over the unit's whole history (bumped by every
+                                                   -- effective-dated change, close or removal of a planned version)
   CONSTRAINT org_unit_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT org_unit_code_uq UNIQUE (tenant_id, code)
 );

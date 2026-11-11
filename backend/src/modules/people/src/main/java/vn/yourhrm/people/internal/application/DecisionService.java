@@ -81,6 +81,39 @@ public class DecisionService {
         return find(id).orElseThrow();
     }
 
+    /**
+     * Issues a numbered decision that still awaits the approval of the change it carries (PENDING_APPROVAL), e.g. a hire
+     * whose workflow is running; {@link #approve} or {@link #cancel} settles it. The number is drawn now so the
+     * approver sees the document that will be issued.
+     */
+    @HrTransactional
+    public Decision issuePending(Issue issue) {
+        Decision d = issue(issue);
+        db.jdbc().sql("""
+                        update hr.decision set status = 'PENDING_APPROVAL', version = version + 1, updated_at = now()
+                         where tenant_id = :t and id = :id and status = 'APPROVED'""")
+                .param("t", TenantContext.current().tenantId()).param("id", d.id()).update();
+        return find(d.id()).orElseThrow();
+    }
+
+    /** The carried change was approved (PENDING_APPROVAL → APPROVED). Idempotent for an already approved decision. */
+    @HrTransactional
+    public Decision approve(UUID id, UUID workflowInstanceId) {
+        int updated = db.jdbc().sql("""
+                        update hr.decision set status = 'APPROVED', workflow_instance_id = coalesce(:wf, workflow_instance_id),
+                               version = version + 1, updated_by = :actor, updated_at = now()
+                         where tenant_id = :t and id = :id and status = 'PENDING_APPROVAL'""")
+                .param("wf", workflowInstanceId).param("actor", TenantContext.current().userAccountId())
+                .param("t", TenantContext.current().tenantId()).param("id", id)
+                .update();
+        Decision d = find(id).orElseThrow(() -> ApiException.notFound("Decision", id));
+        if (updated == 0 && !"APPROVED".equals(d.status())) {
+            throw ApiException.conflict("invalid-status-transition", "Decision " + d.decisionNo() + " is "
+                    + d.status() + ", expected PENDING_APPROVAL");
+        }
+        return d;
+    }
+
     /** Records the paper signature: sign date and the signed scan in Core's document service (APPROVED → SIGNED). */
     @HrTransactional
     public Decision markSigned(UUID id, LocalDate signDate, UUID documentId, int expectedVersion) {

@@ -1,0 +1,88 @@
+{
+  "common": {
+    "codeRequired": "Mã là bắt buộc.",
+    "codeInvalid": "Chỉ gồm chữ, số, '_', '.', '-' (tối đa 32).",
+    "codeImmutable": "Mã không thể thay đổi sau khi tạo.",
+    "nameRequired": "Tên là bắt buộc.",
+    "includeInactive": "Hiện cả mục ngừng dùng",
+    "notFound": "Không tìm thấy bản ghi.",
+    "details": "Chi tiết",
+    "active": "Đang dùng",
+    "uuidInvalid": "Phải là UUID hợp lệ."
+  },
+  "jobTitle": {
+    "title": "Chức danh",
+    "subtitle": "Danh mục chức danh, phân loại nghề nặng nhọc, độc hại theo luật định và khung ngạch bậc mặc định.",
+    "tab": "Chức danh",
+    "create": "Tạo chức danh",
+    "edit": "Sửa chức danh",
+    "detailTitle": "Chức danh {code}",
+    "search": "Tìm theo mã hoặc tên",
+    "allFamilies": "Tất cả nhóm chức danh",
+    "noFamily": "Không thuộc nhóm",
+    "hazardousOnly": "Nặng nhọc, độc hại",
+    "notHazardous": "Không nặng nhọc, độc hại",
+    "field": {
+      "family": "Nhóm chức danh",
+      "hazardousCategory": "Loại nghề nặng nhọc, độc hại",
+      "hazardous": "Nặng nhọc, độc hại",
+      "occupationCode": "Mã nghề",
+      "description": "Mô tả (tóm tắt JD)",
+      "jdDocumentId": "Tài liệu JD (mã)",
+      "gradeStructure": "Ngạch (khung mặc định)",
+      "defaultGradeMin": "Bậc mặc định thấp nhất",
+      "defaultGradeMax": "Bậc mặc định cao nhất",
+      "defaultGradeRange": "Khung bậc mặc định"
+    },
+    "hazardHint": "Để trống nếu nghề không thuộc danh mục nặng nhọc, độc hại (TT 11/2020/TT-BLĐTBXH). Khi thay đổi, các phân hệ Nhân sự, Chấm công và Tính lương sẽ được thông báo.",
+    "jdHint": "Tài liệu được tải lên trong khu vực Tài liệu; dán mã tài liệu vào đây.",
+    "gradeRangeHint": "Chọn cả hai đầu trong cùng một ngạch, bậc thấp trước, hoặc để trống cả hai.",
+    "gradeRangeBoth": "Chọn cả hai đầu của khung hoặc để trống cả hai.",
+    "gradeRangeOrder": "Bậc thấp nhất phải có thứ hạng không cao hơn bậc cao nhất.",
+    "occupationHint": "Mã nghề theo danh mục nghề nghiệp Việt Nam, dùng cho báo cáo theo luật định."
+  },
+  "jobFamily": {
+    "tab": "Nhóm chức danh",
+    "create": "Tạo nhóm chức danh",
+    "edit": "Sửa nhóm chức danh",
+    "inactiveSuffix": "(ngừng dùng)"
+  },
+  "gradeStructure": {
+    "title": "Ngạch bậc",
+    "subtitle": "Các ngạch và bậc theo thứ hạng. Thang lương và khung lương theo bậc được quản lý ở phân hệ Tính lương.",
+    "create": "Tạo ngạch",
+    "rename": "Đổi tên",
+    "renameTitle": "Đổi tên ngạch {code}",
+    "detailTitle": "Ngạch {code}",
+    "gradeCount": "Số bậc"
+  },
+  "grade": {
+    "title": "Bậc",
+    "create": "Thêm bậc",
+    "edit": "Sửa bậc {code}",
+    "allPeriods": "Mọi thời kỳ (gồm bậc ngừng dùng và đã kết thúc)",
+    "noPayNote": "Bậc không chứa mức lương (BR-CORE-021); khung lương theo bậc thuộc phân hệ Tính lương.",
+    "field": {
+      "rankOrder": "Thứ hạng",
+      "validity": "Thời hạn hiệu lực"
+    },
+    "rankRequired": "Thứ hạng là bắt buộc.",
+    "rankHint": "Duy nhất trong ngạch tại mọi thời điểm; thứ hạng nhỏ hơn = bậc thấp hơn.",
+    "validFromHint": "Để trống để bắt đầu từ hôm nay. Không thể thay đổi sau này.",
+    "validToHint": "Ngày kết thúc (không bao gồm): bậc có hiệu lực đến ngày hôm trước. Để trống nếu không thời hạn.",
+    "validToAfterFrom": "Ngày kết thúc phải sau ngày bắt đầu.",
+    "activeHint": "Bậc ngừng dùng bị ẩn khỏi danh sách chọn và không dùng được cho khung mặc định mới."
+  },
+  "errors": {
+    "job-family-code-taken": "Mã nhóm chức danh đã tồn tại.",
+    "job-title-code-taken": "Mã chức danh đã tồn tại.",
+    "invalid-job-family": "Nhóm chức danh không tồn tại hoặc đã ngừng dùng.",
+    "unknown-hazardous-category": "Loại nghề nặng nhọc, độc hại không có trong danh mục luật định.",
+    "unknown-document": "Tài liệu được tham chiếu không tồn tại.",
+    "invalid-grade-range": "Khung bậc mặc định phải gồm hai bậc đang dùng của cùng một ngạch, bậc thấp trước.",
+    "grade-structure-code-taken": "Mã ngạch đã tồn tại.",
+    "grade-code-taken": "Mã bậc đã tồn tại trong ngạch này.",
+    "grade-rank-taken": "Thứ hạng này đã được bậc khác dùng trong khoảng thời gian trùng lặp.",
+    "invalid-period": "Ngày kết thúc phải sau ngày bắt đầu."
+  }
+}

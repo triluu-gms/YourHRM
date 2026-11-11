@@ -1,0 +1,102 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/EmployeeTerminated.v1.schema.json",
+  "title" : "people.EmployeeTerminated v1",
+  "description" : "Payload of people.EmployeeTerminated (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from EmployeeTerminated; a breaking change needs a new schema version.",
+  "x-eventType" : "people.EmployeeTerminated",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "legalEntityId", "personId", "employmentId", "effectiveDate", "separationId", "decisionId", "separationType", "legalGroundCode", "statutoryCode", "lastWorkingDate", "terminationDate", "noticeShortfallDays", "severanceType", "severanceEligibility", "servicePeriods", "accessRevocationDate", "rehireEligible", "retro" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "legalEntityId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "employmentId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "separationId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "decisionId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "separationType" : {
+      "type" : [ "string", "null" ]
+    },
+    "legalGroundCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "statutoryCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "lastWorkingDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "terminationDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "noticeShortfallDays" : {
+      "type" : [ "integer", "null" ]
+    },
+    "severanceType" : {
+      "type" : [ "string", "null" ]
+    },
+    "severanceEligibility" : {
+      "type" : [ "string", "null" ]
+    },
+    "servicePeriods" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "required" : [ "periodKind", "periodFrom", "periodTo", "sourceEmploymentId" ],
+        "properties" : {
+          "periodKind" : {
+            "type" : [ "string", "null" ]
+          },
+          "periodFrom" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "periodTo" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "sourceEmploymentId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          }
+        }
+      }
+    },
+    "accessRevocationDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "rehireEligible" : {
+      "type" : [ "boolean", "null" ]
+    },
+    "retro" : {
+      "type" : "boolean"
+    }
+  }
+}

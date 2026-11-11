@@ -21,19 +21,23 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  * The expiry list (BR-PPL-054, US-PPL-051/052): contracts ending within N days, and definite contracts that ended
  * without a following contract while the employee keeps working (with the auto-conversion flag once the legal number
  * of days has passed), plus the probations ending without a recorded result. Filtered by the caller's data scope of
- * {@code hr.contract.view}. The auto-conversion flag is derived (the DDL has no column for it).
+ * {@code hr.contract.view}. The auto-conversion flag is set when the monitor recorded
+ * {@code hr.contract.auto_conversion_due_since}, or derived for the requested date before the monitor ran.
  */
 @Service
 public class ContractExpiryService {
 
     /**
-     * @param autoConversionDue    worked more than {@code contract.definite.auto_convert_after_days} days past the end
-     *                             without a new contract (null when the legal parameter is missing)
-     * @param nextMustBeIndefinite the consecutive-definite limit is reached: a renewal needs a legal exception
+     * @param autoConversionDue      worked more than {@code contract.definite.auto_convert_after_days} days past the
+     *                               end without a new contract (null when the legal parameter is missing and the
+     *                               monitor has not flagged it)
+     * @param autoConversionDueSince first day the contract counts as converted, as recorded by the daily monitor
+     * @param nextMustBeIndefinite   the consecutive-definite limit is reached: a renewal needs a legal exception
      */
     public record ExpiringContract(UUID contractId, UUID employmentId, UUID legalEntityId, String employeeNo,
             String contractNo, String contractTypeCode, Integer definiteSeq, LocalDate endDate, String status,
-            long daysLeft, UUID followingContractId, Boolean autoConversionDue, Boolean nextMustBeIndefinite) {
+            long daysLeft, UUID followingContractId, Boolean autoConversionDue, LocalDate autoConversionDueSince,
+            Boolean nextMustBeIndefinite) {
     }
 
     public record EndingProbation(UUID contractId, UUID employmentId, UUID legalEntityId, String employeeNo,
@@ -51,10 +55,7 @@ public class ContractExpiryService {
             (case when c.contract_type_code = 'PROBATION' then c.end_date
                   when coalesce(c.probation_days, 0) > 0 then c.start_date + (c.probation_days - 1) end)""";
 
-    static final String NO_RESULT = """
-            not exists (select 1 from hr.outbox_event o
-                         where o.tenant_id = c.tenant_id and o.event_type = 'people.ProbationCompleted'
-                           and o.employment_id = c.employment_id and o.payload ->> 'contractId' = c.id::text)""";
+    static final String NO_RESULT = "c.probation_result is null ";
 
     private final HrDb db;
     private final EmployeeAccess access;
@@ -77,7 +78,7 @@ public class ContractExpiryService {
         Map<UUID, Optional<Integer>> maxConsecutive = new HashMap<>();
         return db.jdbc().sql("select c.id, c.employment_id, e.legal_entity_id, e.employee_no, c.contract_no, "
                         + "c.contract_type_code, c.definite_seq, c.end_date, c.status, " + FOLLOWING + " as following, "
-                        + "e.status as employment_status from " + EmployeeAccess.EMPLOYMENT_SCOPE_JOIN + """
+                        + "e.status as employment_status, c.auto_conversion_due_since from " + EmployeeAccess.EMPLOYMENT_SCOPE_JOIN + """
                          join hr.contract c on c.tenant_id = e.tenant_id and c.employment_id = e.id
                         where e.tenant_id = :t and c.end_date is not null and c.contract_type_code <> 'PROBATION'
                           and c.status in ('ACTIVE','SUSPENDED','EXPIRED') and c.end_date <= :until
@@ -99,13 +100,15 @@ public class ContractExpiryService {
                     boolean employed = List.of("ACTIVE", "SUSPENDED").contains(rs.getString(11));
                     Optional<Integer> n1 = convertDays.computeIfAbsent(le, k -> param(ContractKeys.DEFINITE_AUTO_CONVERT_DAYS, k, d));
                     Optional<Integer> n2 = maxConsecutive.computeIfAbsent(le, k -> param(ContractKeys.DEFINITE_MAX_CONSECUTIVE, k, d));
-                    Boolean auto = !definite ? Boolean.FALSE : n1.map(days -> following == null && employed
-                            && ChronoUnit.DAYS.between(end, d) > days).orElse(null);
+                    LocalDate dueSince = rs.getObject(12, LocalDate.class);
+                    boolean flagged = dueSince != null && !dueSince.isAfter(d) && following == null && employed;
+                    Boolean auto = !definite ? Boolean.FALSE : flagged ? Boolean.TRUE : n1.map(days ->
+                            following == null && employed && ChronoUnit.DAYS.between(end, d) > days).orElse(null);
                     Boolean indefiniteNext = !definite || seq == null ? Boolean.FALSE
                             : n2.map(max -> seq >= max).orElse(null);
                     return new ExpiringContract(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), le,
                             rs.getString(4), rs.getString(5), type, seq, end, rs.getString(9),
-                            ChronoUnit.DAYS.between(d, end), following, auto, indefiniteNext);
+                            ChronoUnit.DAYS.between(d, end), following, auto, dueSince, indefiniteNext);
                 })
                 .list();
     }

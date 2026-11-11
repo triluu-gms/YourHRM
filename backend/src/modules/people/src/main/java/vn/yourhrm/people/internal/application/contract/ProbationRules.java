@@ -50,12 +50,16 @@ public class ProbationRules {
         return end != null && end.plusDays(1).isBefore(start.plusMonths(months));
     }
 
+    /** The validated probation of new terms: its days and the level whose legal maximum applied (stored). */
+    public record Probation(int days, String levelCode) {
+    }
+
     /**
-     * Validates the probation of new terms and returns the probation days to store, or null when the contract has no
-     * probation.
+     * Validates the probation of new terms and returns the probation days and level to store
+     * ({@code hr.contract.probation_days} / {@code probation_level_code}), or null when the contract has no probation.
      */
     @HrTransactional(readOnly = true)
-    public Integer check(Employment emp, ContractType type, ContractTerms t) {
+    public Probation check(Employment emp, ContractType type, ContractTerms t) {
         Integer days;
         if (type == ContractType.PROBATION) {
             days = (int) ChronoUnit.DAYS.between(t.startDate(), t.endDate()) + 1;
@@ -109,7 +113,7 @@ public class ProbationRules {
         if (recorded != null && recorded.compareTo(floor) < 0) {
             throw belowFloor(recorded, floor);
         }
-        return days;
+        return new Probation(days, level);
     }
 
     private static ApiException belowFloor(BigDecimal pct, BigDecimal floor) {

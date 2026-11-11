@@ -48,8 +48,9 @@ class SalaryController {
         this.clock = clock;
     }
 
+    /** {@code inSiSalary} is optional (default false: the allowance is not part of the SI salary). */
     record AllowanceRequest(@NotBlank @Size(max = 64) String componentCode, @NotNull @DecimalMin("0") BigDecimal amount,
-            boolean inSiSalary) {
+            Boolean inSiSalary) {
     }
 
     record TermsRequest(
@@ -69,7 +70,8 @@ class SalaryController {
             return new SalaryTerms(payBasis, salaryKind, baseSalaryAmount, agreedNetAmount, netGuaranteedScope,
                     siSalaryAmount, currencyCode, payScaleCode, payScaleStepCode, probationPct,
                     allowances == null ? List.of()
-                            : allowances.stream().map(a -> new Allowance(a.componentCode(), a.amount(), a.inSiSalary()))
+                            : allowances.stream().map(a -> new Allowance(a.componentCode(), a.amount(),
+                                    Boolean.TRUE.equals(a.inSiSalary())))
                                     .toList());
         }
     }

@@ -1,0 +1,92 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$id" : "https://schemas.yourhrm.vn/events/people/PersonalDataChanged.v1.schema.json",
+  "title" : "people.PersonalDataChanged v1",
+  "description" : "Payload of people.PersonalDataChanged (People outbox, NFR-PPL-002). The envelope (event_id, event_type, schema_version, tenant_id, legal_entity_id, occurred_at, effective_date, producer, correlation_id, causation_id, retro, person_id, employment_id, initial_load header) is carried by hr.outbox_event columns. No P3 value (D7). Generated from PersonalDataChanged; a breaking change needs a new schema version.",
+  "x-eventType" : "people.PersonalDataChanged",
+  "x-schemaVersion" : 1,
+  "type" : "object",
+  "additionalProperties" : false,
+  "required" : [ "tenantId", "personId", "effectiveDate", "changedFields", "nationalityCode", "taxResidency", "presencePeriod", "reason" ],
+  "properties" : {
+    "tenantId" : {
+      "type" : "string",
+      "format" : "uuid"
+    },
+    "personId" : {
+      "type" : [ "string", "null" ],
+      "format" : "uuid"
+    },
+    "effectiveDate" : {
+      "type" : [ "string", "null" ],
+      "format" : "date"
+    },
+    "changedFields" : {
+      "type" : [ "array", "null" ],
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "nationalityCode" : {
+      "type" : [ "string", "null" ]
+    },
+    "taxResidency" : {
+      "type" : [ "object", "null" ],
+      "additionalProperties" : false,
+      "required" : [ "taxResidencyId", "status", "basis", "validFrom", "validTo", "arrivalDate", "departureDate", "source" ],
+      "properties" : {
+        "taxResidencyId" : {
+          "type" : [ "string", "null" ],
+          "format" : "uuid"
+        },
+        "status" : {
+          "type" : [ "string", "null" ]
+        },
+        "basis" : {
+          "type" : [ "string", "null" ]
+        },
+        "validFrom" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        },
+        "validTo" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        },
+        "arrivalDate" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        },
+        "departureDate" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        },
+        "source" : {
+          "type" : [ "string", "null" ]
+        }
+      }
+    },
+    "presencePeriod" : {
+      "type" : [ "object", "null" ],
+      "additionalProperties" : false,
+      "required" : [ "presencePeriodId", "entryDate", "exitDate" ],
+      "properties" : {
+        "presencePeriodId" : {
+          "type" : [ "string", "null" ],
+          "format" : "uuid"
+        },
+        "entryDate" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        },
+        "exitDate" : {
+          "type" : [ "string", "null" ],
+          "format" : "date"
+        }
+      }
+    },
+    "reason" : {
+      "type" : [ "string", "null" ]
+    }
+  }
+}

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.yourhrm.core.api.CorePermissions;
 import vn.yourhrm.core.internal.application.OrgUnitService;
 import vn.yourhrm.core.internal.application.OrgUnitService.Attributes;
+import vn.yourhrm.core.internal.application.OrgUnitService.LookupItem;
 import vn.yourhrm.core.internal.application.OrgUnitService.OrgUnitView;
 import vn.yourhrm.shared.auth.api.RequiresPermission;
 
@@ -62,10 +64,12 @@ class OrgUnitController {
             @NotNull @Valid AttributesRequest attributes) {
     }
 
-    record ChangeOrgUnitRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes) {
+    /** {@code version} = the unit's version as read (optimistic lock over its whole history). */
+    record ChangeOrgUnitRequest(@NotNull LocalDate effectiveFrom, @NotNull @Valid AttributesRequest attributes,
+            @NotNull Integer version) {
     }
 
-    record CloseOrgUnitRequest(@NotNull LocalDate effectiveFrom) {
+    record CloseOrgUnitRequest(@NotNull LocalDate effectiveFrom, @NotNull Integer version) {
     }
 
     /** Org tree as of a date (flat, path order; build the tree from parentId). */
@@ -117,12 +121,43 @@ class OrgUnitController {
     @PostMapping("/{orgUnitId}/versions")
     @RequiresPermission(CorePermissions.ORG_UNIT_UPDATE)
     public OrgUnitView changeFrom(@PathVariable UUID orgUnitId, @Valid @RequestBody ChangeOrgUnitRequest req) {
-        return orgUnits.changeFrom(orgUnitId, req.effectiveFrom(), req.attributes().toAttributes());
+        return orgUnits.changeFrom(orgUnitId, req.effectiveFrom(), req.attributes().toAttributes(), req.version());
     }
 
     @PostMapping("/{orgUnitId}/close")
     @RequiresPermission(CorePermissions.ORG_UNIT_UPDATE)
     public OrgUnitView close(@PathVariable UUID orgUnitId, @Valid @RequestBody CloseOrgUnitRequest req) {
-        return orgUnits.close(orgUnitId, req.effectiveFrom());
+        return orgUnits.close(orgUnitId, req.effectiveFrom(), req.version());
+    }
+
+    /** Removes a planned (not yet effective) version, e.g. one that blocks a close ({@code future-versions-exist}). */
+    @DeleteMapping("/{orgUnitId}/versions/{versionId}")
+    @RequiresPermission(CorePermissions.ORG_UNIT_UPDATE)
+    public OrgUnitView removePlannedVersion(@PathVariable UUID orgUnitId, @PathVariable UUID versionId,
+            @RequestParam("version") int version) {
+        return orgUnits.removePlannedVersion(orgUnitId, versionId, version);
+    }
+
+    /**
+     * Manager picker of the org form: active users as id + login + display name only. Needs
+     * {@code core.org_unit.create} or {@code .update} (checked by the service), not {@code core.user.view}.
+     */
+    @GetMapping("/lookups/managers")
+    @RequiresPermission(CorePermissions.ORG_UNIT_VIEW)
+    public List<LookupItem> managerLookup(@RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "limit", defaultValue = "20") int limit) {
+        return orgUnits.managerCandidates(q, Math.min(Math.max(limit, 1), 50));
+    }
+
+    /**
+     * Cost-centre picker of the org form: id + code + name of one legal entity's cost centres valid on
+     * {@code asOf}. Needs org-unit write access in that legal entity (checked by the service), not
+     * {@code core.cost_centre.view}.
+     */
+    @GetMapping("/lookups/cost-centres")
+    @RequiresPermission(CorePermissions.ORG_UNIT_VIEW)
+    public List<LookupItem> costCentreLookup(@RequestParam("legalEntityId") UUID legalEntityId,
+            @RequestParam(name = "asOf", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOf) {
+        return orgUnits.costCentreCandidates(legalEntityId, asOf);
     }
 }

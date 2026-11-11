@@ -1,0 +1,88 @@
+{
+  "common": {
+    "codeRequired": "Code is required.",
+    "codeInvalid": "Letters, digits, '_', '.', '-' only (max 32).",
+    "codeImmutable": "The code cannot be changed after creation.",
+    "nameRequired": "Name is required.",
+    "includeInactive": "Show inactive",
+    "notFound": "Record not found.",
+    "details": "Details",
+    "active": "Active",
+    "uuidInvalid": "Must be a valid UUID."
+  },
+  "jobTitle": {
+    "title": "Job titles",
+    "subtitle": "Job titles (chức danh) with the statutory heavy / hazardous job category and default grade range.",
+    "tab": "Job titles",
+    "create": "Create job title",
+    "edit": "Edit job title",
+    "detailTitle": "Job title {code}",
+    "search": "Search code or name",
+    "allFamilies": "All job families",
+    "noFamily": "No job family",
+    "hazardousOnly": "Hazardous",
+    "notHazardous": "Not hazardous",
+    "field": {
+      "family": "Job family",
+      "hazardousCategory": "Heavy / hazardous category",
+      "hazardous": "Heavy / hazardous",
+      "occupationCode": "Occupation code",
+      "description": "Description (JD summary)",
+      "jdDocumentId": "JD document (ID)",
+      "gradeStructure": "Grade structure (default range)",
+      "defaultGradeMin": "Lowest default grade",
+      "defaultGradeMax": "Highest default grade",
+      "defaultGradeRange": "Default grade range"
+    },
+    "hazardHint": "Leave empty when the job is not on the statutory heavy / hazardous list (TT 11/2020/TT-BLĐTBXH). Changing it notifies People, Time & Attendance and Payroll.",
+    "jdHint": "The document is uploaded in the Documents area; paste its ID.",
+    "gradeRangeHint": "Pick both ends from one grade structure, lowest first, or leave both empty.",
+    "gradeRangeBoth": "Pick both ends of the range or neither.",
+    "gradeRangeOrder": "The lowest grade must rank at or below the highest.",
+    "occupationHint": "National occupation classification code, used in statutory reports."
+  },
+  "jobFamily": {
+    "tab": "Job families",
+    "create": "Create job family",
+    "edit": "Edit job family",
+    "inactiveSuffix": "(inactive)"
+  },
+  "gradeStructure": {
+    "title": "Grade structures",
+    "subtitle": "Grade structures (ngạch) and their ranked grades (bậc). Pay scales and salary bands are managed in Payroll.",
+    "create": "Create grade structure",
+    "rename": "Rename",
+    "renameTitle": "Rename grade structure {code}",
+    "detailTitle": "Grade structure {code}",
+    "gradeCount": "Grades"
+  },
+  "grade": {
+    "title": "Grades",
+    "create": "Add grade",
+    "edit": "Edit grade {code}",
+    "allPeriods": "All periods (incl. inactive and ended)",
+    "noPayNote": "Grades carry no pay amounts (BR-CORE-021); salary bands per grade belong to Payroll.",
+    "field": {
+      "rankOrder": "Rank order",
+      "validity": "Validity"
+    },
+    "rankRequired": "Rank order is required.",
+    "rankHint": "Unique within the structure at any date; lower rank = lower grade.",
+    "validFromHint": "Leave empty to start today. Cannot be changed later.",
+    "validToHint": "Exclusive end date: the grade is valid until the day before. Leave empty for open-ended.",
+    "validToAfterFrom": "The end date must be after the start date.",
+    "activeHint": "An inactive grade is hidden from pickers and cannot be used in new default ranges."
+  },
+  "errors": {
+    "job-family-code-taken": "A job family with this code already exists.",
+    "job-title-code-taken": "A job title with this code already exists.",
+    "invalid-job-family": "The job family does not exist or is inactive.",
+    "unknown-hazardous-category": "The heavy / hazardous category is not in the statutory list.",
+    "unknown-document": "The referenced document does not exist.",
+    "invalid-grade-range": "The default grade range must be two active grades of one structure, lowest first.",
+    "grade-structure-code-taken": "A grade structure with this code already exists.",
+    "grade-code-taken": "A grade with this code already exists in this structure.",
+    "grade-rank-taken": "This rank order is already used by another grade in an overlapping period.",
+    "invalid-period": "The end date must be after the start date."
+  }
+}

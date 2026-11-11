@@ -77,6 +77,27 @@
 --         through the reporting store (DESIGN §11), not OLTP views.
 --   * D4  hr.person / hr.employment / hr.assignment are published to the reporting
 --         store by 007_publications.sql (column lists, never *_enc / *_bidx).
+-- v0.6 (2026-11-09, gaps found while building the People P1 backend):
+--   * hr.contract: + probation_level_code, probation_result / _date / _decision_id
+--         (BR-PPL-052), definite_exception_code / _note (BR-PPL-053),
+--         auto_conversion_due_since (BR-PPL-054), source (APP | OPENING_LOAD | IMPORT |
+--         REC_HANDOFF). Type codes SEASONAL and INTERNSHIP documented. "Signed" stays
+--         ACTIVE + sign_date (paper signing, R2-10).
+--   * hr.separation: + notice_exempt_reason_code, special_trade_code (BR-PPL-071),
+--         employee_note (BR-PPL-072), no_personal_email (OD-8), signatory_name / _title.
+--   * hr.statutory_report: + receipt_document_id, hr_notes (BR-PPL-141/142).
+--   * hr.pit_dependant: + source (an opening-balance rollback can tell imported claims).
+--   * new event-fed projections (ADR-0001 ext_<owner>_<entity>, no cross-schema FK; PK
+--         (tenant_id, id) per ADR-0023 so sys.tg_touch applies, natural key UNIQUE):
+--         hr.ext_pay_period_lock (Payroll locked periods -> retro flag, BR-PPL-037),
+--         hr.ext_att_absence (T&A absence periods -> protected employees, BR-PPL-073),
+--         hr.onboarding_readiness (last people.OnboardingReadinessChanged state, ADR-0019).
+--   * DELETE granted on optional personal-data tables for DSR erasure and import
+--         rollback (BR-PPL-153, NFR-PPL-007): person_address, person_identity_doc,
+--         education_qualification, family_member, bank_account, special_status,
+--         work_permit, plus the projections. NOT on hr.person / hr.employment /
+--         hr.separation: labour records kept for the legal retention period are
+--         anonymised or set CANCELLED instead.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -790,7 +811,7 @@ CREATE TABLE hr.contract (
   id                   uuid NOT NULL DEFAULT sys.uuid_v7(),
   employment_id        uuid NOT NULL,
   contract_no          text NOT NULL,
-  contract_type_code   text NOT NULL,                       -- code list: PROBATION | DEFINITE | INDEFINITE | SERVICE | APPRENTICE
+  contract_type_code   text NOT NULL,                       -- PROBATION | DEFINITE | INDEFINITE | SEASONAL | APPRENTICE | INTERNSHIP | SERVICE
   definite_seq         smallint,                            -- nth definite-term contract (conversion rule)
   sign_date            date,
   start_date           date NOT NULL,
@@ -803,13 +824,28 @@ CREATE TABLE hr.contract (
   national_platform_ref text,                               -- e-labour-contract platform id, if mandated (SaaS Q6)
   document_id          uuid,                                -- -> core.document (soft)
   previous_contract_id uuid,
-  status               text NOT NULL DEFAULT 'DRAFT',
+  -- v0.6: probation (BR-PPL-051/052); the level keys legal parameter contract.probation.max_days
+  probation_level_code text,
+  probation_result     text,                                -- PASS | FAIL, recorded on or before the probation end
+  probation_result_date date,
+  probation_result_decision_id uuid,                        -- the PROBATION_RESULT decision
+  -- v0.6: legal exception to the two-consecutive-definite rule (BR-PPL-053)
+  definite_exception_code text,
+  definite_exception_note text,
+  auto_conversion_due_since date,                           -- worked > N days past expiry without a new contract (BR-PPL-054)
+  source               text NOT NULL DEFAULT 'APP',         -- APP | OPENING_LOAD | IMPORT | REC_HANDOFF
+  status               text NOT NULL DEFAULT 'DRAFT',       -- "signed" = ACTIVE + sign_date
   created_at           timestamptz NOT NULL DEFAULT now(),
   created_by           uuid,
   updated_at           timestamptz NOT NULL DEFAULT now(),
   updated_by           uuid,
   version              int NOT NULL DEFAULT 0,
   CONSTRAINT contract_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT contract_probation_decision_fk FOREIGN KEY (tenant_id, probation_result_decision_id)
+    REFERENCES hr.decision (tenant_id, id),
+  CONSTRAINT contract_probation_result_ck CHECK (probation_result IS NULL OR probation_result IN ('PASS','FAIL')),
+  CONSTRAINT contract_probation_result_date_ck CHECK ((probation_result IS NULL) = (probation_result_date IS NULL)),
+  CONSTRAINT contract_source_ck CHECK (source IN ('APP','OPENING_LOAD','IMPORT','REC_HANDOFF')),
   CONSTRAINT contract_employment_fk FOREIGN KEY (tenant_id, employment_id) REFERENCES hr.employment (tenant_id, id),
   CONSTRAINT contract_prev_fk FOREIGN KEY (tenant_id, previous_contract_id) REFERENCES hr.contract (tenant_id, id),
   CONSTRAINT contract_no_uq UNIQUE (tenant_id, contract_no),
@@ -825,6 +861,14 @@ CREATE TABLE hr.contract (
 );
 CREATE INDEX contract_employment_ix ON hr.contract (tenant_id, employment_id, start_date);
 CREATE INDEX contract_expiry_ix ON hr.contract (tenant_id, end_date) WHERE status = 'ACTIVE';   -- renewal alerts
+COMMENT ON COLUMN hr.contract.probation_level_code IS 'pii:P1 probation level (job level class) used for the legal maximum';
+COMMENT ON COLUMN hr.contract.probation_result IS 'pii:P2 probation outcome PASS | FAIL (BR-PPL-052)';
+COMMENT ON COLUMN hr.contract.probation_result_date IS 'pii:P2 date the probation result was recorded';
+COMMENT ON COLUMN hr.contract.probation_result_decision_id IS 'pii:P1 the PROBATION_RESULT decision';
+COMMENT ON COLUMN hr.contract.definite_exception_code IS 'pii:P2 legal exception to the two-definite rule (may reveal age or nationality)';
+COMMENT ON COLUMN hr.contract.definite_exception_note IS 'pii:P2 free-text justification of the exception';
+COMMENT ON COLUMN hr.contract.auto_conversion_due_since IS 'pii:P1 first day the contract counts as converted to indefinite (BR-PPL-054)';
+COMMENT ON COLUMN hr.contract.source IS 'pii:P0 origin of the row';
 
 CREATE TABLE hr.contract_appendix (
   tenant_id       uuid NOT NULL,
@@ -934,12 +978,14 @@ CREATE TABLE hr.pit_dependant (
   registered_at         date,
   approved_by           uuid,
   approved_at           timestamptz,
+  source                text NOT NULL DEFAULT 'APP',        -- v0.6: APP | OPENING_LOAD | IMPORT
   created_at            timestamptz NOT NULL DEFAULT now(),
   created_by            uuid,
   updated_at            timestamptz NOT NULL DEFAULT now(),
   updated_by            uuid,
   version               int NOT NULL DEFAULT 0,
   CONSTRAINT pit_dependant_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT pit_dependant_source_ck CHECK (source IN ('APP','OPENING_LOAD','IMPORT')),
   CONSTRAINT pit_dependant_member_fk FOREIGN KEY (tenant_id, family_member_id) REFERENCES hr.family_member (tenant_id, id),
   CONSTRAINT pit_dependant_employment_fk FOREIGN KEY (tenant_id, employment_id) REFERENCES hr.employment (tenant_id, id),
   CONSTRAINT pit_dependant_months_ck CHECK (to_month IS NULL OR to_month >= from_month),
@@ -1151,6 +1197,8 @@ CREATE TABLE hr.separation (
   required_notice_days    smallint,                         -- computed from contract type + ground (BR-PPL-071)
   notice_day_basis        text,                             -- CALENDAR | WORKING
   notice_shortfall_days   smallint,                         -- informative; compensation consequence shown in UI
+  notice_exempt_reason_code text,                           -- v0.6: no-notice case (Art. 35.2 / 36.2) [verify-legal]
+  special_trade_code      text,                             -- v0.6: special trade with a longer notice (Decree 145)
   last_working_date       date,
   termination_date        date,                             -- = hr.employment.end_date once completed (INCLUSIVE)
   access_revocation_date  date,
@@ -1160,6 +1208,10 @@ CREATE TABLE hr.separation (
   protected_override_reason text,                           -- documented legal exception (e.g. entity closure)
   protected_override_document_id uuid,                      -- -> core.document (soft)
   is_rehire_eligible      boolean,
+  employee_note           text,                             -- v0.6: note of the ESS resignation (BR-PPL-072)
+  no_personal_email       boolean NOT NULL DEFAULT false,   -- v0.6: HR recorded "no personal e-mail" (OD-8)
+  signatory_name          text,                             -- v0.6: signatory of the termination decision
+  signatory_title         text,
   payroll_result_ref      uuid,                             -- -> pay final-settlement / severance result (soft), display only
   settlement_due_date     date,                             -- Payroll's settlement clock (14/30 working days), display only
   decision_id             uuid,
@@ -1197,6 +1249,12 @@ CREATE TABLE hr.separation (
 CREATE UNIQUE INDEX separation_live_uq ON hr.separation (tenant_id, employment_id)
   WHERE status NOT IN ('WITHDRAWN','REJECTED','CANCELLED');
 CREATE INDEX separation_termination_ix ON hr.separation (tenant_id, termination_date) WHERE status IN ('APPROVED','SCHEDULED');
+COMMENT ON COLUMN hr.separation.notice_exempt_reason_code IS 'pii:P2 reason no notice is required (may reveal health or harassment)';
+COMMENT ON COLUMN hr.separation.special_trade_code IS 'pii:P1 special trade with a longer statutory notice';
+COMMENT ON COLUMN hr.separation.employee_note IS 'pii:P2 free text written by the employee';
+COMMENT ON COLUMN hr.separation.no_personal_email IS 'pii:P1 HR confirmed the leaver has no personal e-mail';
+COMMENT ON COLUMN hr.separation.signatory_name IS 'pii:P1 signatory of the termination decision';
+COMMENT ON COLUMN hr.separation.signatory_title IS 'pii:P1 title of the signatory';
 
 -- Service periods supplied to Payroll for the severance computation (BR-PPL-074, OUT-13):
 -- periods worked for this employer (incl. recognised prior service) and periods for which
@@ -1281,6 +1339,8 @@ CREATE TABLE hr.statutory_report (
   submitted_by           uuid,
   submission_channel     text,                              -- PORTAL | PAPER | EMAIL | OTHER
   submission_ref         text,
+  receipt_document_id    uuid,                              -- v0.6: authority receipt (-> core.document, soft)
+  hr_notes               text,                              -- v0.6: HR review notes printed in the report
   status                 text NOT NULL DEFAULT 'DRAFT',
   created_at             timestamptz NOT NULL DEFAULT now(),
   created_by             uuid,
@@ -1297,6 +1357,7 @@ CREATE TABLE hr.statutory_report (
 );
 CREATE UNIQUE INDEX statutory_report_live_uq ON hr.statutory_report (tenant_id, legal_entity_id, report_type, period_start)
   WHERE status <> 'CANCELLED';
+COMMENT ON COLUMN hr.statutory_report.hr_notes IS 'pii:P2 free-text HR review notes (may name employees)';
 
 -- =============================================================================
 -- 14. PHASE-2 TABLES (minimal; shape only, refined when the P2 BRs are detailed)
@@ -1638,6 +1699,96 @@ SELECT e.tenant_id, e.legal_entity_id, e.id, e.person_id,
  WHERE e.end_date IS NOT NULL AND e.status <> 'CANCELLED';
 
 -- =============================================================================
+-- 16a. PROJECTIONS OF OTHER MODULES' FACTS  (v0.6; ADR-0001 ext_<owner>_<entity>)
+--      Fed only by People's inbox consumers from the owners' events; never edited by
+--      users; no FK leaves the schema. Rebuildable by replaying the owner's events.
+-- =============================================================================
+-- Payroll: the last locked (closed) pay period per legal entity -> retro flag on
+-- People events whose effective date falls into it (BR-PPL-037, US-PPL-039).
+CREATE TABLE hr.ext_pay_period_lock (
+  tenant_id         uuid NOT NULL,
+  id                uuid NOT NULL DEFAULT sys.uuid_v7(),
+  legal_entity_id   uuid NOT NULL,                          -- -> core.legal_entity (soft)
+  locked_through    date NOT NULL,                          -- last day of the latest locked period (INCLUSIVE)
+  period_code       text,                                   -- Payroll's period id, e.g. 2026-10
+  source_event_id   uuid NOT NULL,                          -- the pay.* event that set it (idempotence, audit)
+  received_at       timestamptz NOT NULL DEFAULT now(),
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  version           int NOT NULL DEFAULT 0,
+  CONSTRAINT ext_pay_period_lock_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT ext_pay_period_lock_le_uq UNIQUE (tenant_id, legal_entity_id)   -- one lock row per legal entity
+);
+COMMENT ON TABLE hr.ext_pay_period_lock IS
+  'v0.6 projection of Payroll period locks (pay.* events); input of the People retro flag.';
+COMMENT ON COLUMN hr.ext_pay_period_lock.locked_through IS 'pii:P0 last locked business date';
+COMMENT ON COLUMN hr.ext_pay_period_lock.period_code IS 'pii:P0 Payroll period id';
+COMMENT ON COLUMN hr.ext_pay_period_lock.source_event_id IS 'pii:P0 originating event';
+COMMENT ON COLUMN hr.ext_pay_period_lock.received_at IS 'pii:P0 receipt time';
+
+-- T&A: absence periods that matter to People (maternity, sick leave, unpaid leave ...)
+-- -> protected-employee check (BR-PPL-073) and seniority exclusions. T&A owns leave.
+CREATE TABLE hr.ext_att_absence (
+  tenant_id         uuid NOT NULL,
+  id                uuid NOT NULL DEFAULT sys.uuid_v7(),
+  att_absence_id    uuid NOT NULL,                          -- T&A's id (soft)
+  employment_id     uuid NOT NULL,
+  absence_type_code text NOT NULL,                          -- T&A leave type code
+  start_date        date NOT NULL,
+  end_date          date,                                   -- INCLUSIVE; NULL = open
+  absence_period    daterange GENERATED ALWAYS AS (daterange(start_date, end_date, '[]')) STORED,
+  is_protective     boolean NOT NULL DEFAULT false,         -- T&A classifies it as protecting against dismissal
+  status            text NOT NULL DEFAULT 'ACTIVE',         -- ACTIVE | CANCELLED
+  source_event_id   uuid NOT NULL,
+  received_at       timestamptz NOT NULL DEFAULT now(),
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  version           int NOT NULL DEFAULT 0,
+  CONSTRAINT ext_att_absence_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT ext_att_absence_uq UNIQUE (tenant_id, att_absence_id),
+  CONSTRAINT ext_att_absence_employment_fk FOREIGN KEY (tenant_id, employment_id) REFERENCES hr.employment (tenant_id, id),
+  CONSTRAINT ext_att_absence_dates_ck CHECK (end_date IS NULL OR end_date >= start_date),
+  CONSTRAINT ext_att_absence_status_ck CHECK (status IN ('ACTIVE','CANCELLED'))
+);
+CREATE INDEX ext_att_absence_employment_ix ON hr.ext_att_absence USING gist (tenant_id, employment_id, absence_period)
+  WHERE status = 'ACTIVE';
+COMMENT ON TABLE hr.ext_att_absence IS
+  'v0.6 projection of T&A absences (att.AbsenceChanged); People never edits leave.';
+COMMENT ON COLUMN hr.ext_att_absence.att_absence_id IS 'pii:P0 T&A absence id';
+COMMENT ON COLUMN hr.ext_att_absence.absence_type_code IS 'pii:P3 leave type (may reveal health or pregnancy); sensitive';
+COMMENT ON COLUMN hr.ext_att_absence.start_date IS 'pii:P2 absence start';
+COMMENT ON COLUMN hr.ext_att_absence.end_date IS 'pii:P2 absence end';
+COMMENT ON COLUMN hr.ext_att_absence.absence_period IS 'pii:P2 generated [start_date, end_date] range';
+COMMENT ON COLUMN hr.ext_att_absence.is_protective IS 'pii:P3 absence protects against dismissal (health / maternity)';
+COMMENT ON COLUMN hr.ext_att_absence.source_event_id IS 'pii:P0 originating event';
+COMMENT ON COLUMN hr.ext_att_absence.received_at IS 'pii:P0 receipt time';
+
+-- Last evaluated onboarding readiness per employment (people.OnboardingReadinessChanged,
+-- ADR-0019 HireProcess): items user account, pay group, schedule, signed contract, bank,
+-- tax code. Lets the evaluator publish only on change.
+CREATE TABLE hr.onboarding_readiness (
+  tenant_id         uuid NOT NULL,
+  id                uuid NOT NULL DEFAULT sys.uuid_v7(),
+  employment_id     uuid NOT NULL,
+  status            text NOT NULL,                          -- READY | BLOCKED
+  items             jsonb NOT NULL,                         -- [{"item":"BANK_ACCOUNT","state":"MISSING"}, ...]
+  evaluated_at      timestamptz NOT NULL DEFAULT now(),
+  trigger_code      text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  version           int NOT NULL DEFAULT 0,
+  CONSTRAINT onboarding_readiness_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT onboarding_readiness_employment_uq UNIQUE (tenant_id, employment_id),   -- one state per employment
+  CONSTRAINT onboarding_readiness_employment_fk FOREIGN KEY (tenant_id, employment_id) REFERENCES hr.employment (tenant_id, id),
+  CONSTRAINT onboarding_readiness_status_ck CHECK (status IN ('READY','BLOCKED')),
+  CONSTRAINT onboarding_readiness_items_ck CHECK (jsonb_typeof(items) = 'array')
+);
+COMMENT ON COLUMN hr.onboarding_readiness.status IS 'pii:P1 READY | BLOCKED';
+COMMENT ON COLUMN hr.onboarding_readiness.items IS 'pii:P1 readiness items and states (no values)';
+COMMENT ON COLUMN hr.onboarding_readiness.evaluated_at IS 'pii:P0 evaluation time';
+COMMENT ON COLUMN hr.onboarding_readiness.trigger_code IS 'pii:P0 event that triggered the evaluation';
+
+-- =============================================================================
 -- 17. RLS, triggers, grants
 -- =============================================================================
 DO $$
@@ -1651,6 +1802,8 @@ BEGIN
                            'hr.family_member','hr.pit_dependant','hr.emergency_contact','hr.bank_account',
                            'hr.special_status','hr.work_permit','hr.separation','hr.separation_service_period',
                            'hr.hr_document','hr.statutory_report',
+                           -- v0.6 projections
+                           'hr.ext_pay_period_lock','hr.ext_att_absence','hr.onboarding_readiness',
                            -- P2
                            'hr.certificate','hr.discipline_case','hr.reward','hr.appraisal','hr.training_record',
                            'hr.checklist_template','hr.checklist','hr.checklist_task']
@@ -1667,6 +1820,7 @@ BEGIN
                            'hr.family_member','hr.pit_dependant','hr.emergency_contact','hr.bank_account',
                            'hr.special_status','hr.work_permit','hr.separation','hr.separation_service_period',
                            'hr.hr_document','hr.statutory_report',
+                           'hr.ext_pay_period_lock','hr.ext_att_absence','hr.onboarding_readiness',
                            'hr.certificate','hr.discipline_case','hr.reward','hr.appraisal','hr.training_record',
                            'hr.checklist_template','hr.checklist','hr.checklist_task']
   LOOP
@@ -1695,6 +1849,7 @@ GRANT SELECT, INSERT, UPDATE ON
   hr.contract, hr.contract_appendix, hr.contract_suspension,
   hr.family_member, hr.pit_dependant, hr.emergency_contact, hr.bank_account,
   hr.special_status, hr.work_permit, hr.separation, hr.separation_service_period, hr.hr_document, hr.statutory_report,
+  hr.ext_pay_period_lock, hr.ext_att_absence, hr.onboarding_readiness,
   hr.certificate, hr.discipline_case, hr.reward, hr.appraisal, hr.training_record,
   hr.checklist_template, hr.checklist, hr.checklist_task
 TO yhrm_app_hr;
@@ -1703,6 +1858,13 @@ GRANT SELECT, INSERT ON hr.salary_record_allowance TO yhrm_app_hr;
 -- (enforced further by the service layer).
 GRANT DELETE ON hr.decision, hr.contract, hr.contract_appendix, hr.contract_suspension, hr.pit_dependant,
   hr.person_contact, hr.emergency_contact, hr.separation_service_period, hr.checklist_task
+TO yhrm_app_hr;
+-- v0.6: optional personal data may be erased (DSR, BR-PPL-153) or rolled back (opening-balance
+-- undo, NFR-PPL-007); projections are rebuilt from events. Labour records (person,
+-- employment, separation, contract history) are anonymised / cancelled, never deleted here.
+GRANT DELETE ON hr.person_address, hr.person_identity_doc, hr.education_qualification, hr.family_member,
+  hr.bank_account, hr.special_status, hr.work_permit,
+  hr.ext_pay_period_lock, hr.ext_att_absence, hr.onboarding_readiness
 TO yhrm_app_hr;
 -- D6 (2026-10-21): masking views are granted to the People runtime ONLY. The former
 -- grant to yhrm_reporting_ro is removed: with security_invoker the role could not read

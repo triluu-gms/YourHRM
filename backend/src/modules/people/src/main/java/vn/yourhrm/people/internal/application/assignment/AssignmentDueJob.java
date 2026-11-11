@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import vn.yourhrm.people.api.AssignmentJobs;
+import vn.yourhrm.people.internal.application.integration.HireApprovalGate;
 import vn.yourhrm.people.internal.application.salary.SalaryService;
 import vn.yourhrm.people.internal.infra.HrDb;
 import vn.yourhrm.people.internal.infra.HrTransactional;
@@ -33,9 +34,11 @@ public class AssignmentDueJob implements AssignmentJobs {
     private final EmploymentFacts employments;
     private final AssignmentService assignments;
     private final SalaryService salaries;
+    private final HireApprovalGate hireGate;
 
     public AssignmentDueJob(HrDb db, AssignmentStore store, ProcessedMarkers markers, EmploymentFacts employments,
-            AssignmentService assignments, SalaryService salaries) {
+            AssignmentService assignments, SalaryService salaries, HireApprovalGate hireGate) {
+        this.hireGate = hireGate;
         this.db = db;
         this.store = store;
         this.markers = markers;
@@ -55,9 +58,18 @@ public class AssignmentDueJob implements AssignmentJobs {
             if (markers.exists(DUE_MARKER, row.id())) {
                 continue;
             }
+            if (predecessorPublished(DUE_MARKER, row.id(), row.validFrom())) {
+                markers.mark(DUE_MARKER, row.id(), "people.AssignmentChanged", "SKIPPED");
+                continue;
+            }
             var emp = employments.require(row.employmentId());
             if ("CANCELLED".equals(emp.status())) {
                 markers.mark(DUE_MARKER, row.id(), "people.AssignmentChanged", "SKIPPED");
+                continue;
+            }
+            if (hireGate.pending(emp.id())) {
+                // F1 (integration): not announced before the hire is approved; no marker, so HireService releases it
+                // on approval (AssignmentService.releaseHeldInitialEvents) or a later run of this job picks it up.
                 continue;
             }
             assignments.publishDue(emp, row, true);
@@ -73,6 +85,10 @@ public class AssignmentDueJob implements AssignmentJobs {
             }
             markers.lock(ENDED_MARKER, row.id());
             if (markers.exists(ENDED_MARKER, row.id())) {
+                continue;
+            }
+            if (predecessorPublished(ENDED_MARKER, row.id(), row.validFrom())) {
+                markers.mark(ENDED_MARKER, row.id(), "people.TemporaryTransferChanged", "SKIPPED");
                 continue;
             }
             var emp = employments.require(row.employmentId());
@@ -96,6 +112,29 @@ public class AssignmentDueJob implements AssignmentJobs {
                 .param("t", TenantContext.current().tenantId()).param("today", today)
                 .param("from", today.minusDays(LOOKBACK_DAYS))
                 .query(store::map).list();
+    }
+
+    /**
+     * A version re-inserted with another period (e.g. the version before a cancelled change, extended again) replaces
+     * one with the same start that the job already published: it must not be published twice.
+     */
+    private boolean predecessorPublished(String consumer, UUID versionId, LocalDate validFrom) {
+        UUID current = versionId;
+        for (int hop = 0; hop < 20; hop++) {
+            var previous = db.jdbc().sql("""
+                            select id from hr.assignment where tenant_id = :t and superseded_by = :id
+                               and valid_from = :vf limit 1""")
+                    .param("t", TenantContext.current().tenantId()).param("id", current).param("vf", validFrom)
+                    .query(UUID.class).optional();
+            if (previous.isEmpty()) {
+                return false;
+            }
+            if (markers.exists(consumer, previous.get())) {
+                return true;
+            }
+            current = previous.get();
+        }
+        return false;
     }
 
     /** Ids already published by the job (tests / diagnostics). */

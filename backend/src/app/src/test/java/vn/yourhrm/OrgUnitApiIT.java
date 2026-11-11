@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -63,15 +64,31 @@ class OrgUnitApiIT extends IntegrationTest {
         return UUID.fromString(JsonPath.read(body, "$.id"));
     }
 
+    /** The unit's current optimistic-lock token (anchor version). */
+    private static int version(UUID id) {
+        return ADMIN.queryForObject("select version from core.org_unit where id = ?", Integer.class, id);
+    }
+
     private ResultActions change(World w, UUID id, String from, String attributes) throws Exception {
+        return change(w, id, from, attributes, version(id));
+    }
+
+    private ResultActions change(World w, UUID id, String from, String attributes, int version) throws Exception {
         return mvc.perform(post("/api/v1/core/org-units/" + id + "/versions").with(as(w.owner()))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"effectiveFrom\":\"" + from + "\",\"attributes\":" + attributes + "}"));
+                .content("{\"effectiveFrom\":\"" + from + "\",\"attributes\":" + attributes + ",\"version\":"
+                        + version + "}"));
     }
 
     private ResultActions close(World w, UUID id, String from) throws Exception {
         return mvc.perform(post("/api/v1/core/org-units/" + id + "/close").with(as(w.owner()))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"effectiveFrom\":\"" + from + "\"}"));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"effectiveFrom\":\"" + from + "\",\"version\":" + version(id) + "}"));
+    }
+
+    private ResultActions removeVersion(World w, UUID id, UUID versionId, int version) throws Exception {
+        return mvc.perform(delete("/api/v1/core/org-units/" + id + "/versions/" + versionId + "?version=" + version)
+                .with(as(w.owner())));
     }
 
     @Test
@@ -93,8 +110,15 @@ class OrgUnitApiIT extends IntegrationTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("org-unit-type-code-taken"));
         mvc.perform(put("/api/v1/core/org-unit-types/" + lineType).with(as(w.owner()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nameVi\":\"Chuyền SX\",\"nameEn\":\"Line\",\"levelHint\":6,\"sortOrder\":70,\"active\":false}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
+                        .content("{\"nameVi\":\"Chuyền SX\",\"nameEn\":\"Line\",\"levelHint\":6,\"sortOrder\":70,\"active\":false,"
+                                + "\"version\":0}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.version").value(1));
+        // a second writer still holding version 0 is refused like every other versioned write
+        mvc.perform(put("/api/v1/core/org-unit-types/" + lineType).with(as(w.owner()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nameVi\":\"x\",\"nameEn\":\"x\",\"sortOrder\":70,\"active\":true,\"version\":0}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
         mvc.perform(get("/api/v1/core/org-unit-types").with(as(w.owner())))
                 .andExpect(jsonPath("$[*].code", not(hasItem("FACTORY_LINE"))));
 
@@ -234,6 +258,156 @@ class OrgUnitApiIT extends IntegrationTest {
         change(w, b, "2027-01-01", attrs(w, "Unit B 2027", root, w.le())).andExpect(status().isOk());
         close(w, b, "2026-06-01").andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("future-versions-exist"));
+    }
+
+    @Test
+    void writesCarryTheUnitVersionAndStaleOnesAreRejected() throws Exception {
+        World w = world("ou-stale");
+        UUID root = unit(w, "R", null);
+        UUID a = unit(w, "A", root);
+        UUID a1 = unit(w, "A1", a);
+        mvc.perform(get("/api/v1/core/org-units/" + a).with(as(w.owner()))).andExpect(jsonPath("$.version").value(0));
+
+        change(w, a, "2026-03-01", attrs(w, "A renamed", root, w.le()), 0)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        // someone else still holding version 0
+        change(w, a, "2026-04-01", attrs(w, "A again", root, w.le()), 0)
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        mvc.perform(post("/api/v1/core/org-units/" + a1 + "/close").with(as(w.owner()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"effectiveFrom\":\"2026-09-01\",\"version\":7}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        // the version is required
+        mvc.perform(post("/api/v1/core/org-units/" + a1 + "/close").with(as(w.owner()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"effectiveFrom\":\"2026-09-01\"}"))
+                .andExpect(status().isBadRequest());
+
+        // moving A re-paths (splits) A1 from that date: A1's token changes too
+        UUID b = unit(w, "B", root);
+        int a1Before = version(a1);
+        change(w, a, "2026-07-01", attrs(w, "A renamed", b, w.le())).andExpect(status().isOk());
+        assertThat(version(a1)).isGreaterThan(a1Before);
+    }
+
+    @Test
+    void aPlannedVersionCanBeRemovedToUnblockAClose() throws Exception {
+        World w = world("ou-planned");
+        UUID root = unit(w, "R", null);
+        UUID b = unit(w, "B", root);
+        String planned = change(w, b, "2099-01-01", attrs(w, "Unit B 2099", root, w.le()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        UUID plannedVersion = UUID.fromString(JsonPath.read(planned, "$.versionId"));
+        close(w, b, "2026-06-01").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("future-versions-exist"));
+
+        // stale token, then an already effective version, are refused
+        removeVersion(w, b, plannedVersion, version(b) - 1).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("stale-version"));
+        UUID effective = ADMIN.queryForObject("select id from core.org_unit_version where org_unit_id = ? and valid_from = '2026-01-01'",
+                UUID.class, b);
+        removeVersion(w, b, effective, version(b)).andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("version-already-effective"));
+
+        removeVersion(w, b, plannedVersion, version(b)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameVi").value("Unit B"))
+                .andExpect(jsonPath("$.validTo").doesNotExist());
+        mvc.perform(get("/api/v1/core/org-units/" + b + "/versions").with(as(w.owner())))
+                .andExpect(jsonPath("$[*].validFrom", contains("2026-01-01")));
+        assertThat(ADMIN.queryForObject("""
+                select count(*) from audit.audit_event
+                 where tenant_id = ? and action = 'REMOVE_PLANNED_VERSION' and object_type = 'org_unit' and object_id = ?""",
+                Integer.class, w.tenant(), b)).isOne();
+        close(w, b, "2026-06-01").andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CLOSED"));
+
+        // a scoped user without update on B cannot remove its versions
+        UUID role = FIX.role(w.tenant(), "OU_VIEW2", false, "core.org_unit.view", "core.org_unit.update");
+        TestUser other = FIX.user(w.tenant(), "other@test.local");
+        UUID c = unit(w, "C", root);
+        FIX.assign(other, role, "ORG_UNIT", List.of(c), true, TestFixtures.EPOCH, null);
+        mvc.perform(delete("/api/v1/core/org-units/" + b + "/versions/" + plannedVersion + "?version=" + version(b))
+                        .with(as(other)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void theViewCarriesTheNamesOfWhatAUnitReferences() throws Exception {
+        World w = world("ou-names");
+        UUID root = unit(w, "R", null);
+        UUID loc = FIX.location(w.tenant(), w.le(), "HCM");
+        UUID cc = ADMIN.queryForObject("""
+                insert into core.cost_centre (tenant_id, legal_entity_id, code, name, valid_from)
+                values (?, ?, 'CC-HR', 'Nhân sự', '2020-01-01') returning id""", UUID.class, w.tenant(), w.le());
+        TestUser manager = FIX.user(w.tenant(), "manager@test.local");
+        ADMIN.update("update core.user_account set display_name = 'Nguyễn Văn Quản' where id = ?", manager.userId());
+        String attributes = """
+                {"nameVi":"Phòng HR","nameEn":"HR","typeId":"%s","parentId":"%s","legalEntityId":"%s","locationId":"%s",
+                 "costCentreId":"%s","managerUserId":"%s","sortOrder":1}""".formatted(w.type(), root, w.le(), loc, cc,
+                manager.userId());
+        String created = mvc.perform(post("/api/v1/core/org-units").with(as(w.owner())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"HR\",\"validFrom\":\"2026-01-01\",\"attributes\":" + attributes + "}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID hr = UUID.fromString(JsonPath.read(created, "$.id"));
+
+        mvc.perform(get("/api/v1/core/org-units?asOf=2026-02-01&q=HR").with(as(w.owner())))
+                .andExpect(jsonPath("$[0].typeCode").value("UNIT"))
+                .andExpect(jsonPath("$[0].typeNameVi").isNotEmpty())
+                .andExpect(jsonPath("$[0].legalEntityCode").value("LE"))
+                .andExpect(jsonPath("$[0].legalEntityName").value("Pháp nhân LE"))
+                .andExpect(jsonPath("$[0].locationId").value(loc.toString()))
+                .andExpect(jsonPath("$[0].locationCode").value("HCM"))
+                .andExpect(jsonPath("$[0].locationName").value("Location HCM"))
+                .andExpect(jsonPath("$[0].costCentreCode").value("CC-HR"))
+                .andExpect(jsonPath("$[0].costCentreName").value("Nhân sự"))
+                .andExpect(jsonPath("$[0].managerUserId").value(manager.userId().toString()))
+                .andExpect(jsonPath("$[0].managerName").value("Nguyễn Văn Quản"));
+        mvc.perform(get("/api/v1/core/org-units/" + hr + "/versions").with(as(w.owner())))
+                .andExpect(jsonPath("$[0].legalEntityName").value("Pháp nhân LE"));
+    }
+
+    @Test
+    void pickerLookupsNeedOrgUnitWriteAccessAndExposeOnlyIdCodeAndName() throws Exception {
+        World w = world("ou-lookup");
+        UUID root = unit(w, "R", null);
+        UUID a = unit(w, "A", root);
+        UUID le2 = FIX.legalEntity(w.tenant(), "LE2");
+        ADMIN.update("""
+                insert into core.cost_centre (tenant_id, legal_entity_id, code, name, valid_from)
+                values (?, ?, 'CC-1', 'Cost one', '2020-01-01'), (?, ?, 'CC-2', 'Cost two', '2020-01-01')""",
+                w.tenant(), w.le(), w.tenant(), le2);
+        TestUser picked = FIX.user(w.tenant(), "tran.b@test.local");
+        ADMIN.update("update core.user_account set display_name = 'Trần Thị B', email = 'b@x.vn' where id = ?",
+                picked.userId());
+
+        // view-only: refused (no core.user.view / core.cost_centre.view needed, but org-unit write access is)
+        UUID viewRole = FIX.role(w.tenant(), "OU_VIEW_ONLY", false, "core.org_unit.view");
+        TestUser viewer = FIX.user(w.tenant(), "viewer@test.local");
+        FIX.assign(viewer, viewRole, "TENANT", List.of(), true, TestFixtures.EPOCH, null);
+        mvc.perform(get("/api/v1/core/org-units/lookups/managers?q=tran").with(as(viewer)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/core/org-units/lookups/cost-centres?legalEntityId=" + w.le()).with(as(viewer)))
+                .andExpect(status().isForbidden());
+
+        // a writer scoped to unit A (no user / cost-centre permissions)
+        UUID writeRole = FIX.role(w.tenant(), "OU_WRITE", false, "core.org_unit.view", "core.org_unit.update");
+        TestUser writer = FIX.user(w.tenant(), "writer@test.local");
+        FIX.assign(writer, writeRole, "ORG_UNIT", List.of(a), true, TestFixtures.EPOCH, null);
+        mvc.perform(get("/api/v1/core/org-units/lookups/managers?q=tran").with(as(writer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(picked.userId().toString()))
+                .andExpect(jsonPath("$[0].code").value("tran.b@test.local"))
+                .andExpect(jsonPath("$[0].name").value("Trần Thị B"))
+                .andExpect(jsonPath("$[0].email").doesNotExist())
+                .andExpect(jsonPath("$[0].status").doesNotExist());
+        mvc.perform(get("/api/v1/core/org-units/lookups/cost-centres?legalEntityId=" + w.le() + "&asOf=2026-02-01")
+                        .with(as(writer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].code", contains("CC-1")))
+                .andExpect(jsonPath("$[0].name").value("Cost one"))
+                .andExpect(jsonPath("$[0].glSegment").doesNotExist());
+        // data scope: the writer has nothing in LE2
+        mvc.perform(get("/api/v1/core/org-units/lookups/cost-centres?legalEntityId=" + le2 + "&asOf=2026-02-01")
+                        .with(as(writer)))
+                .andExpect(status().isNotFound());
     }
 
     @Test

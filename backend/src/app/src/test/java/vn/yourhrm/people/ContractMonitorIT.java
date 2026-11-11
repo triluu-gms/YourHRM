@@ -65,13 +65,23 @@ class ContractMonitorIT extends ContractTestBase {
         assertThat(as(w.hr(), () -> jobs.runDaily(LocalDate.of(2026, 1, 1))).contractsExpired()).isEqualTo(1);
         assertThat(ADMIN.queryForObject("select status from hr.contract where id = ?", String.class, c)).isEqualTo("EXPIRED");
         assertThat(as(w.hr(), () -> jobs.runDaily(LocalDate.of(2026, 1, 20))).autoConversionFlags()).isZero();
+        assertThat(ADMIN.queryForObject("select auto_conversion_due_since from hr.contract where id = ?",
+                LocalDate.class, c)).isNull();
         assertThat(as(w.hr(), () -> jobs.runDaily(LocalDate.of(2026, 2, 5))).autoConversionFlags()).isEqualTo(1);
+        // v0.6: the first day the contract counts as converted (end + 30 days + 1) is stored once
+        assertThat(ADMIN.queryForObject("select auto_conversion_due_since from hr.contract where id = ?",
+                LocalDate.class, c)).isEqualTo(LocalDate.of(2026, 1, 31));
         assertThat(as(w.hr(), () -> jobs.runDaily(LocalDate.of(2026, 2, 6))).autoConversionFlags()).isZero();
+        assertThat(events(w.tenant(), "people.ContractExpiring"))
+                .filteredOn(e -> JsonPath.<Boolean>read(e, "$.autoConversionDue")).hasSize(1);
         assertThat(notifications(w.tenant(), ContractNotificationTemplates.AUTO_CONVERSION_DUE)).isPositive();
         mvc.perform(get("/api/v1/people/contracts/expiring?asOf=2026-02-05").with(as(w.hr())))
                 .andExpect(jsonPath("$[0].contractId").value(c.toString()))
                 .andExpect(jsonPath("$[0].status").value("EXPIRED"))
-                .andExpect(jsonPath("$[0].autoConversionDue").value(true));
+                .andExpect(jsonPath("$[0].autoConversionDue").value(true))
+                .andExpect(jsonPath("$[0].autoConversionDueSince").value("2026-01-31"));
+        mvc.perform(get("/api/v1/people/contracts/" + c).with(as(w.hr())))
+                .andExpect(jsonPath("$.autoConversionDueSince").value("2026-01-31"));
 
         // scope: an HR officer of another unit sees nothing
         OrgUnit other = FIX.orgUnit(w.tenant(), "OTHER", null, w.le(), null, TestFixtures.EPOCH, null);
