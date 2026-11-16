@@ -133,6 +133,8 @@ export interface InstanceDetail {
   trail: TrailEntry[];
   allowedActions: string[];
   myPendingTaskId?: UUID | null;
+  /** Display name (or login) of every user id that appears in the detail. */
+  userNames: Record<UUID, string>;
 }
 
 /** `WorkflowQueryService.ConsoleItem`. */
@@ -143,6 +145,8 @@ export interface ConsoleItem {
   submittedAt: ISOInstant;
   ageHours: number;
   requesterUserId: UUID;
+  /** Display name (or login) of the requester; the console never shows the raw id. */
+  requesterName?: string | null;
   callbackStatus?: string | null;
   lastError?: string | null;
 }

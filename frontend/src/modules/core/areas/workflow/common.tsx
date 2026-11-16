@@ -1,4 +1,4 @@
-import { Select, Typography } from 'antd';
+import { Select, Space, Tooltip, Typography } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UUID } from '@/shared/api';
@@ -58,6 +58,60 @@ export function SummaryList({ summary }: { summary: Summary | null | undefined }
       ))}
     </dl>
   );
+}
+
+/**
+ * Summary keys that carry a human-readable name of the subject record, best first. The owning module writes them
+ * when it starts the request (`WorkflowService.StartRequest.summary`, e.g. `employeeName` / `employeeNo`).
+ */
+const SUBJECT_NAME_KEYS = [
+  'employeeName',
+  'personName',
+  'candidateName',
+  'subjectName',
+  'fullName',
+  'name',
+  'title',
+  'employeeNo',
+  'code',
+] as const;
+
+/** The subject's display name taken from the request summary, or `null` when the summary carries none. */
+export function subjectName(summary: Summary | null | undefined): string | null {
+  for (const key of SUBJECT_NAME_KEYS) {
+    const value = summary?.[key];
+    if (typeof value === 'string' && value.trim() !== '') return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+  return null;
+}
+
+/**
+ * The record a request is about: its name from the summary with the record type as a hint, never the raw id —
+ * the id stays available as the tooltip for support. Renders nothing when the request has no subject.
+ */
+export function SubjectLabel({
+  subjectType,
+  subjectId,
+  summary,
+}: {
+  subjectType?: string | null;
+  subjectId?: UUID | null;
+  summary: Summary | null | undefined;
+}) {
+  const { t } = useTranslation('core-workflow');
+  if (!subjectType) return null;
+  const typeLabel = t(`subjectType.${subjectType}`, { defaultValue: subjectType });
+  const name = subjectName(summary);
+  const body = (
+    <span data-testid="subject">
+      <Space size={6} wrap>
+        {name ? <Typography.Text>{name}</Typography.Text> : null}
+        <Typography.Text type="secondary">{typeLabel}</Typography.Text>
+      </Space>
+    </span>
+  );
+  return subjectId ? <Tooltip title={subjectId}>{body}</Tooltip> : body;
 }
 
 /** Instance / task / callback status with the workflow-specific labels on top of the common ones. */

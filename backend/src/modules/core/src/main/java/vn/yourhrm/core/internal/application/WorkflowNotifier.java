@@ -23,6 +23,9 @@ public class WorkflowNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowNotifier.class);
 
+    /** Admin SPA route of the request detail (`workflowRequestDetailRoute`); the instance id is appended. */
+    private static final String REQUEST_LINK = "/core/workflow/requests/";
+
     private final NotificationService notifications;
     private final JdbcClient jdbc;
 
@@ -53,7 +56,8 @@ public class WorkflowNotifier {
                 "processName", en ? info.processEn() : info.processVi(),
                 "stepName", en ? info.stepEn() : info.stepVi(),
                 "requesterName", info.requester()),
-                "core.workflow_task", e.taskId(), "/workflow/tasks/" + e.taskId(),
+                // the request detail is where the assignee acts on the task; there is no per-task page
+                "core.workflow_task", e.taskId(), REQUEST_LINK + e.instanceId(),
                 "wf-task:" + e.taskId() + ":" + e.assigneeUserId());
     }
 
@@ -86,7 +90,7 @@ public class WorkflowNotifier {
                 ? Map.of("processName", en ? info.processEn() : info.processVi())
                 : Map.of("processName", en ? info.processEn() : info.processVi(), "outcome", outcomeText(outcome, en));
         send(event, info.requester(), payload, "core.workflow_instance", instanceId,
-                "/workflow/requests/" + instanceId, dedupeKey);
+                REQUEST_LINK + instanceId, dedupeKey);
     }
 
     private void send(String event, UUID to, Map<String, Object> payload, String refType, UUID refId, String link,

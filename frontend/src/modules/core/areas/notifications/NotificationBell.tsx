@@ -1,82 +1,26 @@
-import { useEffect } from 'react';
 import { Badge, Button, Dropdown, Empty, List, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { http, type ISOInstant, type UUID } from '@/shared/api';
+import type { InboxItem } from './api';
+import { resolveDeepLink } from './deepLink';
+import { useInbox, useMarkAllRead, useMarkRead, useNotificationStream, useUnreadCount } from './queries';
 import { formatDateTime } from '@/shared/format';
-
-/** `NotificationInboxService.InboxItem`. */
-export interface InboxItem {
-  id: UUID;
-  createdAt: ISOInstant;
-  eventCode: string;
-  category: string;
-  title: string;
-  body?: string | null;
-  deepLink?: string | null;
-  readAt?: ISOInstant | null;
-}
-
-export interface Inbox {
-  items: InboxItem[];
-  unread: number;
-  page: number;
-  size: number;
-}
-
-export const notificationKeys = {
-  all: ['core', 'notifications'] as const,
-  unreadCount: ['core', 'notifications', 'unread-count'] as const,
-  inbox: (unreadOnly: boolean, page: number, size: number) =>
-    ['core', 'notifications', 'inbox', { unreadOnly, page, size }] as const,
-};
-
-export const notificationsApi = {
-  inbox: (unreadOnly: boolean, page: number, size: number) =>
-    http.get<Inbox>('/core/notifications', { params: { unreadOnly, page, size } }),
-  unreadCount: () => http.get<{ unread: number }>('/core/notifications/unread-count'),
-  markRead: (id: UUID) => http.post<void>(`/core/notifications/${id}/read`),
-  markAllRead: () => http.post<{ marked: number }>('/core/notifications/read-all'),
-};
-
-/** Subscribes to the SSE stream (US-CORE-072) and refreshes the inbox queries on every event. */
-export function useNotificationStream() {
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource('/api/v1/core/notifications/stream', { withCredentials: true });
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-    source.onmessage = refresh;
-    source.addEventListener('notification', refresh);
-    source.onerror = () => {
-      /* the browser reconnects on its own; after a 401 the next API call redirects to login */
-    };
-    return () => source.close();
-  }, [queryClient]);
-}
 
 /** Header widget: unread badge + the five latest items. */
 export function NotificationBell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   useNotificationStream();
-  const count = useQuery({ queryKey: notificationKeys.unreadCount, queryFn: notificationsApi.unreadCount, refetchInterval: 60_000 });
-  const latest = useQuery({ queryKey: notificationKeys.inbox(true, 0, 5), queryFn: () => notificationsApi.inbox(true, 0, 5) });
-  const markRead = useMutation({
-    mutationFn: notificationsApi.markRead,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
-  });
-  const markAll = useMutation({
-    mutationFn: notificationsApi.markAllRead,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
-  });
+  const count = useUnreadCount();
+  const latest = useInbox(true, 0, 5);
+  const markRead = useMarkRead();
+  const markAll = useMarkAllRead();
 
   const open = (item: InboxItem) => {
     if (!item.readAt) markRead.mutate(item.id);
-    if (item.deepLink) void navigate({ to: item.deepLink });
+    const to = resolveDeepLink(item.deepLink);
+    if (to) void navigate({ to });
   };
 
   return (

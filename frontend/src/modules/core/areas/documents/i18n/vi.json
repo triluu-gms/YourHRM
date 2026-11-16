@@ -1,0 +1,193 @@
+{
+  "library": {
+    "title": "Tài liệu",
+    "subtitle": "Mọi phân hệ đều lưu tệp tại đây. Tệp là gì và ai được mở phụ thuộc vào bản ghi mà tệp thuộc về.",
+    "byRecord": "Tệp của một bản ghi",
+    "byRecordHint": "Dịch vụ tài liệu không có danh sách toàn công ty: tệp được truy cập qua bản ghi sở hữu, và quyền cùng phạm vi dữ liệu của bản ghi đó quyết định ai được xem. Hãy chọn loại bản ghi và dán mã bản ghi.",
+    "pickRecord": "Chọn loại bản ghi và dán mã bản ghi để xem các tệp.",
+    "field": {
+      "ownerEntityType": "Loại bản ghi",
+      "recordId": "Mã bản ghi"
+    }
+  },
+  "types": {
+    "title": "Loại tài liệu",
+    "subtitle": "Được đăng ký khi triển khai phân hệ, không sửa tại đây. Loại tài liệu quyết định mức bảo mật mặc định, thời hạn lưu trữ và quyền được mở tệp.",
+    "search": "Tìm theo mã, tên hoặc loại bản ghi",
+    "allModules": "Tất cả phân hệ",
+    "allConfidentialities": "Tất cả mức bảo mật",
+    "view": "Xem",
+    "manage": "Tải lên",
+    "tenantDefault": "Mặc định công ty",
+    "tenantDefaultHint": "Các định dạng tệp cho phép trên toàn công ty, theo thiết lập tài liệu.",
+    "field": {
+      "code": "Loại",
+      "module": "Phân hệ",
+      "ownerEntityType": "Thuộc về",
+      "confidentiality": "Mức bảo mật",
+      "retentionClass": "Thời hạn lưu",
+      "permissions": "Quyền",
+      "limits": "Tệp được nhận"
+    }
+  },
+  "panel": {
+    "upload": "Đính kèm tệp",
+    "uploaded": "Đã tải tệp lên. Tệp mở được sau khi quét mã độc cho kết quả sạch.",
+    "newVersion": "Tải lên phiên bản mới",
+    "pickType": "Loại tài liệu",
+    "noTypes": "Không có loại tài liệu nào thuộc loại bản ghi này.",
+    "empty": "Bản ghi này chưa có tệp nào.",
+    "noFile": "Chưa có tệp",
+    "notReady": "Chưa thể mở tệp: đang quét mã độc hoặc quét thất bại.",
+    "versionNo": "v{no}",
+    "downloadLabel": "Mở {title}",
+    "downloadVersionLabel": "Mở phiên bản {no}",
+    "field": {
+      "title": "Tệp",
+      "type": "Loại tài liệu",
+      "confidentiality": "Mức bảo mật",
+      "status": "Trạng thái",
+      "file": "Phiên bản hiện tại",
+      "versionNo": "Phiên bản",
+      "fileName": "Tên tệp",
+      "size": "Dung lượng",
+      "source": "Nguồn",
+      "scan": "Quét mã độc",
+      "uploadedAt": "Tải lên lúc"
+    }
+  },
+  "confidentiality": {
+    "PUBLIC": "Công khai",
+    "INTERNAL": "Nội bộ",
+    "CONFIDENTIAL": "Mật",
+    "RESTRICTED": "Tối mật"
+  },
+  "documentStatus": {
+    "PENDING_SCAN": "Đang quét",
+    "ACTIVE": "Đang dùng",
+    "QUARANTINED": "Đã cách ly",
+    "ARCHIVED": "Lưu trữ",
+    "PURGED": "Đã xóa"
+  },
+  "scanStatus": {
+    "PENDING": "Đang quét",
+    "CLEAN": "Sạch",
+    "INFECTED": "Nhiễm mã độc",
+    "ERROR": "Quét lỗi",
+    "SKIPPED": "Hệ thống sinh"
+  },
+  "source": {
+    "UPLOAD": "Tải lên",
+    "GENERATED": "Hệ thống sinh",
+    "SIGNED": "Bản ký",
+    "IMPORT": "Import"
+  },
+  "templates": {
+    "title": "Mẫu văn bản",
+    "subtitle": "Tệp dùng để sinh văn bản. Tải lên một phiên bản, xem thử với dữ liệu mẫu, rồi ban hành từ một ngày.",
+    "search": "Tìm theo mã hoặc tên",
+    "allPurposes": "Tất cả mục đích",
+    "create": "Thêm mẫu",
+    "createTitle": "Thêm mẫu văn bản",
+    "createHint": "Chọn loại văn bản. Mẫu của một pháp nhân được ưu tiên hơn mẫu dùng chung toàn công ty.",
+    "noDefinitions": "Chưa phân hệ nào đăng ký mẫu văn bản.",
+    "allTaken": "Mọi mẫu đã đăng ký đều đã được tạo cho phạm vi này.",
+    "empty": "Chưa thiết lập mẫu nào. Chưa thể sinh văn bản cho tới khi có mẫu được ban hành.",
+    "tenantWide": "Mọi pháp nhân",
+    "openLabel": "Mở mẫu {code}",
+    "created": "Đã tạo mẫu. Hãy tải lên một phiên bản để sử dụng.",
+    "field": {
+      "code": "Mẫu",
+      "name": "Tên",
+      "purpose": "Mục đích",
+      "ownerModule": "Phân hệ",
+      "documentType": "Lưu dưới loại",
+      "scope": "Phạm vi",
+      "legalEntity": "Pháp nhân",
+      "sequence": "Số hiệu",
+      "status": "Trạng thái",
+      "inForce": "Đang áp dụng",
+      "versions": "Phiên bản"
+    },
+    "sequenceHint": "Chỉ dùng cho mẫu có in trường doc.number. Để trống khi phân hệ tự đánh số văn bản, như Nhân sự đánh số hợp đồng.",
+    "noSequence": "Không đánh số",
+    "notPublished": "Chưa ban hành",
+    "inForceSince": "v{no} từ {from}"
+  },
+  "versions": {
+    "title": "Các phiên bản",
+    "upload": "Tải lên phiên bản",
+    "uploadTitle": "Phiên bản mẫu mới",
+    "uploadHint": "Tệp .html được kết xuất ra PDF/A với phông tiếng Việt. Tệp .docx được trộn bằng poi-tl và hiện chỉ xuất ra .docx.",
+    "uploaded": "Đã tải lên ở trạng thái nháp. Hãy xem thử rồi ban hành.",
+    "published": "Đã ban hành phiên bản.",
+    "publishConfirm": "Ban hành phiên bản này?",
+    "publishHint": "Văn bản sinh từ ngày hiệu lực sẽ dùng phiên bản này; phiên bản ban hành trước đó kết thúc vào ngày liền trước.",
+    "unknownFields": "Các trường sau không phải trường trộn của mẫu này:",
+    "field": {
+      "versionNo": "Phiên bản",
+      "file": "Tệp mẫu",
+      "sourceFormat": "Định dạng nguồn",
+      "outputFormat": "Định dạng xuất",
+      "validFrom": "Hiệu lực từ",
+      "validity": "Hiệu lực",
+      "status": "Trạng thái",
+      "usedFields": "Trường đã dùng"
+    },
+    "fileRequired": "Hãy chọn tệp .html hoặc .docx",
+    "validFromHint": "Mặc định là hôm nay. Phải sau ngày hiệu lực của phiên bản đã ban hành trước đó.",
+    "outputHint": "Tệp HTML luôn kết xuất ra PDF/A.",
+    "preview": "Xem thử",
+    "previewLabel": "Xem thử phiên bản {no}",
+    "previewOpened": "Bản xem thử đã mở ở tab mới.",
+    "previewBlocked": "Trình duyệt chặn tab xem thử nên tệp đã được tải xuống.",
+    "publish": "Ban hành",
+    "publishLabel": "Ban hành phiên bản {no}",
+    "none": "Chưa tải lên phiên bản nào.",
+    "noFields": "Phiên bản này không dùng trường trộn nào."
+  },
+  "fields": {
+    "title": "Các trường có thể dùng",
+    "hint": "Sao chép một trường rồi dán vào tệp mẫu. Trong HTML, ảnh đặt ở thuộc tính src của thẻ img. Trường không có trong danh sách sẽ bị từ chối khi tải lên - kể cả khi nằm trong chú thích HTML.",
+    "fromModule": "Của mẫu này",
+    "fromCore": "Dùng được trong mọi mẫu",
+    "image": "Ảnh",
+    "sample": "Giá trị xem thử",
+    "copied": "Đã sao chép trường."
+  },
+  "purpose": {
+    "LABOUR_CONTRACT": "Hợp đồng lao động",
+    "DECISION": "Quyết định",
+    "CERTIFICATE": "Giấy xác nhận",
+    "PAYSLIP": "Phiếu lương",
+    "LETTER": "Thư",
+    "REPORT": "Báo cáo"
+  },
+  "sourceFormat": {
+    "HTML": "HTML",
+    "DOCX": "Word (.docx)"
+  },
+  "outputFormat": {
+    "PDF": "PDF/A",
+    "DOCX": "Word (.docx)"
+  },
+  "versionStatus": {
+    "DRAFT": "Nháp",
+    "PUBLISHED": "Đã ban hành",
+    "RETIRED": "Ngừng dùng"
+  },
+  "errors": {
+    "unknown-template-definition": "Không còn phân hệ nào đăng ký mẫu này.",
+    "template-exists": "Đã có mẫu với mã này trong phạm vi đã chọn.",
+    "unknown-sequence": "Số hiệu này không tồn tại.",
+    "invalid-template-file": "Mẫu phải là tệp .docx hoặc .html.",
+    "invalid-output-format": "Mẫu HTML kết xuất ra PDF; mẫu DOCX xuất ra DOCX hoặc PDF.",
+    "unknown-merge-fields": "Tệp dùng các trường không thuộc mẫu này.",
+    "template-version-not-draft": "Chỉ phiên bản nháp mới được ban hành.",
+    "template-version-superseded": "Đã có phiên bản ban hành từ ngày này hoặc muộn hơn; hãy chọn ngày muộn hơn.",
+    "no-published-template": "Chưa có phiên bản nào của mẫu này được ban hành cho ngày đó.",
+    "no-template": "Công ty chưa có mẫu với mã đó.",
+    "template-not-numbered": "Mẫu có in số văn bản nhưng chưa gắn số hiệu.",
+    "pdf-converter-unavailable": "Chuyển mẫu DOCX sang PDF cần dịch vụ chuyển đổi hiện chưa chạy. Hãy ban hành phiên bản xuất ra DOCX."
+  }
+}

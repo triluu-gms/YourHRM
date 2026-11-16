@@ -88,7 +88,7 @@ class JobCatalogueApiIT extends IntegrationTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("grade-code-taken"));
 
         // B1 is retired from 2027; a new grade can take rank 1 from then on
-        putJson(owner, "/api/v1/core/grades/" + b1, "{\"name\":\"Bậc 1\",\"rankOrder\":1,\"validTo\":\"2027-01-01\",\"active\":true}")
+        putJson(owner, "/api/v1/core/grades/" + b1, "{\"name\":\"Bậc 1\",\"rankOrder\":1,\"validTo\":\"2027-01-01\",\"active\":true,\"version\":0}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.validTo").value("2027-01-01"));
         id(postJson(owner, url, "{\"code\":\"B1N\",\"name\":\"Bậc 1 (mới)\",\"rankOrder\":1,\"validFrom\":\"2027-01-01\"}"));
 
@@ -101,6 +101,55 @@ class JobCatalogueApiIT extends IntegrationTest {
 
         Map<UUID, JobCatalogue.Grade> found = inTenant(tenant, () -> catalogue.grades(List.of(b1), LocalDate.of(2027, 1, 1)));
         assertThat(found).isEmpty(); // not valid on that date
+    }
+
+    @Test
+    void familyStructureAndGradeUpdatesCarryTheVersionAndStaleOnesAreRejected() throws Exception {
+        UUID tenant = FIX.tenant("jc-version");
+        TestUser owner = FIX.owner(tenant);
+
+        // job family
+        UUID family = id(postJson(owner, "/api/v1/core/job-families", "{\"code\":\"FIN\",\"nameVi\":\"Tài chính\"}"));
+        String familyUrl = "/api/v1/core/job-families/" + family;
+        mvc.perform(get("/api/v1/core/job-families").with(as(owner))).andExpect(jsonPath("$[0].version").value(0));
+        putJson(owner, familyUrl, "{\"nameVi\":\"Tài chính - Kế toán\",\"nameEn\":\"Finance\",\"active\":true,\"version\":0}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.nameVi").value("Tài chính - Kế toán"));
+        putJson(owner, familyUrl, "{\"nameVi\":\"x\",\"active\":true,\"version\":0}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        putJson(owner, familyUrl, "{\"nameVi\":\"x\",\"active\":true}").andExpect(status().isBadRequest());
+        putJson(owner, "/api/v1/core/job-families/" + UUID.randomUUID(), "{\"nameVi\":\"x\",\"active\":true,\"version\":0}")
+                .andExpect(status().isNotFound());
+
+        // grade structure
+        UUID structure = id(postJson(owner, "/api/v1/core/grade-structures", "{\"code\":\"KT\",\"name\":\"Kỹ thuật\"}"));
+        String structureUrl = "/api/v1/core/grade-structures/" + structure;
+        mvc.perform(get("/api/v1/core/grade-structures").with(as(owner))).andExpect(jsonPath("$[0].version").value(0));
+        putJson(owner, structureUrl, "{\"name\":\"Kỹ thuật viên\",\"version\":0}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.name").value("Kỹ thuật viên"));
+        putJson(owner, structureUrl, "{\"name\":\"x\",\"version\":0}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        putJson(owner, structureUrl, "{\"name\":\"x\"}").andExpect(status().isBadRequest());
+
+        // grade
+        UUID grade = id(postJson(owner, structureUrl + "/grades",
+                "{\"code\":\"K1\",\"name\":\"Bậc 1\",\"rankOrder\":1,\"validFrom\":\"2026-01-01\"}"));
+        String gradeUrl = "/api/v1/core/grades/" + grade;
+        mvc.perform(get(structureUrl + "/grades?allDates=true").with(as(owner))).andExpect(jsonPath("$[0].version").value(0));
+        putJson(owner, gradeUrl, "{\"name\":\"Bậc 1 (KT)\",\"rankOrder\":1,\"active\":true,\"version\":0}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.name").value("Bậc 1 (KT)"));
+        putJson(owner, gradeUrl, "{\"name\":\"x\",\"rankOrder\":1,\"active\":true,\"version\":0}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("stale-version"));
+        putJson(owner, gradeUrl, "{\"name\":\"x\",\"rankOrder\":1,\"active\":true}").andExpect(status().isBadRequest());
+        putJson(owner, gradeUrl, "{\"name\":\"Bậc 1\",\"rankOrder\":1,\"active\":false,\"version\":1}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.active").value(false));
+
+        assertThat(ADMIN.queryForObject("select version from core.job_family where id = ?", Integer.class, family)).isEqualTo(1);
+        assertThat(ADMIN.queryForObject("select version from core.grade_structure where id = ?", Integer.class, structure)).isEqualTo(1);
+        assertThat(ADMIN.queryForObject("select version from core.grade where id = ?", Integer.class, grade)).isEqualTo(2);
     }
 
     @Test

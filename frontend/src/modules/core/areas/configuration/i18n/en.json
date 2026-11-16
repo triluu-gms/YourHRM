@@ -1,0 +1,142 @@
+{
+  "common": {
+    "module": "Module",
+    "allModules": "All modules",
+    "search": "Search key or description",
+    "masked": "Sensitive value, hidden",
+    "true": "On",
+    "false": "Off",
+    "always": "Always",
+    "selectLocation": "Select a location"
+  },
+  "module": {
+    "saas": "Platform",
+    "core": "System",
+    "hr": "People",
+    "att": "Time & attendance",
+    "pay": "Payroll",
+    "rec": "Recruitment"
+  },
+  "level": {
+    "TENANT": "Whole company",
+    "LEGAL_ENTITY": "Legal entity",
+    "LOCATION": "Location",
+    "DEFAULT": "Default"
+  },
+  "type": {
+    "BOOL": "On / off",
+    "INT": "Whole number",
+    "DECIMAL": "Number",
+    "TEXT": "Text",
+    "ENUM": "Choice",
+    "DATE": "Date",
+    "JSON": "JSON"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Typed settings registered by each module. A value set for a location overrides its legal entity, which overrides the whole company; without any value the default applies.",
+    "field": {
+      "setting": "Setting",
+      "key": "Key",
+      "type": "Type",
+      "currentValue": "Current value (company)",
+      "default": "Default",
+      "levels": "Can be set for",
+      "overrides": "Values",
+      "effectiveDated": "Dated",
+      "allowedValues": "Allowed values",
+      "value": "Value",
+      "scope": "Applies to",
+      "validity": "Validity"
+    },
+    "overrideCount": "{count, plural, =0 {Default} one {# value} other {# values}}",
+    "effectiveDatedHint": "Values take effect from a date and keep their history.",
+    "sensitiveHint": "Sensitive: stored values are hidden. You can still replace them.",
+    "drawerTitle": "Setting {key}",
+    "values": {
+      "title": "Stored values",
+      "empty": "No value is stored; the default applies everywhere.",
+      "remove": "Remove value",
+      "removeConfirm": "Remove this value? The next less specific level, or the default, applies again.",
+      "removed": "Value removed"
+    },
+    "set": {
+      "title": "Set a value",
+      "submit": "Set value",
+      "level": "Level",
+      "validFromHint": "Takes effect on this date (today when empty). The value in force before it ends the day before.",
+      "notDatedHint": "This setting is not dated: the value replaces the current one at this level.",
+      "valueRequired": "Enter a value.",
+      "jsonInvalid": "Enter valid JSON.",
+      "legalEntityRequired": "Select a legal entity.",
+      "locationRequired": "Select a location.",
+      "done": "Value saved. It now resolves to {value} ({source})."
+    },
+    "resolve": {
+      "title": "Which value applies?",
+      "hint": "Pick a legal entity and / or a location and a date to see the value used there, and where it comes from.",
+      "check": "Check",
+      "result": "Value",
+      "source": "Comes from",
+      "since": "since {date}"
+    }
+  },
+  "sequences": {
+    "title": "Numbering",
+    "subtitle": "Number series for employee numbers, contracts, decisions… Numbers are taken by the modules when a record is created; gap-free series give a number back when the transaction is cancelled.",
+    "create": "Create series",
+    "edit": "Edit series {code}",
+    "preview": "Preview next number",
+    "previewTitle": "Next number of {code}",
+    "previewHint": "The number the next record would get. Nothing is consumed.",
+    "previewNext": "Next number",
+    "previewRun": "Preview",
+    "field": {
+      "pattern": "Pattern",
+      "scopeLevel": "Counter",
+      "resetRule": "Restart",
+      "gapFree": "Gap-free",
+      "startValue": "Start value",
+      "incrementBy": "Increment",
+      "onDate": "Business date",
+      "sample": "Sample"
+    },
+    "scope": {
+      "TENANT": "One counter for the company",
+      "LEGAL_ENTITY": "One counter per legal entity"
+    },
+    "reset": {
+      "NEVER": "Never",
+      "YEARLY": "Every year",
+      "MONTHLY": "Every month"
+    },
+    "codeRequired": "Code is required.",
+    "codeInvalid": "Upper-case letters, digits and '_', starting with a letter (2–41 characters).",
+    "codeHint": "Used by the modules to take numbers, e.g. EMPLOYEE_NO. Cannot be changed later.",
+    "nameRequired": "Name is required.",
+    "patternRequired": "Pattern is required.",
+    "patternHint": "Tokens: {tokens}. Everything else is kept as typed.",
+    "patternProblem": {
+      "unknownToken": "Unknown token {token}.",
+      "seqWidth": "'{SEQ:n}' needs a width n between 1 and 12.",
+      "seqCount": "The pattern needs exactly one '{SEQ:n}'."
+    },
+    "sampleHint": "Number {n} on {date}{le, select, none {} other { for legal entity {le}}}.",
+    "fixedAfterCreate": "Cannot be changed after creation.",
+    "gapFreeHint": "The number is taken inside the business transaction and returned if it is cancelled. Off: faster, but cancelled records leave gaps.",
+    "positive": "Must be 1 or more.",
+    "nonNegative": "Must be 0 or more."
+  },
+  "errors": {
+    "unknown-setting": "This setting is not registered.",
+    "invalid-setting-value": "The value does not match the setting's type.",
+    "level-not-allowed": "This setting cannot be set at that level.",
+    "unknown-legal-entity": "The legal entity does not exist.",
+    "unknown-location": "The location does not exist.",
+    "sequence-code-taken": "A series with this code already exists.",
+    "invalid-sequence": "The series is not valid.",
+    "invalid-pattern": "The pattern is not valid.",
+    "unknown-sequence": "The series does not exist or is inactive.",
+    "legal-entity-required": "This series needs a legal entity."
+  }
+}

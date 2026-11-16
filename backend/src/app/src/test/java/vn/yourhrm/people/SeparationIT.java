@@ -341,6 +341,12 @@ class SeparationIT extends SeparationTestBase {
         assertThat(ADMIN.queryForObject("""
                 select request_summary ->> 'protectedEmployee' from core.workflow_instance where subject_id = ?""",
                 String.class, id)).isEqualTo("true");
+        // the approver sees who the request is about by name, not only by employee number
+        assertThat(ADMIN.queryForObject("""
+                select request_summary ->> 'employeeName' from core.workflow_instance where subject_id = ?""",
+                String.class, id)).isEqualTo(ADMIN.queryForObject(
+                        "select full_name from hr.person where tenant_id = ? and id = ?", String.class,
+                        w.tenant(), w.emp().personId()));
         decide(w.approver(), id, "APPROVE");
         assertThat(row(id)).containsEntry("status", "SCHEDULED").containsEntry("is_protected", true);
         assertThat((String) events(w.tenant(), "people.TerminationScheduled").getFirst().get("payload"))

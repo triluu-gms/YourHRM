@@ -2,20 +2,21 @@ import { createRoute } from '@tanstack/react-router';
 import { adminRoute } from '@/shared/routing';
 import { requirePermission } from '@/shared/auth';
 import { CorePermissions as P } from '../../permissions';
-import { Placeholder } from '../Placeholder';
+import { SettingsPage } from './SettingsPage';
+import { SequencesPage } from './SequencesPage';
 
-/** Settings and numbering area. Replace the placeholders with the real pages; keep the paths (menu.ts links to them). */
+/** Settings (BR-CORE-084) and numbering (BR-CORE-085). Paths are linked from `menu.ts`; keep them. */
 export const settingsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/core/settings',
-  beforeLoad: requirePermission(P.SETTING_VIEW, P.SEQUENCE_VIEW),
-  component: () => <Placeholder area="/core/settings" />,
+  beforeLoad: requirePermission(P.SETTING_VIEW),
+  component: SettingsPage,
 });
 export const sequencesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/core/sequences',
-  beforeLoad: requirePermission(P.SETTING_VIEW, P.SEQUENCE_VIEW),
-  component: () => <Placeholder area="/core/sequences" />,
+  beforeLoad: requirePermission(P.SEQUENCE_VIEW),
+  component: SequencesPage,
 });
 
-export const configurationRoutes = [settingsRoute, sequencesRoute ];
+export const configurationRoutes = [settingsRoute, sequencesRoute];

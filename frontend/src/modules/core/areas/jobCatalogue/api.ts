@@ -5,8 +5,8 @@ import { http, type ISODate, type UUID } from '@/shared/api';
  * `JobTitleService` / `GradeService`. Job titles are compatible with People's `JobTitleLookup`, grade structures and
  * grades with `GradeStructureLookup` / `GradeLookup` (people/common/lookups.ts); keep them that way.
  *
- * Optimistic locking: only job titles carry a `version`. Job families, grade structures and grades have none in the
- * backend (last write wins).
+ * Optimistic locking: job titles, job families, grade structures and grades carry a `version`. Every update sends the
+ * version it read; a concurrent change is refused with 409 `stale-version`.
  */
 
 // ------------------------------------------------------------------------------------------------ job families
@@ -18,6 +18,7 @@ export interface JobFamily {
   nameVi: string;
   nameEn?: string | null;
   active: boolean;
+  version: number;
 }
 
 /** `JobCatalogueController.CreateFamilyRequest`. */
@@ -27,11 +28,12 @@ export interface CreateJobFamilyRequest {
   nameEn?: string | null;
 }
 
-/** `JobCatalogueController.UpdateFamilyRequest` (no version: the backend has no optimistic lock here). */
+/** `JobCatalogueController.UpdateFamilyRequest`; `version` is the one read (optimistic lock). */
 export interface UpdateJobFamilyRequest {
   nameVi: string;
   nameEn?: string | null;
   active: boolean;
+  version: number;
 }
 
 // ------------------------------------------------------------------------------------------------ job titles
@@ -92,6 +94,7 @@ export interface GradeStructure {
   id: UUID;
   code: string;
   name: string;
+  version: number;
 }
 
 export interface CreateGradeStructureRequest {
@@ -99,8 +102,10 @@ export interface CreateGradeStructureRequest {
   name: string;
 }
 
+/** `JobCatalogueController.RenameStructureRequest`; `version` is the one read (optimistic lock). */
 export interface RenameGradeStructureRequest {
   name: string;
+  version: number;
 }
 
 /** `GradeService.GradeView`. No pay data (BR-CORE-021). */
@@ -113,6 +118,7 @@ export interface Grade {
   active: boolean;
   validFrom: ISODate;
   validTo?: ISODate | null;
+  version: number;
 }
 
 /** `JobCatalogueController.CreateGradeRequest`; `validFrom` null = today. */
@@ -124,12 +130,13 @@ export interface CreateGradeRequest {
   validTo: ISODate | null;
 }
 
-/** `JobCatalogueController.UpdateGradeRequest` (code and validFrom are immutable; no version). */
+/** `JobCatalogueController.UpdateGradeRequest` (code and validFrom are immutable; `version` is the one read). */
 export interface UpdateGradeRequest {
   name: string;
   rankOrder: number;
   validTo: ISODate | null;
   active: boolean;
+  version: number;
 }
 
 export interface GradeListParams {

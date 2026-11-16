@@ -1,4 +1,6 @@
-// Core sample data: company profile, legal entities, locations, org tree, catalogues, roles, users, workflow.
+// Core sample data: company profile, legal entities, locations, org tree, catalogues, roles, users, workflow,
+// document templates.
+import { readFile } from 'node:fs/promises';
 import { ensureKeycloakUser, section, step } from './lib.mjs';
 
 export const IDS = {
@@ -26,10 +28,17 @@ export const USERS = {
 
 /** Sample admin units exist from the two-level structure of 2025-07-01, so addresses are versions from that day. */
 const ADDR_FROM = '2025-07-01';
+/** Document templates are published from well before any sample contract, so every generation date resolves them. */
+const TEMPLATE_FROM = '2020-01-01';
+/**
+ * Adds the address version of a legal entity / location. The effective-dated change endpoints take the record's
+ * optimistic-lock token (`version` of the record as read, not of the version row), so read it first.
+ */
 async function addressVersion(api, base, attributes) {
   const versions = await api.get(`${base}/versions`);
   if (versions.some((v) => v.validFrom === ADDR_FROM)) return;
-  await api.post(`${base}/versions`, { effectiveFrom: ADDR_FROM, attributes });
+  const { version } = await api.get(base);
+  await api.post(`${base}/versions`, { effectiveFrom: ADDR_FROM, attributes, version });
 }
 
 const byCode = (list, code) => (Array.isArray(list) ? list : list.items ?? []).find((x) => x.code === code);
@@ -67,7 +76,6 @@ export async function seedCore(api, ctx) {
   }
   ctx.leSGN = await step('legal entity SGN (YourHRM Sài Gòn)', async () => {
     const found = byCode(await api.get('/core/legal-entities'), 'SGN');
-    if (found) return found.id;
     const attributes = {
       legalNameVi: 'Công ty TNHH YourHRM Sài Gòn', legalNameEn: 'YourHRM Saigon Co., Ltd.', shortName: 'YourHRM SGN',
       taxCode: '0312345678', siUnitCode: 'TC7901C', businessRegNo: '0312345678', businessRegDate: '2021-11-20',
@@ -75,10 +83,10 @@ export async function seedCore(api, ctx) {
       adminUnitCode: '26734', addressLine: '72 Lê Thánh Tôn', legalRepName: 'Võ Thanh Tâm', legalRepTitle: 'Giám đốc',
       fiscalYearStartMonth: 1, taxAuthorityCode: 'CT-HCM',
     };
-    const r = await api.post('/core/legal-entities', { code: 'SGN', validFrom: '2022-01-01',
-      attributes: { ...attributes, adminUnitCode: null, addressLine: null } });
-    await addressVersion(api, `/core/legal-entities/${r.id}`, attributes);
-    return r.id;
+    const id = found?.id ?? (await api.post('/core/legal-entities', { code: 'SGN', validFrom: '2022-01-01',
+      attributes: { ...attributes, adminUnitCode: null, addressLine: null } })).id;
+    await addressVersion(api, `/core/legal-entities/${id}`, attributes);
+    return id;
   });
 
   section('Core: locations');
@@ -95,12 +103,11 @@ export async function seedCore(api, ctx) {
   const existingLocs = await api.get('/core/locations');
   for (const [code, le, validFrom, attrs] of locations) {
     ctx.loc[code] = await step(`location ${code}`, async () => {
-      const found = byCode(existingLocs, code);
-      if (found) return found.id;
       const legalEntityId = le === 'SGN' ? ctx.leSGN : le;
       const attributes = { timeZone: 'Asia/Ho_Chi_Minh', ...attrs };
-      const { id } = await api.post('/core/locations', { code, legalEntityId, validFrom,
-        attributes: { ...attributes, adminUnitCode: null, addressLine: null } });
+      const id = byCode(existingLocs, code)?.id ?? (await api.post('/core/locations', { code, legalEntityId, validFrom,
+        attributes: { ...attributes, adminUnitCode: null, addressLine: null } })).id;
+      // The address version carries adminUnitCode: without it the minimum-wage region stays unknown and hires fail.
       await addressVersion(api, `/core/locations/${id}`, attributes);
       return id;
     });
@@ -174,7 +181,7 @@ export async function seedCore(api, ctx) {
       const versions = await api.get(`/core/org-units/${id}/versions`);
       if (versions.some((v) => v.validFrom === '2024-01-01')) continue;
       const cur = versions.at(-1);
-      await api.post(`/core/org-units/${id}/versions`, { effectiveFrom: '2024-01-01', attributes: {
+      await api.post(`/core/org-units/${id}/versions`, { effectiveFrom: '2024-01-01', version: cur.version, attributes: {
         nameVi: cur.nameVi, nameEn: cur.nameEn, typeId: cur.typeId, parentId: cur.parentId, legalEntityId: cur.legalEntityId,
         locationId: IDS.locHN, costCentreId: ctx.cc[cc], managerUserId: mgr ? ctx.users[mgr]?.id : null, sortOrder: 2 } });
     }
@@ -267,6 +274,33 @@ export async function seedCore(api, ctx) {
       onResolverFailure: 'LE_HR_ADMIN',
     });
   });
+
+  await seedDocumentTemplates(api);
+}
+
+/**
+ * Tenant document templates (BR-CORE-102). Without a published version the `/document` action of a contract fails
+ * with `no-template`, so the labour-contract template is uploaded and published tenant-wide here.
+ *
+ * No number series: People numbers the contract itself (`contract.no`); a template that prints `doc.number` needs one
+ * and would otherwise fail with `template-not-numbered`.
+ */
+async function seedDocumentTemplates(api) {
+  section('Core: document templates');
+  for (const [code, file, label] of [['HR_LABOUR_CONTRACT', 'HR_LABOUR_CONTRACT.html', 'hợp đồng lao động (VN/EN)']]) {
+    await step(`template ${code}: ${label}, version 1 (HTML -> PDF/A) published from ${TEMPLATE_FROM}`, async () => {
+      const existing = await api.get('/core/document-templates');
+      let tpl = (existing.items ?? existing).find((t) => t.code === code && !t.legalEntityId);
+      if (!tpl) tpl = await api.post('/core/document-templates', { code, legalEntityId: null, numberingSequenceCode: null });
+      if (tpl.versions.some((v) => v.status === 'PUBLISHED')) return;
+      const html = await readFile(new URL(`./templates/${file}`, import.meta.url));
+      const uploaded = await api.upload(`/core/document-templates/${tpl.id}/versions`,
+        { validFrom: TEMPLATE_FROM, outputFormat: 'PDF' },
+        { name: file, blob: new Blob([html], { type: 'text/html' }) });
+      const draft = uploaded.versions.filter((v) => v.status === 'DRAFT').sort((a, b) => b.versionNo - a.versionNo)[0];
+      await api.post(`/core/document-templates/${tpl.id}/versions/${draft.id}/publish`);
+    });
+  }
 }
 
 async function seedUsers(api, ctx) {

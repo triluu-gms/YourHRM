@@ -6,6 +6,8 @@ import { homeRoutes } from './areas/home/routes';
 import { meRoutes } from './areas/me/routes';
 import { employerRoutes } from './areas/employer/routes';
 import { jobCatalogueRoutes } from './areas/jobCatalogue/routes';
+import { employeeCategoriesRoutes } from './areas/employeeCategories/routes';
+import { costCentresRoutes } from './areas/costCentres/routes';
 import { accessRoutes } from './areas/access/routes';
 import { workflowRoutes } from './areas/workflow/routes';
 import { notificationsRoutes } from './areas/notifications/routes';
@@ -28,6 +30,8 @@ export const coreRoutes = [
   ...meRoutes,
   ...employerRoutes,
   ...jobCatalogueRoutes,
+  ...employeeCategoriesRoutes,
+  ...costCentresRoutes,
   ...accessRoutes,
   ...workflowRoutes,
   ...notificationsRoutes,

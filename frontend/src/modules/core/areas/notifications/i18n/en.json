@@ -1,0 +1,109 @@
+{
+  "common": {
+    "all": "All",
+    "unread": "Unread",
+    "markRead": "Mark as read",
+    "markAllRead": "Mark all as read",
+    "allMarked": "{count, plural, =0 {Nothing to mark} one {# notification marked as read} other {# notifications marked as read}}",
+    "unreadCount": "{count, plural, =0 {No unread notifications} other {# unread}}",
+    "read": "Read"
+  },
+  "category": {
+    "SECURITY": "Security",
+    "WORKFLOW": "Approval",
+    "PAYSLIP": "Payslip",
+    "REMINDER": "Reminder",
+    "ANNOUNCEMENT": "Announcement"
+  },
+  "channel": {
+    "IN_APP": "In app",
+    "EMAIL": "E-mail"
+  },
+  "status": {
+    "QUEUED": "Queued",
+    "SENT": "Sent",
+    "DELIVERED": "Delivered",
+    "OPENED": "Opened",
+    "FAILED": "Failed",
+    "BOUNCED": "Bounced",
+    "SUPPRESSED": "Suppressed"
+  },
+  "inbox": {
+    "title": "My notifications",
+    "subtitle": "Read notifications are kept for 180 days.",
+    "empty": "You have no notifications.",
+    "emptyUnread": "You have read everything."
+  },
+  "deliveries": {
+    "title": "Notification deliveries",
+    "subtitle": "Every in-app and e-mail delivery, newest first. Failed e-mails can be sent again.",
+    "allStatuses": "All statuses",
+    "allChannels": "All channels",
+    "field": {
+      "createdAt": "Created",
+      "eventCode": "Event",
+      "channel": "Channel",
+      "destination": "Sent to",
+      "status": "Status",
+      "attempts": "Attempts",
+      "lastError": "Last error",
+      "sentAt": "Sent",
+      "deliveredAt": "Delivered",
+      "failedAt": "Failed"
+    },
+    "recipientHint": "Recipient user {id}",
+    "withAttachment": "Has a protected attachment",
+    "resend": "Resend",
+    "resendLabel": "Resend delivery to {destination}",
+    "resendConfirm": "Send this e-mail again?",
+    "resent": "The e-mail has been queued again.",
+    "notResendable": {
+      "channel": "Only e-mails can be resent.",
+      "status": "Only e-mails that failed, bounced or never left can be resent.",
+      "attachment": "E-mails with an attachment are resent by the module that sent them (e.g. payroll publishes the payslip again)."
+    }
+  },
+  "templates": {
+    "title": "Notification templates",
+    "subtitle": "Texts maintained by the vendor for every event, channel and language. Personal data and amounts are never put in a notification; the link opens the record instead.",
+    "search": "Search event or subject",
+    "allCategories": "All categories",
+    "allChannels": "All channels",
+    "mandatory": "Mandatory",
+    "mandatoryHint": "Users cannot switch this category off.",
+    "attachmentAllowed": "Attachment allowed",
+    "field": {
+      "eventCode": "Event",
+      "category": "Category",
+      "channel": "Channel",
+      "locale": "Language",
+      "subject": "Subject / title",
+      "body": "Body",
+      "bodyFormat": "Format",
+      "placeholders": "Placeholders"
+    },
+    "noPlaceholders": "No placeholders",
+    "viewLabel": "View template {event} ({channel}, {locale})",
+    "kind": {
+      "TEXT": "Text",
+      "DATE": "Date",
+      "NUMBER": "Number",
+      "LINK": "Link",
+      "SENSITIVE": "Sensitive",
+      "MONEY": "Amount"
+    },
+    "preview": {
+      "title": "Preview with sample data",
+      "deepLink": "Link",
+      "deepLinkHint": "Path inside the app, e.g. /core/tasks",
+      "run": "Preview",
+      "result": "Result"
+    }
+  },
+  "errors": {
+    "not-resendable": "Only e-mails that failed, bounced or never left can be resent.",
+    "resend-from-source": "This e-mail has an attachment; it is resent by the module that sent it.",
+    "no-email-address": "The recipient has no e-mail address.",
+    "no-user-account": "Notifications need a user account in this company."
+  }
+}

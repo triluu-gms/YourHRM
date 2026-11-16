@@ -111,7 +111,7 @@ export function GradeStructureForm({
     }
     try {
       if (structure) {
-        await rename.mutateAsync({ id: structure.id, body: { name: v.name.trim() } });
+        await rename.mutateAsync({ id: structure.id, body: { name: v.name.trim(), version: structure.version } });
         fb.saved();
         onClose();
       } else {

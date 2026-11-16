@@ -1,0 +1,35 @@
+{
+  "page": {
+    "title": "Trung tâm chi phí",
+    "subtitle": "Thuộc một pháp nhân và có hiệu lực theo khoảng thời gian. Đơn vị tổ chức có trung tâm chi phí mặc định; tỷ lệ phân bổ theo từng phân công do phân hệ Nhân sự quản lý.",
+    "allPeriods": "Tất cả thời kỳ (gồm cả đã kết thúc và sắp tới)",
+    "create": "Thêm trung tâm chi phí",
+    "edit": "Sửa trung tâm chi phí {code}",
+    "empty": "Không có trung tâm chi phí nào theo bộ lọc này",
+    "glSegment": "Mã sổ cái",
+    "glSegmentHint": "Đoạn mã dùng khi kết xuất sổ cái.",
+    "owner": "Người phụ trách",
+    "ownerHint": "Người dùng đang hoạt động, chịu trách nhiệm về trung tâm chi phí này.",
+    "ownerSearch": "Nhập tên đăng nhập hoặc tên hiển thị…",
+    "ownerNoUsers": "Không tìm thấy người dùng",
+    "ownerUnavailable": "Bạn không xem được danh sách người dùng; người phụ trách hiện tại được giữ nguyên.",
+    "validity": "Hiệu lực",
+    "legalEntity": "Pháp nhân",
+    "legalEntityRequired": "Chọn pháp nhân.",
+    "legalEntityImmutable": "Không đổi được pháp nhân sau khi tạo.",
+    "codeRequired": "Nhập mã.",
+    "codeInvalid": "Chỉ gồm chữ, số, '_', '.', '-' (tối đa 32 ký tự).",
+    "codeImmutable": "Không đổi được mã sau khi tạo.",
+    "nameRequired": "Nhập tên.",
+    "validFromHint": "Bỏ trống để bắt đầu từ hôm nay. Không sửa được về sau.",
+    "validToHint": "Ngày kết thúc không bao gồm: có hiệu lực đến hết ngày liền trước. Bỏ trống nếu không giới hạn.",
+    "validToAfterFrom": "Ngày kết thúc phải sau ngày bắt đầu."
+  },
+  "errors": {
+    "cost-centre-code-taken": "Mã trung tâm chi phí này đã tồn tại trong pháp nhân.",
+    "cost-centre-in-use": "Vẫn còn đơn vị tổ chức dùng trung tâm chi phí này sau ngày đó. Hãy đổi mặc định của các đơn vị trước.",
+    "invalid-owner": "Người phụ trách phải là người dùng đang hoạt động.",
+    "invalid-period": "Ngày kết thúc phải sau ngày bắt đầu.",
+    "legal-entity-dissolved": "Pháp nhân không tồn tại hoặc đã giải thể."
+  }
+}

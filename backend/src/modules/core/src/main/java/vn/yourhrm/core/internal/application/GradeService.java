@@ -34,11 +34,11 @@ public class GradeService {
         this.clock = clock;
     }
 
-    public record GradeStructureView(UUID id, String code, String name) {
+    public record GradeStructureView(UUID id, String code, String name, int version) {
     }
 
     public record GradeView(UUID id, UUID gradeStructureId, String code, String name, int rankOrder, boolean active,
-            LocalDate validFrom, LocalDate validTo) {
+            LocalDate validFrom, LocalDate validTo, int version) {
     }
 
     // ------------------------------------------------------------------------------------ structures
@@ -48,7 +48,7 @@ public class GradeService {
         return jdbc.sql("select * from core.grade_structure where tenant_id = :t order by code")
                 .param("t", tenant())
                 .query((rs, n) -> new GradeStructureView(rs.getObject("id", UUID.class), rs.getString("code"),
-                        rs.getString("name")))
+                        rs.getString("name"), rs.getInt("version")))
                 .list();
     }
 
@@ -63,18 +63,28 @@ public class GradeService {
         jdbc.sql("insert into core.grade_structure (tenant_id, id, code, name) values (:t, :id, :c, :n)")
                 .param("t", tenant).param("id", id).param("c", code).param("n", name).update();
         events.publishEvent(new JobCatalogueChanged(tenant, "GRADE_STRUCTURE", id, "CREATED"));
-        return new GradeStructureView(id, code, name);
+        return structure(id);
     }
 
+    /** Renames a structure; the code is immutable. Optimistic lock on {@code version}. */
     @Transactional
-    public GradeStructureView renameStructure(UUID id, String name) {
+    public GradeStructureView renameStructure(UUID id, String name, int expectedVersion) {
         UUID tenant = tenant();
-        if (jdbc.sql("update core.grade_structure set name = :n where tenant_id = :t and id = :id")
-                .param("n", name).param("t", tenant).param("id", id).update() == 0) {
-            throw ApiException.notFound("Grade structure", id);
+        if (jdbc.sql("""
+                        update core.grade_structure set name = :n, version = version + 1
+                         where tenant_id = :t and id = :id and version = :v""")
+                .param("n", name).param("t", tenant).param("id", id).param("v", expectedVersion).update() == 0) {
+            GradeStructureView current = structure(id); // 404 when missing
+            throw ApiException.conflict("stale-version", "Grade structure " + current.code() + " was changed (version "
+                    + current.version() + ", expected " + expectedVersion + "); reload and retry");
         }
         events.publishEvent(new JobCatalogueChanged(tenant, "GRADE_STRUCTURE", id, "UPDATED"));
-        return structures().stream().filter(s -> s.id().equals(id)).findFirst().orElseThrow();
+        return structure(id);
+    }
+
+    private GradeStructureView structure(UUID id) {
+        return structures().stream().filter(s -> s.id().equals(id)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("Grade structure", id));
     }
 
     // ------------------------------------------------------------------------------------ grades
@@ -117,22 +127,38 @@ public class GradeService {
         return grade(id);
     }
 
-    /** Renames, re-ranks, ends ({@code validTo}) or (de)activates a grade; the code is immutable. */
+    /**
+     * Renames, re-ranks, ends ({@code validTo}) or (de)activates a grade; the code is immutable. Optimistic lock on
+     * {@code version}.
+     */
     @Transactional
-    public GradeView updateGrade(UUID id, String name, int rankOrder, LocalDate validTo, boolean active) {
+    public GradeView updateGrade(UUID id, String name, int rankOrder, LocalDate validTo, boolean active,
+            int expectedVersion) {
         UUID tenant = tenant();
         GradeView g = grade(id);
+        if (g.version() != expectedVersion) {
+            throw stale(g, expectedVersion);
+        }
         if (validTo != null && !validTo.isAfter(g.validFrom())) {
             throw ApiException.unprocessable("invalid-period", "The end date must be after " + g.validFrom());
         }
         assertRankFree(tenant, g.gradeStructureId(), id, rankOrder, g.validFrom(), validTo);
-        jdbc.sql("""
-                        update core.grade set name = :n, rank_order = :r, valid_to = :to, is_active = :a
-                         where tenant_id = :t and id = :id""")
+        int updated = jdbc.sql("""
+                        update core.grade set name = :n, rank_order = :r, valid_to = :to, is_active = :a,
+                               version = version + 1
+                         where tenant_id = :t and id = :id and version = :v""")
                 .param("n", name).param("r", rankOrder).param("to", validTo).param("a", active)
-                .param("t", tenant).param("id", id).update();
+                .param("t", tenant).param("id", id).param("v", expectedVersion).update();
+        if (updated == 0) {
+            throw stale(grade(id), expectedVersion);
+        }
         events.publishEvent(new JobCatalogueChanged(tenant, "GRADE", id, "UPDATED"));
         return grade(id);
+    }
+
+    private static ApiException stale(GradeView current, int expectedVersion) {
+        return ApiException.conflict("stale-version", "Grade " + current.code() + " was changed (version "
+                + current.version() + ", expected " + expectedVersion + "); reload and retry");
     }
 
     /** Friendly pre-check of the DDL exclusion constraint {@code grade_rank_ex}. */
@@ -165,6 +191,7 @@ public class GradeService {
     private static GradeView map(ResultSet rs) throws SQLException {
         return new GradeView(rs.getObject("id", UUID.class), rs.getObject("grade_structure_id", UUID.class),
                 rs.getString("code"), rs.getString("name"), rs.getInt("rank_order"), rs.getBoolean("is_active"),
-                rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class));
+                rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
+                rs.getInt("version"));
     }
 }

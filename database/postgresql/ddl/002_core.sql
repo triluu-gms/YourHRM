@@ -546,6 +546,7 @@ CREATE TABLE core.job_family (
   name_vi    text NOT NULL,
   name_en    text,
   is_active  boolean NOT NULL DEFAULT true,
+  version    int NOT NULL DEFAULT 0,             -- optimistic locking of PUT /job-families/{id}
   CONSTRAINT job_family_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT job_family_code_uq UNIQUE (tenant_id, code)
 );
@@ -579,6 +580,7 @@ CREATE TABLE core.grade_structure (
   id         uuid NOT NULL DEFAULT sys.uuid_v7(),
   code       text NOT NULL,
   name       text NOT NULL,
+  version    int NOT NULL DEFAULT 0,             -- optimistic locking of PUT /grade-structures/{id}
   CONSTRAINT grade_structure_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT grade_structure_code_uq UNIQUE (tenant_id, code)
 );
@@ -596,6 +598,7 @@ CREATE TABLE core.grade (
   valid_from          date NOT NULL DEFAULT DATE '1900-01-01',
   valid_to            date,
   valid_during        daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
+  version             int NOT NULL DEFAULT 0,      -- optimistic locking of PUT /grades/{id}
   CONSTRAINT grade_pk PRIMARY KEY (tenant_id, id),
   CONSTRAINT grade_code_uq UNIQUE (tenant_id, grade_structure_id, code),
   CONSTRAINT grade_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
