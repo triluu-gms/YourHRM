@@ -3,6 +3,7 @@ package vn.yourhrm.people.internal.application.separation;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -897,7 +898,9 @@ public class SeparationService {
     }
 
     private Map<String, Object> summary(SeparationView s) {
-        Map<String, Object> m = new HashMap<>();
+        Map<String, Object> m = new LinkedHashMap<>();
+        // the approver sees who the request is about: the full name leads, the number stays as the handle
+        m.put("employeeName", s.fullName());
         m.put("employeeNo", s.employeeNo());
         m.put("legalGroundCode", s.legalGroundCode());
         m.put("lastWorkingDate", s.lastWorkingDate().toString());

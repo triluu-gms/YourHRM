@@ -1,0 +1,31 @@
+{
+  "page": {
+    "title": "Loại nhân viên",
+    "subtitle": "Danh mục loại nhân viên của đơn vị. Điều kiện phê duyệt, phạm vi dữ liệu và điều kiện tính lương căn cứ vào các thuộc tính, không căn cứ vào mã.",
+    "includeInactive": "Hiện cả loại ngừng dùng",
+    "create": "Thêm loại nhân viên",
+    "edit": "Sửa loại nhân viên",
+    "sortOrder": "Thứ tự",
+    "flags": "Thuộc tính",
+    "headcount": "Tính định biên",
+    "none": "—",
+    "codeRequired": "Nhập mã.",
+    "codeInvalid": "Chỉ gồm chữ in hoa, chữ số và '_' (2 đến 32 ký tự).",
+    "codeImmutable": "Không đổi được mã sau khi tạo.",
+    "nameRequired": "Nhập tên.",
+    "flagsHint": "Thông thường một loại chỉ mang một thuộc tính; các phân hệ khác đọc các thuộc tính này.",
+    "active": "Đang dùng",
+    "empty": "Chưa có loại nhân viên nào"
+  },
+  "flag": {
+    "probation": "Thử việc",
+    "seasonal": "Thời vụ",
+    "intern": "Thực tập",
+    "expat": "Người nước ngoài",
+    "collaborator": "Cộng tác viên",
+    "countsInHeadcount": "Tính vào định biên"
+  },
+  "errors": {
+    "employee-category-code-taken": "Mã loại nhân viên này đã tồn tại."
+  }
+}

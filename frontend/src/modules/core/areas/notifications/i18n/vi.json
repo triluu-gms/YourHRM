@@ -1,0 +1,109 @@
+{
+  "common": {
+    "all": "Tất cả",
+    "unread": "Chưa đọc",
+    "markRead": "Đánh dấu đã đọc",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "allMarked": "{count, plural, =0 {Không có thông báo cần đánh dấu} other {Đã đánh dấu # thông báo là đã đọc}}",
+    "unreadCount": "{count, plural, =0 {Không có thông báo chưa đọc} other {# chưa đọc}}",
+    "read": "Đã đọc"
+  },
+  "category": {
+    "SECURITY": "Bảo mật",
+    "WORKFLOW": "Phê duyệt",
+    "PAYSLIP": "Phiếu lương",
+    "REMINDER": "Nhắc việc",
+    "ANNOUNCEMENT": "Thông báo chung"
+  },
+  "channel": {
+    "IN_APP": "Trong ứng dụng",
+    "EMAIL": "E-mail"
+  },
+  "status": {
+    "QUEUED": "Chờ gửi",
+    "SENT": "Đã gửi",
+    "DELIVERED": "Đã nhận",
+    "OPENED": "Đã mở",
+    "FAILED": "Lỗi",
+    "BOUNCED": "Bị trả về",
+    "SUPPRESSED": "Bị chặn"
+  },
+  "inbox": {
+    "title": "Thông báo của tôi",
+    "subtitle": "Thông báo đã đọc được giữ trong 180 ngày.",
+    "empty": "Bạn chưa có thông báo nào.",
+    "emptyUnread": "Bạn đã đọc hết thông báo."
+  },
+  "deliveries": {
+    "title": "Theo dõi gửi thông báo",
+    "subtitle": "Mọi lượt gửi trong ứng dụng và qua e-mail, mới nhất trước. E-mail gửi lỗi có thể gửi lại.",
+    "allStatuses": "Mọi trạng thái",
+    "allChannels": "Mọi kênh",
+    "field": {
+      "createdAt": "Tạo lúc",
+      "eventCode": "Sự kiện",
+      "channel": "Kênh",
+      "destination": "Gửi tới",
+      "status": "Trạng thái",
+      "attempts": "Số lần thử",
+      "lastError": "Lỗi gần nhất",
+      "sentAt": "Gửi lúc",
+      "deliveredAt": "Nhận lúc",
+      "failedAt": "Lỗi lúc"
+    },
+    "recipientHint": "Người dùng nhận {id}",
+    "withAttachment": "Có tệp đính kèm được bảo vệ",
+    "resend": "Gửi lại",
+    "resendLabel": "Gửi lại tới {destination}",
+    "resendConfirm": "Gửi lại e-mail này?",
+    "resent": "E-mail đã được đưa vào hàng đợi gửi lại.",
+    "notResendable": {
+      "channel": "Chỉ gửi lại được e-mail.",
+      "status": "Chỉ gửi lại được e-mail bị lỗi, bị trả về hoặc chưa gửi đi.",
+      "attachment": "E-mail có đính kèm do phân hệ gốc gửi lại (ví dụ: tiền lương phát hành lại phiếu lương)."
+    }
+  },
+  "templates": {
+    "title": "Mẫu thông báo",
+    "subtitle": "Nội dung do nhà cung cấp duy trì cho từng sự kiện, kênh và ngôn ngữ. Thông báo không chứa dữ liệu cá nhân hay số tiền; đường dẫn sẽ mở bản ghi gốc.",
+    "search": "Tìm sự kiện hoặc tiêu đề",
+    "allCategories": "Mọi nhóm",
+    "allChannels": "Mọi kênh",
+    "mandatory": "Bắt buộc",
+    "mandatoryHint": "Người dùng không thể tắt nhóm thông báo này.",
+    "attachmentAllowed": "Cho phép đính kèm",
+    "field": {
+      "eventCode": "Sự kiện",
+      "category": "Nhóm",
+      "channel": "Kênh",
+      "locale": "Ngôn ngữ",
+      "subject": "Tiêu đề",
+      "body": "Nội dung",
+      "bodyFormat": "Định dạng",
+      "placeholders": "Biến thay thế"
+    },
+    "noPlaceholders": "Không có biến",
+    "viewLabel": "Xem mẫu {event} ({channel}, {locale})",
+    "kind": {
+      "TEXT": "Văn bản",
+      "DATE": "Ngày",
+      "NUMBER": "Số",
+      "LINK": "Đường dẫn",
+      "SENSITIVE": "Nhạy cảm",
+      "MONEY": "Số tiền"
+    },
+    "preview": {
+      "title": "Xem trước với dữ liệu mẫu",
+      "deepLink": "Đường dẫn",
+      "deepLinkHint": "Đường dẫn trong ứng dụng, ví dụ /core/tasks",
+      "run": "Xem trước",
+      "result": "Kết quả"
+    }
+  },
+  "errors": {
+    "not-resendable": "Chỉ gửi lại được e-mail bị lỗi, bị trả về hoặc chưa gửi đi.",
+    "resend-from-source": "E-mail này có đính kèm; phân hệ gốc sẽ gửi lại.",
+    "no-email-address": "Người nhận chưa có địa chỉ e-mail.",
+    "no-user-account": "Thông báo cần tài khoản người dùng trong công ty này."
+  }
+}

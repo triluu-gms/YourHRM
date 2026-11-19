@@ -50,6 +50,8 @@ records by code. The People part creates new records, so for a second clean set 
   * Nga passed probation and moved to a definite contract.
   * An has a signed appendix.
   * Kiên has a contract-expiry separation in DRAFT.
+  * **Generate** renders the bilingual VN/EN labour contract (template `HR_LABOUR_CONTRACT`); **Open** shows the
+    signed scan that was uploaded when the contract was signed.
 * **Changes**
   * An was promoted on 2026-07-01, with his salary set by the signed appendix.
   * Đức was transferred to QA; Tùng's cost centre changed and he got a salary increase.
@@ -95,4 +97,8 @@ The SaaS platform module does not exist yet. Without these stand-ins People refu
 * **ESS bank-account changes fail locally with `403 step-up-required`.** The dev BFF logs in with Keycloak's password
   grant, whose tokens carry no `auth_time`. Test bank changes from the HR side.
 * **E-mail notifications are not sent.** No `EmailDeliveryAdapter` exists yet; in-app notifications work.
-* **Document generation is unavailable.** The `/document` and `/pdf` actions need Core document templates, which are not seeded.
+* **Only the labour contract has a template.** `scripts/sample-data/templates/HR_LABOUR_CONTRACT.html` is seeded and
+  published, so **Generate** on a contract produces a real PDF/A. The `/document` and `/pdf` actions of appendices,
+  decisions and reports still fail with `no-template` until their templates are added under `templates/`.
+* **DOCX templates cannot be rendered to PDF.** The Gotenberg / LibreOffice converter of ADR-0015 is not deployed;
+  upload DOCX templates with `outputFormat=DOCX`, or use HTML templates as this one does.

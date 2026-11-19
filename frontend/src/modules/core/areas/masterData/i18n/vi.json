@@ -1,0 +1,90 @@
+{
+  "page": {
+    "title": "Dữ liệu danh mục dùng chung",
+    "subtitle": "Dữ liệu tham chiếu toàn hệ thống, giống nhau với mọi đơn vị và chỉ xem tại đây: các bản phát hành do nhà vận hành nạp."
+  },
+  "tab": {
+    "adminUnits": "Đơn vị hành chính",
+    "codeLists": "Danh mục mã",
+    "banks": "Ngân hàng",
+    "countries": "Quốc gia",
+    "currencies": "Tiền tệ",
+    "releases": "Bản phát hành"
+  },
+  "adminUnit": {
+    "search": "Tìm tỉnh/thành hoặc phường/xã…",
+    "searchResults": "Kết quả tìm kiếm",
+    "provinces": "Tỉnh/thành phố",
+    "children": "Phường/xã thuộc {name}",
+    "level": "Cấp",
+    "levelValue": {
+      "PROVINCE": "Tỉnh/thành phố",
+      "DISTRICT": "Quận/huyện (trước 2025)",
+      "COMMUNE": "Phường/xã"
+    },
+    "validity": "Hiệu lực",
+    "back": "Về danh sách tỉnh/thành",
+    "open": "Xem",
+    "resolve": "Tra cũ → mới",
+    "resolveTitle": "Tra mã {code}",
+    "resolveHint": "Mã đã ghi nhận dẫn tới đơn vị nào tại ngày được chọn (BR-CORE-081). Trường hợp chia tách sẽ có nhiều phương án.",
+    "status": {
+      "CURRENT": "Còn hiệu lực tại ngày này",
+      "MAPPED": "Đã được thay bằng một đơn vị",
+      "AMBIGUOUS": "Chia tách: chọn đơn vị kế thừa",
+      "UNKNOWN": "Không có mã này hoặc không có đơn vị kế thừa"
+    },
+    "candidates": "Phương án",
+    "note": "Ghi chú",
+    "empty": "Không có đơn vị hành chính nào theo bộ lọc này"
+  },
+  "codeList": {
+    "list": "Danh mục",
+    "owner": "Phân hệ",
+    "statutory": "Theo luật định",
+    "tenantExtensible": "Cho phép mở rộng",
+    "values": "Giá trị của {list}",
+    "searchValues": "Tìm giá trị…",
+    "includeInactive": "Hiện cả giá trị ngừng dùng",
+    "value": "Mã giá trị",
+    "label": "Tên",
+    "attributes": "Thuộc tính",
+    "tenantValue": "Của đơn vị",
+    "pickList": "Chọn một danh mục để xem các giá trị",
+    "empty": "Không có giá trị nào theo bộ lọc này",
+    "validity": "Hiệu lực"
+  },
+  "bank": {
+    "search": "Tìm ngân hàng…",
+    "includeInactive": "Hiện cả ngân hàng ngừng dùng",
+    "bin": "Mã BIN",
+    "swift": "Mã SWIFT",
+    "shortName": "Tên viết tắt",
+    "branches": "Chi nhánh của {bank}",
+    "searchBranches": "Tìm chi nhánh…",
+    "branchCode": "Mã chi nhánh",
+    "province": "Tỉnh/thành",
+    "pickBank": "Chọn một ngân hàng để xem chi nhánh",
+    "empty": "Không có ngân hàng nào theo bộ lọc này"
+  },
+  "country": {
+    "search": "Tìm quốc gia…",
+    "iso3": "Mã ISO3",
+    "nationality": "Quốc tịch",
+    "empty": "Không có quốc gia nào theo bộ lọc này"
+  },
+  "currency": {
+    "minorUnits": "Số lẻ",
+    "empty": "Chưa nạp loại tiền tệ nào"
+  },
+  "release": {
+    "releaseNo": "Bản phát hành",
+    "title": "Tiêu đề",
+    "datasets": "Bộ dữ liệu",
+    "itemCounts": "Số bản ghi",
+    "effectiveDate": "Hiệu lực",
+    "publishedAt": "Phát hành lúc",
+    "loadedAt": "Nạp lúc",
+    "empty": "Chưa có bản phát hành nào được nạp"
+  }
+}

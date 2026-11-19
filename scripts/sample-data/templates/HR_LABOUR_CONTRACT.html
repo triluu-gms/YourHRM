@@ -1,0 +1,350 @@
+<!doctype html>
+<!--
+  Document template HR_LABOUR_CONTRACT (purpose LABOUR_CONTRACT, owner module hr) - bilingual VN/EN labour contract
+  following Bộ luật Lao động 2019, Điều 21 (nội dung chủ yếu của hợp đồng lao động).
+
+  Rendered by Core's HTML -> PDF/A-2b engine (TemplateRenderer, ADR-0015) with embedded Noto Sans, so Vietnamese
+  diacritics print correctly. Placeholders are double-brace keys and must all be registered merge fields of this
+  template (ContractDocuments.CONTRACT_FIELDS + DocumentTemplateRegistry.CORE_FIELDS), otherwise the upload is
+  refused with `unknown-merge-fields`.
+
+  CAUTION: TemplateRenderer.tags() scans the raw file with a regular expression, not the parsed DOM. A placeholder
+  written inside an HTML comment counts as used - which is why none appear in this comment. Keep it that way.
+
+  Deliberately NOT used here:
+    * doc.number - the contract number is People's own (contract.no); a template that prints doc.number needs a
+      number series on the template, and generation then fails with `template-not-numbered`.
+    * le.letterhead, le.seal - image fields; they render as an empty <img> when the legal entity has no letterhead
+      or seal document set (Core: PUT /core/legal-entities/{id}/letterhead).
+
+  Pay, work location, working time, PPE and social insurance are left as fill-in lines: People exposes no merge
+  fields for them (agreed pay is behind hr.compensation.view and has no sensitive-field provider yet - see
+  ContractDocumentService). Tenants that want them printed upload their own version of this template once those
+  fields exist.
+-->
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hợp đồng lao động</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 18mm 16mm 20mm;
+      }
+      body {
+        font-family: 'Noto Sans', sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.45;
+        color: #000;
+      }
+      .nation {
+        text-align: center;
+        margin-bottom: 14pt;
+      }
+      .nation .line1 {
+        font-weight: 700;
+        font-size: 11pt;
+      }
+      .nation .line2 {
+        font-weight: 700;
+        font-size: 11.5pt;
+        border-bottom: 1px solid #000;
+        display: inline-block;
+        padding: 0 6pt 1pt 6pt;
+      }
+      .nation .en {
+        font-style: italic;
+        font-size: 9pt;
+      }
+      h1 {
+        text-align: center;
+        font-size: 15pt;
+        margin: 10pt 0 0 0;
+        text-transform: uppercase;
+      }
+      .subtitle {
+        text-align: center;
+        font-style: italic;
+        font-size: 10pt;
+        margin: 2pt 0 0 0;
+      }
+      .no {
+        text-align: center;
+        margin: 6pt 0 14pt 0;
+      }
+      .issued {
+        text-align: right;
+        font-style: italic;
+        font-size: 10pt;
+        margin-bottom: 10pt;
+      }
+      h2 {
+        font-size: 11pt;
+        margin: 14pt 0 5pt 0;
+      }
+      h2 .en,
+      h3 .en {
+        font-weight: 400;
+        font-style: italic;
+        font-size: 9.5pt;
+      }
+      p {
+        margin: 3pt 0;
+      }
+      .en {
+        font-style: italic;
+        color: #333;
+      }
+      table.party {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      table.party td {
+        padding: 2pt 0;
+        vertical-align: top;
+      }
+      table.party td.label {
+        width: 42%;
+        padding-right: 8pt;
+      }
+      .fill {
+        border-bottom: 1px dotted #666;
+        display: inline-block;
+        min-width: 55%;
+      }
+      ol.terms {
+        padding-left: 16pt;
+        margin: 4pt 0;
+      }
+      ol.terms > li {
+        margin-bottom: 3pt;
+      }
+      table.sign {
+        width: 100%;
+        margin-top: 22pt;
+        border-collapse: collapse;
+      }
+      table.sign td {
+        width: 50%;
+        text-align: center;
+        vertical-align: top;
+        padding: 0 6pt;
+      }
+      table.sign .role {
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      table.sign .hint {
+        font-style: italic;
+        font-size: 9pt;
+        color: #444;
+      }
+      table.sign .space {
+        height: 72pt;
+      }
+      .footnote {
+        margin-top: 18pt;
+        font-size: 8.5pt;
+        font-style: italic;
+        color: #444;
+        border-top: 1px solid #bbb;
+        padding-top: 4pt;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nation">
+      <div class="line1">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div class="line2">Độc lập - Tự do - Hạnh phúc</div>
+      <div class="en">Socialist Republic of Vietnam - Independence - Freedom - Happiness</div>
+    </div>
+
+    <h1>Hợp đồng lao động</h1>
+    <p class="subtitle">Labour Contract</p>
+    <p class="no">Số / No.: <strong>{{contract.no}}</strong> - {{contract.type_vi}} <span class="en">({{contract.type_en}})</span></p>
+
+    <p class="issued">{{le.address}}, ngày {{doc.date}}</p>
+
+    <p>
+      Căn cứ Bộ luật Lao động số 45/2019/QH14 ngày 20/11/2019 và các văn bản hướng dẫn thi hành;<br />
+      Căn cứ nhu cầu và khả năng của hai bên,<br />
+      <span class="en">Pursuant to Labour Code No. 45/2019/QH14 of 20 November 2019 and its implementing
+      regulations, and to the needs and capacity of both parties,</span>
+    </p>
+    <p>Hôm nay, chúng tôi gồm: <span class="en">Today, the undersigned parties:</span></p>
+
+    <h2>Bên A - Người sử dụng lao động <span class="en">/ Party A - The Employer</span></h2>
+    <table class="party">
+      <tr>
+        <td class="label">Tên đơn vị <span class="en">/ Company</span></td>
+        <td><strong>{{le.legal_name}}</strong> ({{le.short_name}})</td>
+      </tr>
+      <tr>
+        <td class="label">Mã số thuế <span class="en">/ Tax code</span></td>
+        <td>{{le.tax_code}}</td>
+      </tr>
+      <tr>
+        <td class="label">Địa chỉ <span class="en">/ Address</span></td>
+        <td>{{le.address}}</td>
+      </tr>
+      <tr>
+        <td class="label">Điện thoại / E-mail <span class="en">/ Phone / E-mail</span></td>
+        <td>{{le.phone}} - {{le.email}}</td>
+      </tr>
+      <tr>
+        <td class="label">Đại diện theo pháp luật <span class="en">/ Legal representative</span></td>
+        <td>{{le.legal_rep_name}} - {{le.legal_rep_title}}</td>
+      </tr>
+      <tr>
+        <td class="label">Người ký hợp đồng <span class="en">/ Signing on behalf of Party A</span></td>
+        <td>{{signatory.name}} - {{signatory.title}}</td>
+      </tr>
+    </table>
+
+    <h2>Bên B - Người lao động <span class="en">/ Party B - The Employee</span></h2>
+    <table class="party">
+      <tr>
+        <td class="label">Họ và tên <span class="en">/ Full name</span></td>
+        <td><strong>{{employee.full_name}}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">Mã nhân viên <span class="en">/ Employee number</span></td>
+        <td>{{employee.no}}</td>
+      </tr>
+      <tr>
+        <td class="label">Ngày sinh <span class="en">/ Date of birth</span></td>
+        <td>{{employee.birth_date}}</td>
+      </tr>
+      <tr>
+        <td class="label">Giới tính <span class="en">/ Gender</span></td>
+        <td>{{employee.gender}}</td>
+      </tr>
+      <tr>
+        <td class="label">Quốc tịch <span class="en">/ Nationality</span></td>
+        <td>{{employee.nationality}}</td>
+      </tr>
+      <tr>
+        <td class="label">Số CCCD / Hộ chiếu <span class="en">/ ID card or passport no.</span></td>
+        <td><span class="fill">&nbsp;</span></td>
+      </tr>
+      <tr>
+        <td class="label">Nơi cư trú <span class="en">/ Place of residence</span></td>
+        <td><span class="fill">&nbsp;</span></td>
+      </tr>
+    </table>
+
+    <p>
+      Hai bên thỏa thuận ký kết hợp đồng lao động và cam kết thực hiện đúng các điều khoản sau đây:
+      <span class="en">The two parties agree to enter into this labour contract and undertake to comply with the
+      following terms:</span>
+    </p>
+
+    <h2>Điều 1. Loại hợp đồng, thời hạn và công việc <span class="en">/ Article 1. Type, term and work</span></h2>
+    <ol class="terms">
+      <li>
+        Loại hợp đồng <span class="en">/ Type of contract</span>: <strong>{{contract.type_vi}}</strong>
+        <span class="en">({{contract.type_en}})</span>
+      </li>
+      <li>
+        Thời hạn hợp đồng <span class="en">/ Term</span>: từ ngày <strong>{{contract.start_date}}</strong> đến ngày
+        <strong>{{contract.end_date}}</strong>
+        <span class="en">(from / to; blank "to" means an indefinite-term contract)</span>
+      </li>
+      <li>Thời gian thử việc <span class="en">/ Probation</span>: {{contract.probation_days}} ngày <span class="en">days</span></li>
+      <li>
+        Chức danh chuyên môn <span class="en">/ Job title</span>: <strong>{{job.title_vi}}</strong>
+        <span class="en">({{job.title_en}})</span>
+      </li>
+      <li>Công việc phải làm <span class="en">/ Duties</span>: theo bản mô tả công việc đính kèm <span class="en">as per the attached job description</span></li>
+      <li>Địa điểm làm việc <span class="en">/ Work location</span>: <span class="fill">&nbsp;</span></li>
+    </ol>
+
+    <h2>Điều 2. Thời giờ làm việc, nghỉ ngơi và điều kiện lao động <span class="en">/ Article 2. Working time, rest and working conditions</span></h2>
+    <ol class="terms">
+      <li>Thời giờ làm việc <span class="en">/ Working time</span>: <span class="fill">&nbsp;</span></li>
+      <li>Nghỉ hằng tuần, nghỉ hằng năm, nghỉ lễ tết theo quy định của pháp luật và nội quy lao động của Bên A.
+        <span class="en">Weekly rest, annual leave and public holidays as provided by law and by Party A's internal
+        labour regulations.</span></li>
+      <li>Trang bị bảo hộ lao động <span class="en">/ Personal protective equipment</span>: theo quy định của Bên A
+        <span class="en">as provided by Party A</span></li>
+    </ol>
+
+    <h2>Điều 3. Tiền lương và các chế độ <span class="en">/ Article 3. Pay and benefits</span></h2>
+    <ol class="terms">
+      <li>Mức lương <span class="en">/ Salary</span>: <span class="fill">&nbsp;</span></li>
+      <li>Phụ cấp <span class="en">/ Allowances</span>: <span class="fill">&nbsp;</span></li>
+      <li>Hình thức và kỳ hạn trả lương <span class="en">/ Form and pay cycle</span>: trả bằng chuyển khoản, mỗi
+        tháng một lần <span class="en">by bank transfer, once a month</span></li>
+      <li>Chế độ nâng bậc, nâng lương <span class="en">/ Pay review</span>: theo quy chế lương của Bên A
+        <span class="en">under Party A's pay rules</span></li>
+      <li>Bảo hiểm xã hội, bảo hiểm y tế, bảo hiểm thất nghiệp <span class="en">/ Social, health and unemployment
+        insurance</span>: hai bên đóng theo quy định của pháp luật <span class="en">both parties contribute as
+        required by law</span></li>
+      <li>Đào tạo, bồi dưỡng nâng cao trình độ kỹ năng nghề <span class="en">/ Training</span>: theo kế hoạch của
+        Bên A <span class="en">under Party A's plan</span></li>
+    </ol>
+
+    <h2>Điều 4. Nghĩa vụ và quyền của người lao động <span class="en">/ Article 4. Employee's obligations and rights</span></h2>
+    <ol class="terms">
+      <li>Hoàn thành công việc đã cam kết; chấp hành nội quy lao động, kỷ luật lao động và an toàn, vệ sinh lao động.
+        <span class="en">Perform the agreed work; comply with the internal labour regulations, labour discipline and
+        occupational safety and health rules.</span></li>
+      <li>Bảo mật thông tin, bí mật kinh doanh và bí mật công nghệ của Bên A, kể cả sau khi hợp đồng chấm dứt.
+        <span class="en">Keep Party A's information, business and technology secrets confidential, including after
+        the contract ends.</span></li>
+      <li>Được hưởng đầy đủ tiền lương, các chế độ bảo hiểm và các quyền lợi khác theo hợp đồng này và theo pháp luật.
+        <span class="en">Receive in full the pay, insurance and other entitlements under this contract and under the
+        law.</span></li>
+      <li>Được đơn phương chấm dứt hợp đồng lao động theo Điều 35 Bộ luật Lao động 2019.
+        <span class="en">May unilaterally terminate this contract under Article 35 of the Labour Code 2019.</span></li>
+    </ol>
+
+    <h2>Điều 5. Nghĩa vụ và quyền của người sử dụng lao động <span class="en">/ Article 5. Employer's obligations and rights</span></h2>
+    <ol class="terms">
+      <li>Bảo đảm việc làm, trả lương đầy đủ và đúng hạn; thực hiện đầy đủ các chế độ cho người lao động.
+        <span class="en">Provide the agreed work, pay in full and on time, and provide all statutory entitlements.</span></li>
+      <li>Điều hành người lao động hoàn thành công việc theo hợp đồng; tạm thời điều chuyển, tạm hoãn hoặc chấm dứt
+        hợp đồng lao động theo quy định của pháp luật.
+        <span class="en">Direct the employee's work; temporarily transfer, suspend or terminate the contract as
+        permitted by law.</span></li>
+    </ol>
+
+    <h2>Điều 6. Điều khoản thi hành <span class="en">/ Article 6. Implementation</span></h2>
+    <ol class="terms">
+      <li>Những vấn đề về lao động không ghi trong hợp đồng này được áp dụng theo thỏa ước lao động tập thể, nội quy
+        lao động và pháp luật về lao động.
+        <span class="en">Labour matters not covered here are governed by the collective labour agreement, the
+        internal labour regulations and labour law.</span></li>
+      <li>Mọi sửa đổi, bổ sung hợp đồng này phải được lập thành phụ lục hợp đồng lao động.
+        <span class="en">Any amendment to this contract must be made as a contract appendix.</span></li>
+      <li>Hợp đồng này có hiệu lực từ ngày <strong>{{contract.start_date}}</strong>, được lập thành 02 bản có giá trị
+        như nhau, mỗi bên giữ 01 bản.
+        <span class="en">This contract takes effect on the start date above and is made in two originals of equal
+        value, one for each party.</span></li>
+    </ol>
+
+    <table class="sign">
+      <tr>
+        <td>
+          <div class="role">Người lao động</div>
+          <div class="hint">Employee - sign and write full name<br />(Ký, ghi rõ họ tên)</div>
+          <div class="space">&nbsp;</div>
+          <div><strong>{{employee.full_name}}</strong></div>
+        </td>
+        <td>
+          <div class="role">Người sử dụng lao động</div>
+          <div class="hint">Employer - sign, write full name and seal<br />(Ký, ghi rõ họ tên, đóng dấu)</div>
+          <div class="space">&nbsp;</div>
+          <div><strong>{{signatory.name}}</strong></div>
+          <div>{{signatory.title}}</div>
+        </td>
+      </tr>
+    </table>
+
+    <p class="footnote">
+      Ngày ký <span class="en">/ Date signed</span>: {{contract.sign_date}} - Mã nhân viên
+      <span class="en">/ Employee no.</span>: {{employee.no}} - Số hợp đồng <span class="en">/ Contract no.</span>:
+      {{contract.no}}
+    </p>
+  </body>
+</html>

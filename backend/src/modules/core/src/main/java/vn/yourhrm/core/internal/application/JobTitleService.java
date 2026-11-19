@@ -35,7 +35,7 @@ public class JobTitleService {
         this.events = events;
     }
 
-    public record JobFamilyView(UUID id, String code, String nameVi, String nameEn, boolean active) {
+    public record JobFamilyView(UUID id, String code, String nameVi, String nameEn, boolean active, int version) {
     }
 
     public record JobTitleAttributes(UUID jobFamilyId, String nameVi, String nameEn, String description,
@@ -55,7 +55,8 @@ public class JobTitleService {
         return jdbc.sql("select * from core.job_family where tenant_id = :t and (:all or is_active) order by code")
                 .param("t", tenant()).param("all", includeInactive)
                 .query((rs, n) -> new JobFamilyView(rs.getObject("id", UUID.class), rs.getString("code"),
-                        rs.getString("name_vi"), rs.getString("name_en"), rs.getBoolean("is_active")))
+                        rs.getString("name_vi"), rs.getString("name_en"), rs.getBoolean("is_active"),
+                        rs.getInt("version")))
                 .list();
     }
 
@@ -72,15 +73,19 @@ public class JobTitleService {
         return family(id);
     }
 
+    /** Renames or (de)activates a family; the code is immutable. Optimistic lock on {@code version}. */
     @Transactional
-    public JobFamilyView updateFamily(UUID id, String nameVi, String nameEn, boolean active) {
+    public JobFamilyView updateFamily(UUID id, String nameVi, String nameEn, boolean active, int expectedVersion) {
         UUID tenant = tenant();
         int updated = jdbc.sql("""
-                        update core.job_family set name_vi = :vi, name_en = :en, is_active = :a
-                         where tenant_id = :t and id = :id""")
-                .param("vi", nameVi).param("en", nameEn).param("a", active).param("t", tenant).param("id", id).update();
+                        update core.job_family set name_vi = :vi, name_en = :en, is_active = :a, version = version + 1
+                         where tenant_id = :t and id = :id and version = :v""")
+                .param("vi", nameVi).param("en", nameEn).param("a", active).param("t", tenant).param("id", id)
+                .param("v", expectedVersion).update();
         if (updated == 0) {
-            throw ApiException.notFound("Job family", id);
+            JobFamilyView current = family(id); // 404 when missing
+            throw ApiException.conflict("stale-version", "Job family " + current.code() + " was changed (version "
+                    + current.version() + ", expected " + expectedVersion + "); reload and retry");
         }
         events.publishEvent(new JobCatalogueChanged(tenant, "JOB_FAMILY", id, "UPDATED"));
         return family(id);

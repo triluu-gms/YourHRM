@@ -1,0 +1,35 @@
+{
+  "page": {
+    "title": "Cost centres",
+    "subtitle": "Per legal entity, valid over a period. Org units carry their default cost centre; the split per assignment belongs to People.",
+    "allPeriods": "All periods (incl. ended and future)",
+    "create": "New cost centre",
+    "edit": "Edit cost centre {code}",
+    "empty": "No cost centres for this filter",
+    "glSegment": "GL segment",
+    "glSegmentHint": "Segment used in the general ledger export.",
+    "owner": "Owner",
+    "ownerHint": "An active user who answers for this cost centre.",
+    "ownerSearch": "Type a login or display name…",
+    "ownerNoUsers": "No users found",
+    "ownerUnavailable": "You cannot see the user list; the current owner is kept.",
+    "validity": "Validity",
+    "legalEntity": "Legal entity",
+    "legalEntityRequired": "Pick the legal entity.",
+    "legalEntityImmutable": "The legal entity cannot be changed after creation.",
+    "codeRequired": "Code is required.",
+    "codeInvalid": "Letters, digits, '_', '.', '-' only (max 32).",
+    "codeImmutable": "The code cannot be changed after creation.",
+    "nameRequired": "Name is required.",
+    "validFromHint": "Leave empty to start today. Cannot be changed later.",
+    "validToHint": "Exclusive end date: the cost centre is valid until the day before. Leave empty for open-ended.",
+    "validToAfterFrom": "The end date must be after the start date."
+  },
+  "errors": {
+    "cost-centre-code-taken": "A cost centre with this code already exists in this legal entity.",
+    "cost-centre-in-use": "Org units still use this cost centre after that date. Change their default first.",
+    "invalid-owner": "The owner must be an active user.",
+    "invalid-period": "The end date must be after the start date.",
+    "legal-entity-dissolved": "The legal entity does not exist or is dissolved."
+  }
+}

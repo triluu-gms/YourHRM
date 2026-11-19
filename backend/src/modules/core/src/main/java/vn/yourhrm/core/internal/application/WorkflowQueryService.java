@@ -71,11 +71,13 @@ public class WorkflowQueryService {
             UUID subjectId, UUID requesterUserId, UUID onBehalfOfUserId, UUID legalEntityId, UUID orgUnitId,
             String status, String outcome, Integer currentStep, Instant submittedAt, Instant completedAt,
             Map<String, Object> summary, List<ResolvedStep> approverChain, List<TaskView> tasks,
-            List<TrailEntry> trail, Set<String> allowedActions, UUID myPendingTaskId) {
+            List<TrailEntry> trail, Set<String> allowedActions, UUID myPendingTaskId,
+            /** Display name (or login) of every user id that appears in the detail, for the UI. */
+            Map<UUID, String> userNames) {
     }
 
     public record ConsoleItem(UUID instanceId, String processTypeCode, String status, Instant submittedAt,
-            long ageHours, UUID requesterUserId, String callbackStatus, String lastError) {
+            long ageHours, UUID requesterUserId, String requesterName, String callbackStatus, String lastError) {
     }
 
     public record CallbackItem(UUID callbackId, UUID instanceId, String targetModule, String outcome, String status,
@@ -169,11 +171,41 @@ public class WorkflowQueryService {
                 .list();
         UUID myTask = tasks.stream().filter(t -> "PENDING".equals(t.status()) && user.equals(t.assigneeUserId()))
                 .map(TaskView::taskId).findFirst().orElse(null);
+        List<TrailEntry> trail = trail(instanceId);
+        Set<UUID> userIds = new LinkedHashSet<>();
+        addIfPresent(userIds, inst.requester(), inst.onBehalfOf());
+        inst.chain().forEach(s -> userIds.addAll(s.approvers()));
+        tasks.forEach(t -> addIfPresent(userIds, t.assigneeUserId(), t.originalAssigneeUserId(), t.actedByUserId()));
+        trail.forEach(e -> addIfPresent(userIds, e.actorUserId(), e.onBehalfOfUserId()));
         return new InstanceDetail(inst.id(), inst.processTypeCode(), inst.ownerModule(), inst.subjectType(),
                 inst.subjectId(), inst.requester(), inst.onBehalfOf(), inst.legalEntityId(), inst.orgUnitId(),
                 inst.status(), head.outcome(), inst.currentStep(), head.submittedAt(), head.completedAt(),
-                json.map(head.summary()), inst.chain(), tasks, trail(instanceId), allowed(inst, myTask, requester,
-                        participant), myTask);
+                json.map(head.summary()), inst.chain(), tasks, trail, allowed(inst, myTask, requester,
+                        participant), myTask, userNames(tenant, userIds));
+    }
+
+    private static void addIfPresent(Set<UUID> target, UUID... ids) {
+        for (UUID id : ids) {
+            if (id != null) {
+                target.add(id);
+            }
+        }
+    }
+
+    /** Display name (or login) per user id, so the detail screen never shows raw ids. */
+    private Map<UUID, String> userNames(UUID tenant, Set<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> names = new LinkedHashMap<>();
+        jdbc.sql("""
+                        select id, coalesce(display_name, login) from core.user_account
+                         where tenant_id = :t and id in (:ids)""")
+                .param("t", tenant).param("ids", List.copyOf(userIds))
+                .query(rs -> {
+                    names.put(rs.getObject(1, UUID.class), rs.getString(2));
+                });
+        return names;
     }
 
     /** The printable approval trail (BR-CORE-061); rendering to PDF goes through the document service (US-CORE-103). */
@@ -240,8 +272,9 @@ public class WorkflowQueryService {
         return jdbc.sql("""
                         select i.id, i.process_type_code, i.status, i.submitted_at,
                                floor(extract(epoch from now() - i.submitted_at) / 3600)::bigint, i.requester_user_id,
-                               c.status, c.last_error
+                               coalesce(u.display_name, u.login), c.status, c.last_error
                           from core.workflow_instance i
+                          join core.user_account u on u.tenant_id = i.tenant_id and u.id = i.requester_user_id
                           left join core.workflow_callback c on c.tenant_id = i.tenant_id and c.workflow_instance_id = i.id
                          where i.tenant_id = :t
                            and (cast(:s as text) is null or i.status = :s)
@@ -250,7 +283,8 @@ public class WorkflowQueryService {
                          order by i.submitted_at""")
                 .param("t", tenant()).param("s", status).param("p", processTypeCode).param("h", olderThanHours)
                 .query((rs, n) -> new ConsoleItem(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        instant(rs, 4), rs.getLong(5), rs.getObject(6, UUID.class), rs.getString(7), rs.getString(8)))
+                        instant(rs, 4), rs.getLong(5), rs.getObject(6, UUID.class), rs.getString(7), rs.getString(8),
+                        rs.getString(9)))
                 .list();
     }
 

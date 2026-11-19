@@ -1,0 +1,31 @@
+{
+  "page": {
+    "title": "Employee categories",
+    "subtitle": "The tenant's category list. Workflow conditions, data scope and payroll eligibility key on the behaviour flags, not on the code.",
+    "includeInactive": "Show inactive",
+    "create": "New category",
+    "edit": "Edit category",
+    "sortOrder": "Order",
+    "flags": "Behaviour",
+    "headcount": "In headcount",
+    "none": "—",
+    "codeRequired": "Code is required.",
+    "codeInvalid": "Capital letters, digits and '_' only (2 to 32 characters).",
+    "codeImmutable": "The code cannot be changed after creation.",
+    "nameRequired": "Name is required.",
+    "flagsHint": "A category can be of one kind at most in practice; the flags are read by the other modules.",
+    "active": "Active",
+    "empty": "No employee categories yet"
+  },
+  "flag": {
+    "probation": "Probation",
+    "seasonal": "Seasonal",
+    "intern": "Intern",
+    "expat": "Expatriate",
+    "collaborator": "Collaborator",
+    "countsInHeadcount": "Counts in headcount"
+  },
+  "errors": {
+    "employee-category-code-taken": "An employee category with this code already exists."
+  }
+}

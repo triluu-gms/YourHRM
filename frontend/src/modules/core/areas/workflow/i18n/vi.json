@@ -125,6 +125,22 @@
     "pending": "Chờ xử lý",
     "notFound": "Không tìm thấy yêu cầu hoặc bạn không có quyền xem"
   },
+  "subjectType": {
+    "att": {
+      "leave_request": "Đề nghị nghỉ phép",
+      "ot": "Đề nghị làm thêm giờ"
+    },
+    "hr": {
+      "assignment": "Phân công công việc",
+      "salary_record": "Diễn biến lương",
+      "bank_account": "Tài khoản ngân hàng",
+      "pit_dependant": "Người phụ thuộc",
+      "tax_residency": "Cư trú thuế",
+      "separation": "Nghỉ việc",
+      "employment": "Hồ sơ lao động",
+      "primary_employment": "Nơi làm việc chính"
+    }
+  },
   "console": {
     "title": "Giám sát workflow",
     "subtitle": "Toàn bộ yêu cầu của tenant, callback lỗi và chuyển giao hàng loạt",

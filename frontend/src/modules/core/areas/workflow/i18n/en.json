@@ -125,6 +125,22 @@
     "pending": "Pending",
     "notFound": "Request not found or not visible to you"
   },
+  "subjectType": {
+    "att": {
+      "leave_request": "Leave request",
+      "ot": "Overtime request"
+    },
+    "hr": {
+      "assignment": "Job assignment",
+      "salary_record": "Salary record",
+      "bank_account": "Bank account",
+      "pit_dependant": "PIT dependant",
+      "tax_residency": "Tax residency",
+      "separation": "Separation",
+      "employment": "Employment",
+      "primary_employment": "Primary employment"
+    }
+  },
   "console": {
     "title": "Workflow console",
     "subtitle": "Every request of the tenant, failed callbacks and bulk reassignment",

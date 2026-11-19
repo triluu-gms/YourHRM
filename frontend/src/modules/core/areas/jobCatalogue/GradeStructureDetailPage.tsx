@@ -117,7 +117,7 @@ interface GradeFormValues {
   active: boolean;
 }
 
-/** Add a grade, or rename / re-rank / end / (de)activate one. Code and start date are immutable; no version. */
+/** Add a grade, or rename / re-rank / end / (de)activate one with the version it read. Code and start date are immutable. */
 function GradeForm({ structure, grade, onClose }: { structure: GradeStructure; grade: Grade | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { t: tj } = useTranslation(JOB_CATALOGUE_NS);
@@ -139,7 +139,7 @@ function GradeForm({ structure, grade, onClose }: { structure: GradeStructure; g
       if (grade) {
         await update.mutateAsync({
           id: grade.id,
-          body: { name: v.name.trim(), rankOrder: v.rankOrder, validTo, active: v.active },
+          body: { name: v.name.trim(), rankOrder: v.rankOrder, validTo, active: v.active, version: grade.version },
         });
         fb.saved();
       } else {

@@ -1,0 +1,193 @@
+{
+  "library": {
+    "title": "Documents",
+    "subtitle": "Every module stores its files here. What a file is and who may open it follows the record it belongs to.",
+    "byRecord": "Files of a record",
+    "byRecordHint": "The document service has no company-wide list: a file is reached through the record it belongs to, whose permission and data scope decide who may see it. Pick the kind of record and paste its id.",
+    "pickRecord": "Pick a kind of record and paste its id to see its files.",
+    "field": {
+      "ownerEntityType": "Kind of record",
+      "recordId": "Record id"
+    }
+  },
+  "types": {
+    "title": "Document types",
+    "subtitle": "Registered when the modules are deployed, not editable here. The type decides the default confidentiality, how long a file is kept and which permission opens it.",
+    "search": "Search code, name or record kind",
+    "allModules": "All modules",
+    "allConfidentialities": "All confidentiality levels",
+    "view": "View",
+    "manage": "Upload",
+    "tenantDefault": "Company default",
+    "tenantDefaultHint": "The media types allowed for the whole company, from the document settings.",
+    "field": {
+      "code": "Type",
+      "module": "Module",
+      "ownerEntityType": "Belongs to",
+      "confidentiality": "Confidentiality",
+      "retentionClass": "Retention",
+      "permissions": "Permissions",
+      "limits": "Accepted files"
+    }
+  },
+  "panel": {
+    "upload": "Attach a file",
+    "uploaded": "File uploaded. It can be opened once the virus scan comes back clean.",
+    "newVersion": "Upload a new version",
+    "pickType": "Kind of document",
+    "noTypes": "No document type belongs to this kind of record.",
+    "empty": "This record has no files.",
+    "noFile": "No file yet",
+    "notReady": "The file cannot be opened yet: the virus scan is still running or it failed.",
+    "versionNo": "v{no}",
+    "downloadLabel": "Open {title}",
+    "downloadVersionLabel": "Open version {no}",
+    "field": {
+      "title": "File",
+      "type": "Kind of document",
+      "confidentiality": "Confidentiality",
+      "status": "Status",
+      "file": "Current version",
+      "versionNo": "Version",
+      "fileName": "File name",
+      "size": "Size",
+      "source": "Source",
+      "scan": "Virus scan",
+      "uploadedAt": "Uploaded"
+    }
+  },
+  "confidentiality": {
+    "PUBLIC": "Public",
+    "INTERNAL": "Internal",
+    "CONFIDENTIAL": "Confidential",
+    "RESTRICTED": "Restricted"
+  },
+  "documentStatus": {
+    "PENDING_SCAN": "Scanning",
+    "ACTIVE": "Active",
+    "QUARANTINED": "Quarantined",
+    "ARCHIVED": "Archived",
+    "PURGED": "Purged"
+  },
+  "scanStatus": {
+    "PENDING": "Scanning",
+    "CLEAN": "Clean",
+    "INFECTED": "Infected",
+    "ERROR": "Scan failed",
+    "SKIPPED": "Generated"
+  },
+  "source": {
+    "UPLOAD": "Uploaded",
+    "GENERATED": "Generated",
+    "SIGNED": "Signed",
+    "IMPORT": "Import"
+  },
+  "templates": {
+    "title": "Document templates",
+    "subtitle": "The files generated documents are built from. Upload a version, preview it with sample data, then publish it from a date.",
+    "search": "Search code or name",
+    "allPurposes": "All purposes",
+    "create": "New template",
+    "createTitle": "New document template",
+    "createHint": "Pick what the template is for. A template for one legal entity wins over the company-wide one.",
+    "noDefinitions": "No module registers a document template yet.",
+    "allTaken": "Every registered template already exists for this scope.",
+    "empty": "No template has been set up yet. Documents cannot be generated until one is published.",
+    "tenantWide": "All legal entities",
+    "openLabel": "Open template {code}",
+    "created": "Template created. Upload a version to make it usable.",
+    "field": {
+      "code": "Template",
+      "name": "Name",
+      "purpose": "Purpose",
+      "ownerModule": "Module",
+      "documentType": "Stored as",
+      "scope": "Scope",
+      "legalEntity": "Legal entity",
+      "sequence": "Number series",
+      "status": "Status",
+      "inForce": "In force",
+      "versions": "Versions"
+    },
+    "sequenceHint": "Only for a template that prints the doc.number placeholder. Leave it empty when the module numbers the document itself, as People does for contracts.",
+    "noSequence": "No number series",
+    "notPublished": "Not published",
+    "inForceSince": "v{no} since {from}"
+  },
+  "versions": {
+    "title": "Versions",
+    "upload": "Upload version",
+    "uploadTitle": "New template version",
+    "uploadHint": "A .html file renders to PDF/A with Vietnamese fonts. A .docx file is merged with poi-tl and can only be delivered as .docx for now.",
+    "uploaded": "Version uploaded as a draft. Preview it, then publish it.",
+    "published": "Version published.",
+    "publishConfirm": "Publish this version?",
+    "publishHint": "Documents generated from the start date use this version; the version published before it ends the day before.",
+    "unknownFields": "These placeholders are not merge fields of this template:",
+    "field": {
+      "versionNo": "Version",
+      "file": "Template file",
+      "sourceFormat": "Source",
+      "outputFormat": "Output",
+      "validFrom": "In force from",
+      "validity": "In force",
+      "status": "Status",
+      "usedFields": "Placeholders used"
+    },
+    "fileRequired": "Choose a .html or .docx file",
+    "validFromHint": "Defaults to today. It must be later than the version published before it.",
+    "outputHint": "HTML always renders to PDF/A.",
+    "preview": "Preview",
+    "previewLabel": "Preview version {no}",
+    "previewOpened": "The preview opened in a new tab.",
+    "previewBlocked": "The browser blocked the preview tab; it was downloaded instead.",
+    "publish": "Publish",
+    "publishLabel": "Publish version {no}",
+    "none": "No version has been uploaded yet.",
+    "noFields": "This version uses no placeholders."
+  },
+  "fields": {
+    "title": "Placeholders you can use",
+    "hint": "Copy a placeholder and paste it into the template file. In HTML a picture goes in the src of an img tag. Placeholders that are not on this list are refused on upload - including any written inside an HTML comment.",
+    "fromModule": "From this template",
+    "fromCore": "Available in every template",
+    "image": "Picture",
+    "sample": "Preview value",
+    "copied": "Placeholder copied."
+  },
+  "purpose": {
+    "LABOUR_CONTRACT": "Labour contract",
+    "DECISION": "Decision",
+    "CERTIFICATE": "Certificate",
+    "PAYSLIP": "Payslip",
+    "LETTER": "Letter",
+    "REPORT": "Report"
+  },
+  "sourceFormat": {
+    "HTML": "HTML",
+    "DOCX": "Word (.docx)"
+  },
+  "outputFormat": {
+    "PDF": "PDF/A",
+    "DOCX": "Word (.docx)"
+  },
+  "versionStatus": {
+    "DRAFT": "Draft",
+    "PUBLISHED": "Published",
+    "RETIRED": "Retired"
+  },
+  "errors": {
+    "unknown-template-definition": "No module registers this template any more.",
+    "template-exists": "A template with this code already exists for this scope.",
+    "unknown-sequence": "That number series does not exist.",
+    "invalid-template-file": "A template must be a .docx or .html file.",
+    "invalid-output-format": "An HTML template renders to PDF; a DOCX template produces DOCX or PDF.",
+    "unknown-merge-fields": "The file uses placeholders that are not merge fields of this template.",
+    "template-version-not-draft": "Only a draft can be published.",
+    "template-version-superseded": "A version is already published from the same or a later date; publish from a later date.",
+    "no-published-template": "No version of this template is published for that date.",
+    "no-template": "This company has no template with that code.",
+    "template-not-numbered": "The template prints a document number but the template has no number series.",
+    "pdf-converter-unavailable": "Converting a DOCX template to PDF needs the document converter, which is not running. Publish a version with DOCX output."
+  }
+}

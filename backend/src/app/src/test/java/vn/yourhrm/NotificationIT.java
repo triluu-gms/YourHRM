@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -257,7 +256,8 @@ class NotificationIT extends IntegrationTest {
         mvc.perform(get("/api/v1/core/notifications").with(as(manager)))
                 .andExpect(jsonPath("$.items[0].eventCode").value("core.WorkflowTaskAssigned"))
                 .andExpect(jsonPath("$.items[0].title").value("Việc cần phê duyệt: Làm thêm giờ (test)"))
-                .andExpect(jsonPath("$.items[0].deepLink").value(startsWith("/workflow/tasks/")));
+                // the task notification opens the request detail of the SPA, where the assignee can act
+                .andExpect(jsonPath("$.items[0].deepLink").value("/core/workflow/requests/" + instance));
         String taskId = ADMIN.queryForObject("select id::text from core.workflow_task where workflow_instance_id = ?",
                 String.class, instance);
         mvc.perform(post("/api/v1/core/workflow/tasks/" + taskId + "/actions").with(as(manager))
@@ -265,7 +265,8 @@ class NotificationIT extends IntegrationTest {
                 .andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/core/notifications").with(as(employee)))
                 .andExpect(jsonPath("$.items[0].eventCode").value("core.WorkflowDecided"))
-                .andExpect(jsonPath("$.items[0].title").value("Overtime (test): approved"));
+                .andExpect(jsonPath("$.items[0].title").value("Overtime (test): approved"))
+                .andExpect(jsonPath("$.items[0].deepLink").value("/core/workflow/requests/" + instance));
         assertThat(TestEmailAdapter.sentTo("emp@acme.vn")).extracting(TestEmailAdapter.Sent::subject)
                 .contains("Overtime (test): approved");
     }

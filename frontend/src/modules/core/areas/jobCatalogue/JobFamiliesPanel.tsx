@@ -92,7 +92,7 @@ function JobFamilyForm({ family, onClose }: { family: JobFamily | null; onClose:
     const nameEn = textOrNull(v.nameEn);
     try {
       if (family) {
-        await update.mutateAsync({ id: family.id, body: { nameVi, nameEn, active: v.active } });
+        await update.mutateAsync({ id: family.id, body: { nameVi, nameEn, active: v.active, version: family.version } });
         fb.saved();
       } else {
         await create.mutateAsync({ code: v.code.trim(), nameVi, nameEn });

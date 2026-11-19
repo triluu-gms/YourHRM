@@ -52,7 +52,7 @@ class JobCatalogueController {
     }
 
     record UpdateFamilyRequest(@NotBlank @Size(max = 200) String nameVi, @Size(max = 200) String nameEn,
-            @NotNull Boolean active) {
+            @NotNull Boolean active, @NotNull Integer version) {
     }
 
     record JobTitleRequest(
@@ -83,7 +83,7 @@ class JobCatalogueController {
     record CreateStructureRequest(@NotBlank @Pattern(regexp = CODE) String code, @NotBlank @Size(max = 200) String name) {
     }
 
-    record RenameStructureRequest(@NotBlank @Size(max = 200) String name) {
+    record RenameStructureRequest(@NotBlank @Size(max = 200) String name, @NotNull Integer version) {
     }
 
     record CreateGradeRequest(@NotBlank @Pattern(regexp = CODE) String code, @NotBlank @Size(max = 200) String name,
@@ -91,7 +91,7 @@ class JobCatalogueController {
     }
 
     record UpdateGradeRequest(@NotBlank @Size(max = 200) String name, @NotNull Integer rankOrder, LocalDate validTo,
-            @NotNull Boolean active) {
+            @NotNull Boolean active, @NotNull Integer version) {
     }
 
     // ------------------------------------------------------------------------------------ job families
@@ -112,7 +112,7 @@ class JobCatalogueController {
     @PutMapping("/job-families/{familyId}")
     @RequiresPermission(value = CorePermissions.JOB_CATALOGUE_UPDATE, tenantWide = true)
     public JobFamilyView updateFamily(@PathVariable UUID familyId, @Valid @RequestBody UpdateFamilyRequest req) {
-        return jobs.updateFamily(familyId, req.nameVi(), req.nameEn(), req.active());
+        return jobs.updateFamily(familyId, req.nameVi(), req.nameEn(), req.active(), req.version());
     }
 
     // ------------------------------------------------------------------------------------ job titles
@@ -163,7 +163,7 @@ class JobCatalogueController {
     @RequiresPermission(value = CorePermissions.JOB_CATALOGUE_UPDATE, tenantWide = true)
     public GradeStructureView renameStructure(@PathVariable UUID structureId,
             @Valid @RequestBody RenameStructureRequest req) {
-        return grades.renameStructure(structureId, req.name());
+        return grades.renameStructure(structureId, req.name(), req.version());
     }
 
     /** Grades of a structure in rank order, valid on {@code asOf} (or every period with {@code allDates=true}). */
@@ -187,6 +187,6 @@ class JobCatalogueController {
     @PutMapping("/grades/{gradeId}")
     @RequiresPermission(value = CorePermissions.JOB_CATALOGUE_UPDATE, tenantWide = true)
     public GradeView updateGrade(@PathVariable UUID gradeId, @Valid @RequestBody UpdateGradeRequest req) {
-        return grades.updateGrade(gradeId, req.name(), req.rankOrder(), req.validTo(), req.active());
+        return grades.updateGrade(gradeId, req.name(), req.rankOrder(), req.validTo(), req.active(), req.version());
     }
 }

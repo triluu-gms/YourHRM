@@ -69,11 +69,40 @@ export function client(user) {
   };
 }
 
-/** A tiny valid PDF used for every "signed scan" / evidence upload. */
-export function samplePdf(name = 'scan.pdf') {
-  const pdf = '%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [] /Count 0 >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF';
+/**
+ * A one-page PDF used for every "signed scan" / evidence upload.
+ *
+ * It is written out in full - cross-reference table with real byte offsets, `startxref`, a page tree with one page
+ * and a content stream - because PDF readers reject anything less: the earlier stand-in had no xref and no pages, so
+ * every uploaded scan opened as a corrupt file in the browser. Everything here is ASCII, so `String.length` is the
+ * byte offset the xref table needs.
+ */
+export function samplePdf(name = 'scan.pdf', text = 'YourHRM sample data - scanned document (not a real scan)') {
+  const content = `BT /F1 13 Tf 60 780 Td (${pdfText(text)}) Tj ET\n`;
+  const bodies = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    `<< /Length ${content.length} >>\nstream\n${content}endstream`,
+  ];
+  let pdf = '%PDF-1.7\n';
+  const offsets = bodies.map((body, i) => {
+    const at = pdf.length;
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+    return at;
+  });
+  const startxref = pdf.length;
+  const size = bodies.length + 1;
+  // every xref entry is exactly 20 bytes, including the trailing space + newline
+  pdf += `xref\n0 ${size}\n0000000000 65535 f \n`
+    + offsets.map((at) => `${String(at).padStart(10, '0')} 00000 n \n`).join('')
+    + `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF\n`;
   return { name, blob: new Blob([pdf], { type: 'application/pdf' }) };
 }
+
+/** Escapes a PDF literal string; Helvetica/WinAnsi has no Vietnamese glyphs, so non-ASCII is dropped. */
+const pdfText = (s) => s.replace(/[\\()]/g, (c) => `\\${c}`).replace(/[^\x20-\x7E]/g, '?');
 
 // ---------------------------------------------------------------- Keycloak admin (master realm)
 

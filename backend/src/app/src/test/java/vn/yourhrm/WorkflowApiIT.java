@@ -140,7 +140,8 @@ class WorkflowApiIT extends IntegrationTest {
         mvc.perform(get("/api/v1/core/workflow/instances/" + started.instanceId()).with(as(w.manager())))
                 .andExpect(jsonPath("$.allowedActions", contains("APPROVE", "REJECT", "RETURN", "REQUEST_INFO",
                         "FORWARD", "COMMENT")))
-                .andExpect(jsonPath("$.approverChain[1].approvers[0]").value(w.hr().userId().toString()));
+                .andExpect(jsonPath("$.approverChain[1].approvers[0]").value(w.hr().userId().toString()))
+                .andExpect(jsonPath("$.userNames['" + w.employee().userId() + "']").value("employee@test.local"));
         act(w.manager(), managerTask, "{\"action\":\"APPROVE\",\"comment\":\"OK\"}").andExpect(status().isNoContent());
         act(w.manager(), managerTask, "{\"action\":\"APPROVE\"}").andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("task-not-pending"));
@@ -382,7 +383,9 @@ class WorkflowApiIT extends IntegrationTest {
         assertThat(RecordedEvents.of(WorkflowCompleted.class)).filteredOn(e -> e.callbackId().equals(callback))
                 .hasSize(2).allMatch(e -> e.outcome().equals("CANCELLED"));
         mvc.perform(get("/api/v1/core/workflow/console/instances?status=IN_PROGRESS").with(as(w.owner())))
-                .andExpect(jsonPath("$", hasSize(2)));
+                .andExpect(jsonPath("$", hasSize(2)))
+                // the console lists the requester by name (display name, or the login when none is set)
+                .andExpect(jsonPath("$[0].requesterName").value(w.employee().login()));
         mvc.perform(get("/api/v1/core/workflow/console/instances").with(as(w.hr()))).andExpect(status().isForbidden());
 
         // HR with core.workflow.view sees requests in their legal entity

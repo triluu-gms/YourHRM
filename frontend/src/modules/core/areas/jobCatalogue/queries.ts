@@ -55,6 +55,8 @@ export function useUpdateJobFamily() {
   return useMutation({
     mutationFn: ({ id, body }: { id: UUID; body: UpdateJobFamilyRequest }) => jobFamiliesApi.update(id, body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.families }),
+    // A stale-version refusal means someone else changed it: reload so the next attempt uses the new version.
+    onError: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.families }),
   });
 }
 
@@ -108,6 +110,7 @@ export function useRenameGradeStructure() {
   return useMutation({
     mutationFn: ({ id, body }: { id: UUID; body: RenameGradeStructureRequest }) => gradeStructuresApi.rename(id, body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.structures }),
+    onError: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.structures }),
   });
 }
 
@@ -150,6 +153,7 @@ export function useUpdateGrade() {
   return useMutation({
     mutationFn: ({ id, body }: { id: UUID; body: UpdateGradeRequest }) => gradesApi.update(id, body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.grades }),
+    onError: () => void qc.invalidateQueries({ queryKey: jobCatalogueKeys.grades }),
   });
 }
 

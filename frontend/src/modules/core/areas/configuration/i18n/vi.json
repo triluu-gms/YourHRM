@@ -1,0 +1,142 @@
+{
+  "common": {
+    "module": "Phân hệ",
+    "allModules": "Tất cả phân hệ",
+    "search": "Tìm theo khóa hoặc mô tả",
+    "masked": "Giá trị nhạy cảm, đã ẩn",
+    "true": "Bật",
+    "false": "Tắt",
+    "always": "Luôn áp dụng",
+    "selectLocation": "Chọn chi nhánh"
+  },
+  "module": {
+    "saas": "Nền tảng",
+    "core": "Hệ thống",
+    "hr": "Nhân sự",
+    "att": "Chấm công",
+    "pay": "Tiền lương",
+    "rec": "Tuyển dụng"
+  },
+  "level": {
+    "TENANT": "Toàn công ty",
+    "LEGAL_ENTITY": "Pháp nhân",
+    "LOCATION": "Chi nhánh",
+    "DEFAULT": "Mặc định"
+  },
+  "type": {
+    "BOOL": "Bật / tắt",
+    "INT": "Số nguyên",
+    "DECIMAL": "Số",
+    "TEXT": "Văn bản",
+    "ENUM": "Lựa chọn",
+    "DATE": "Ngày",
+    "JSON": "JSON"
+  },
+  "settings": {
+    "title": "Thiết lập",
+    "subtitle": "Các thiết lập có kiểu do từng phân hệ đăng ký. Giá trị của chi nhánh ưu tiên hơn pháp nhân, pháp nhân ưu tiên hơn toàn công ty; nếu chưa đặt giá trị thì dùng mặc định.",
+    "field": {
+      "setting": "Thiết lập",
+      "key": "Khóa",
+      "type": "Kiểu",
+      "currentValue": "Giá trị hiện tại (công ty)",
+      "default": "Mặc định",
+      "levels": "Có thể đặt cho",
+      "overrides": "Giá trị",
+      "effectiveDated": "Theo ngày hiệu lực",
+      "allowedValues": "Giá trị cho phép",
+      "value": "Giá trị",
+      "scope": "Áp dụng cho",
+      "validity": "Hiệu lực"
+    },
+    "overrideCount": "{count, plural, =0 {Mặc định} other {# giá trị}}",
+    "effectiveDatedHint": "Giá trị có hiệu lực từ một ngày và được lưu lịch sử.",
+    "sensitiveHint": "Nhạy cảm: giá trị đã lưu được ẩn. Bạn vẫn có thể thay thế.",
+    "drawerTitle": "Thiết lập {key}",
+    "values": {
+      "title": "Các giá trị đã lưu",
+      "empty": "Chưa lưu giá trị nào; mọi nơi dùng giá trị mặc định.",
+      "remove": "Xóa giá trị",
+      "removeConfirm": "Xóa giá trị này? Cấp kém cụ thể hơn, hoặc giá trị mặc định, sẽ được áp dụng lại.",
+      "removed": "Đã xóa giá trị"
+    },
+    "set": {
+      "title": "Đặt giá trị",
+      "submit": "Đặt giá trị",
+      "level": "Cấp",
+      "validFromHint": "Có hiệu lực từ ngày này (để trống là hôm nay). Giá trị đang áp dụng trước đó kết thúc vào ngày liền trước.",
+      "notDatedHint": "Thiết lập này không theo ngày hiệu lực: giá trị mới thay thế giá trị hiện tại ở cấp này.",
+      "valueRequired": "Nhập giá trị.",
+      "jsonInvalid": "Nhập JSON hợp lệ.",
+      "legalEntityRequired": "Chọn pháp nhân.",
+      "locationRequired": "Chọn chi nhánh.",
+      "done": "Đã lưu. Giá trị áp dụng hiện là {value} ({source})."
+    },
+    "resolve": {
+      "title": "Giá trị nào được áp dụng?",
+      "hint": "Chọn pháp nhân và / hoặc chi nhánh và ngày để xem giá trị được dùng và nguồn của nó.",
+      "check": "Kiểm tra",
+      "result": "Giá trị",
+      "source": "Lấy từ",
+      "since": "từ {date}"
+    }
+  },
+  "sequences": {
+    "title": "Đánh số",
+    "subtitle": "Dãy số cho mã nhân viên, số hợp đồng, số quyết định… Các phân hệ lấy số khi tạo hồ sơ; dãy số liên tục sẽ trả lại số nếu giao dịch bị hủy.",
+    "create": "Tạo dãy số",
+    "edit": "Sửa dãy số {code}",
+    "preview": "Xem trước số tiếp theo",
+    "previewTitle": "Số tiếp theo của {code}",
+    "previewHint": "Số mà hồ sơ tiếp theo sẽ nhận. Không tiêu tốn số nào.",
+    "previewNext": "Số tiếp theo",
+    "previewRun": "Xem trước",
+    "field": {
+      "pattern": "Mẫu số",
+      "scopeLevel": "Bộ đếm",
+      "resetRule": "Đánh lại từ đầu",
+      "gapFree": "Liên tục",
+      "startValue": "Giá trị bắt đầu",
+      "incrementBy": "Bước tăng",
+      "onDate": "Ngày nghiệp vụ",
+      "sample": "Ví dụ"
+    },
+    "scope": {
+      "TENANT": "Một bộ đếm cho toàn công ty",
+      "LEGAL_ENTITY": "Mỗi pháp nhân một bộ đếm"
+    },
+    "reset": {
+      "NEVER": "Không",
+      "YEARLY": "Hằng năm",
+      "MONTHLY": "Hằng tháng"
+    },
+    "codeRequired": "Bắt buộc nhập mã.",
+    "codeInvalid": "Chữ in hoa, chữ số và '_', bắt đầu bằng chữ cái (2–41 ký tự).",
+    "codeHint": "Các phân hệ dùng mã này để lấy số, ví dụ EMPLOYEE_NO. Không đổi được sau khi tạo.",
+    "nameRequired": "Bắt buộc nhập tên.",
+    "patternRequired": "Bắt buộc nhập mẫu số.",
+    "patternHint": "Ký hiệu: {tokens}. Phần còn lại giữ nguyên như đã nhập.",
+    "patternProblem": {
+      "unknownToken": "Ký hiệu không hợp lệ {token}.",
+      "seqWidth": "'{SEQ:n}' cần độ dài n từ 1 đến 12.",
+      "seqCount": "Mẫu số cần đúng một '{SEQ:n}'."
+    },
+    "sampleHint": "Số {n} vào ngày {date}{le, select, none {} other { của pháp nhân {le}}}.",
+    "fixedAfterCreate": "Không đổi được sau khi tạo.",
+    "gapFreeHint": "Số được lấy trong giao dịch nghiệp vụ và được trả lại nếu giao dịch bị hủy. Tắt: nhanh hơn nhưng hồ sơ bị hủy sẽ để lại số trống.",
+    "positive": "Phải từ 1 trở lên.",
+    "nonNegative": "Phải từ 0 trở lên."
+  },
+  "errors": {
+    "unknown-setting": "Thiết lập này chưa được đăng ký.",
+    "invalid-setting-value": "Giá trị không đúng kiểu của thiết lập.",
+    "level-not-allowed": "Không thể đặt thiết lập này ở cấp đã chọn.",
+    "unknown-legal-entity": "Pháp nhân không tồn tại.",
+    "unknown-location": "Chi nhánh không tồn tại.",
+    "sequence-code-taken": "Đã có dãy số với mã này.",
+    "invalid-sequence": "Dãy số không hợp lệ.",
+    "invalid-pattern": "Mẫu số không hợp lệ.",
+    "unknown-sequence": "Dãy số không tồn tại hoặc đã ngừng dùng.",
+    "legal-entity-required": "Dãy số này cần chọn pháp nhân."
+  }
+}

@@ -18,8 +18,8 @@ const G1 = '018f0000-0000-7000-8000-0000000001d1';
 const G2 = '018f0000-0000-7000-8000-0000000001d2';
 
 const families: JobFamily[] = [
-  { id: FAM_ENG, code: 'ENG', nameVi: 'Kỹ thuật', nameEn: 'Engineering', active: true },
-  { id: FAM_OPS, code: 'OPS', nameVi: 'Vận hành', nameEn: 'Operations', active: true },
+  { id: FAM_ENG, code: 'ENG', nameVi: 'Kỹ thuật', nameEn: 'Engineering', active: true, version: 0 },
+  { id: FAM_OPS, code: 'OPS', nameVi: 'Vận hành', nameEn: 'Operations', active: true, version: 5 },
 ];
 
 const titleSe: JobTitle = {
@@ -60,11 +60,11 @@ const hazardValues: CodeValue[] = [
   { valueCode: 'V', labelVi: 'Loại V', labelEn: 'Category V - especially heavy/hazardous', sortOrder: 2, active: true },
 ];
 
-const structure: GradeStructure = { id: STRUCT, code: 'STAFF', name: 'Staff grades' };
+const structure: GradeStructure = { id: STRUCT, code: 'STAFF', name: 'Staff grades', version: 2 };
 
 const grades: Grade[] = [
-  { id: G1, gradeStructureId: STRUCT, code: 'G1', name: 'Junior', rankOrder: 1, active: true, validFrom: '2026-01-01', validTo: null },
-  { id: G2, gradeStructureId: STRUCT, code: 'G2', name: 'Senior', rankOrder: 2, active: true, validFrom: '2026-01-01', validTo: null },
+  { id: G1, gradeStructureId: STRUCT, code: 'G1', name: 'Junior', rankOrder: 1, active: true, validFrom: '2026-01-01', validTo: null, version: 0 },
+  { id: G2, gradeStructureId: STRUCT, code: 'G2', name: 'Senior', rankOrder: 2, active: true, validFrom: '2026-01-01', validTo: null, version: 7 },
 ];
 
 /** Catalogue reads every page of this area needs. */
@@ -159,11 +159,11 @@ describe('JobTitlesPage', () => {
       http.get(`${API}/core/job-titles`, () => HttpResponse.json([])),
       http.post(`${API}/core/job-families`, async ({ request }) => {
         created = await request.json();
-        return HttpResponse.json({ id: '018f0000-0000-7000-8000-0000000001a9', code: 'FIN', nameVi: 'Tài chính', nameEn: null, active: true }, { status: 201 });
+        return HttpResponse.json({ id: '018f0000-0000-7000-8000-0000000001a9', code: 'FIN', nameVi: 'Tài chính', nameEn: null, active: true, version: 0 }, { status: 201 });
       }),
       http.put(`${API}/core/job-families/:id`, async ({ request }) => {
         updated = { url: new URL(request.url).pathname, body: await request.json() };
-        return HttpResponse.json({ ...families[1], active: false });
+        return HttpResponse.json({ ...families[1], active: false, version: 6 });
       }),
     );
     await changeLanguage('en');
@@ -189,8 +189,72 @@ describe('JobTitlesPage', () => {
     await waitFor(() => expect(updated).toBeDefined());
     expect(updated).toEqual({
       url: `/api/v1/core/job-families/${FAM_OPS}`,
-      body: { nameVi: 'Vận hành', nameEn: 'Operations', active: false },
+      body: { nameVi: 'Vận hành', nameEn: 'Operations', active: false, version: 5 },
     });
+  }, 20_000);
+
+  it('shows the translated stale-version problem when a family was changed meanwhile', async () => {
+    server.use(
+      ...catalogueHandlers(),
+      http.get(`${API}/core/job-titles`, () => HttpResponse.json([])),
+      http.put(`${API}/core/job-families/${FAM_OPS}`, () =>
+        problem(409, 'stale-version', 'Job family OPS was changed (version 6, expected 5); reload and retry'),
+      ),
+    );
+    await changeLanguage('vi');
+    const user = userEvent.setup();
+    renderPage(<JobTitlesPage />, { path: '/core/job-titles' });
+
+    await user.click(await screen.findByRole('tab', { name: 'Nhóm chức danh' }));
+    await user.click(await screen.findByRole('button', { name: 'Sửa OPS' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.click(within(drawer).getByRole('button', { name: 'Lưu' }));
+    expect(await within(drawer).findByText('Bản ghi đã được người khác thay đổi. Tải lại và thử lại.')).toBeInTheDocument();
+  }, 20_000);
+});
+
+describe('GradeStructuresPage', () => {
+  it('renames a structure with the version it read', async () => {
+    let updated: { url: string; body: unknown } | undefined;
+    server.use(
+      http.get(`${API}/core/grade-structures`, () => HttpResponse.json([structure])),
+      http.put(`${API}/core/grade-structures/:id`, async ({ request }) => {
+        updated = { url: new URL(request.url).pathname, body: await request.json() };
+        return HttpResponse.json({ ...structure, name: 'Staff grade scale', version: 3 });
+      }),
+    );
+    await changeLanguage('en');
+    const user = userEvent.setup();
+    renderPage(<GradeStructuresPage />, { path: '/core/grade-structures' });
+
+    await user.click(await screen.findByRole('button', { name: 'Rename STAFF' }));
+    const drawer = await screen.findByRole('dialog');
+    const name = within(drawer).getByLabelText(/^Name/);
+    await user.clear(name);
+    await user.type(name, 'Staff grade scale');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updated).toBeDefined());
+    expect(updated).toEqual({
+      url: `/api/v1/core/grade-structures/${STRUCT}`,
+      body: { name: 'Staff grade scale', version: 2 },
+    });
+  }, 20_000);
+
+  it('shows the translated stale-version problem when the structure was changed meanwhile', async () => {
+    server.use(
+      http.get(`${API}/core/grade-structures`, () => HttpResponse.json([structure])),
+      http.put(`${API}/core/grade-structures/${STRUCT}`, () =>
+        problem(409, 'stale-version', 'Grade structure STAFF was changed (version 3, expected 2); reload and retry'),
+      ),
+    );
+    await changeLanguage('en');
+    const user = userEvent.setup();
+    renderPage(<GradeStructuresPage />, { path: '/core/grade-structures' });
+
+    await user.click(await screen.findByRole('button', { name: 'Rename STAFF' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(await within(drawer).findByText('The record was changed by someone else. Reload and retry.')).toBeInTheDocument();
   }, 20_000);
 });
 
@@ -274,7 +338,7 @@ describe('GradeStructureDetailPage', () => {
       http.post(`${API}/core/grade-structures/${STRUCT}/grades`, async ({ request }) => {
         created = await request.json();
         return HttpResponse.json(
-          { id: '018f0000-0000-7000-8000-0000000001d3', gradeStructureId: STRUCT, code: 'G3', name: 'Lead', rankOrder: 3, active: true, validFrom: '2026-11-11', validTo: null },
+          { id: '018f0000-0000-7000-8000-0000000001d3', gradeStructureId: STRUCT, code: 'G3', name: 'Lead', rankOrder: 3, active: true, validFrom: '2026-11-11', validTo: null, version: 0 },
           { status: 201 },
         );
       }),
@@ -297,6 +361,48 @@ describe('GradeStructureDetailPage', () => {
     await user.type(within(drawer).getByLabelText(/Rank order/), '3');
     await user.click(within(drawer).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(created).toEqual({ code: 'G3', name: 'Lead', rankOrder: 3, validFrom: null, validTo: null }));
+  }, 20_000);
+
+  it('updates a grade with the version it read', async () => {
+    let body: unknown;
+    server.use(
+      http.get(`${API}/core/grade-structures`, () => HttpResponse.json([structure])),
+      http.get(`${API}/core/grade-structures/${STRUCT}/grades`, () => HttpResponse.json(grades)),
+      http.put(`${API}/core/grades/${G2}`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...grades[1], name: 'Senior staff', version: 8 });
+      }),
+    );
+    await changeLanguage('en');
+    const user = userEvent.setup();
+    renderPage(<GradeStructureDetailPage structureId={STRUCT} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit G2' }));
+    const drawer = await screen.findByRole('dialog');
+    const name = within(drawer).getByLabelText(/^Name/);
+    await user.clear(name);
+    await user.type(name, 'Senior staff');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).toEqual({ name: 'Senior staff', rankOrder: 2, validTo: null, active: true, version: 7 });
+  }, 20_000);
+
+  it('shows the translated stale-version problem when the grade was changed meanwhile', async () => {
+    server.use(
+      http.get(`${API}/core/grade-structures`, () => HttpResponse.json([structure])),
+      http.get(`${API}/core/grade-structures/${STRUCT}/grades`, () => HttpResponse.json(grades)),
+      http.put(`${API}/core/grades/${G2}`, () =>
+        problem(409, 'stale-version', 'Grade G2 was changed (version 8, expected 7); reload and retry'),
+      ),
+    );
+    await changeLanguage('en');
+    const user = userEvent.setup();
+    renderPage(<GradeStructureDetailPage structureId={STRUCT} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit G2' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(await within(drawer).findByText('The record was changed by someone else. Reload and retry.')).toBeInTheDocument();
   }, 20_000);
 
   it('shows the translated problem when the rank is taken', async () => {
