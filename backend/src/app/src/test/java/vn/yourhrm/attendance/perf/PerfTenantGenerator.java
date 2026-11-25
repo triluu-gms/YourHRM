@@ -338,7 +338,7 @@ public final class PerfTenantGenerator {
         counts.put("rawPunches", count("att.raw_punch", tenant));
         counts.put("approvedLeaveRequests", count("att.leave_request", tenant));
         counts.put("approvedOvertimeRequests", count("att.overtime_request", tenant));
-        counts.put("calendarDays", (long) (yesterday.toEpochDay() - p1Start.toEpochDay() + 1));
+        counts.put("calendarDays", yesterday.toEpochDay() - p1Start.toEpochDay() + 1);
         long seedMillis = (System.nanoTime() - t0) / 1_000_000;
         return new Tenant(tenant, user, le, pg, periodP1, periodP2, p1Start, p1End, today, counts, seedMillis);
     }

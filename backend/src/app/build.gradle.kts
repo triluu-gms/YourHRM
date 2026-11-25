@@ -50,7 +50,7 @@ tasks.named<Test>("test") {
 
 // T&A performance tests (NFR-ATT-002 / 003): ./gradlew :app:perfTest -Dperf.employees=10000 (needs Docker).
 // Every -Dperf.* property of the Gradle invocation is passed to the test JVM.
-val perfTest by tasks.registering(Test::class) {
+tasks.register<Test>("perfTest") {
     description = "Runs the performance tests (JUnit tag 'perf') against Testcontainers PostgreSQL 17."
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
