@@ -216,12 +216,18 @@ public class AttendancePeriodStore {
     }
 
     public void requestReopen(UUID id, String reason) {
+        requestReopen(id, reason, actor());
+    }
+
+    /** A reopen asked while held, on behalf of {@code requestedBy} (the requester of an approved reopen). */
+    public void requestReopen(UUID id, String reason, UUID requestedBy) {
         db.jdbc().sql("""
                         update att.attendance_period
-                           set reopen_requested_at = now(), reopen_requested_by = :by, reopen_request_reason = :r,
+                           set reopen_requested_at = now(), reopen_requested_by = :rby, reopen_request_reason = :r,
                                updated_by = :by, version = version + 1
                          where tenant_id = :t and id = :id""")
-                .param("t", tenant()).param("id", id).param("r", reason).param("by", actor()).update();
+                .param("t", tenant()).param("id", id).param("r", reason).param("rby", requestedBy)
+                .param("by", actor()).update();
     }
 
     public void lock(UUID id, int version, UUID runId) {

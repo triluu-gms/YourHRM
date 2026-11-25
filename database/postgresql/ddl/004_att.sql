@@ -85,6 +85,17 @@
 --     beyond the assignment placement (a new segment starts when the work schedule, the employee
 --     group or the FTE changes, §7.3 "mức chi tiết"); NULL on import lines and on older rows.
 --     Not added to the reporting publication column list (007) yet.
+-- v0.11 (2026-11-25, statutory breaks and approval request types):
+--   att.menstrual_break_day (new, BR-ATT-035 / VN-16): the days a female worker declares for
+--     the 30-minute paid menstrual break (ND145 Art. 80 [verify-legal]). One ACTIVE row per
+--     employment x date; withdrawal keeps the row (WITHDRAWN). Data minimisation: no reason,
+--     no free text, no attachment; the row only says "declared on that date". pii:P2
+--     sensitive-derived (health), like att.ext_hr_special_status.protection_type; NO row
+--     audit (the audit store would copy the dates), the service writes a business audit
+--     with the month only.
+--   att.change_request (new, ATT-P-11): HR requests that wait for Core's workflow when the
+--     legal entity's setting asks for an approval: PERIOD_REOPEN (BR-ATT-073) and
+--     BALANCE_ADJUST (BR-ATT-068). The action runs on the final approval (workflow listener).
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -710,6 +721,43 @@ CREATE TABLE att.timesheet_correction (
 );
 CREATE INDEX timesheet_correction_day_ix ON att.timesheet_correction (tenant_id, employment_id, work_date);
 CREATE INDEX timesheet_correction_pending_ix ON att.timesheet_correction (tenant_id, org_unit_id, work_date) WHERE status = 'PENDING';
+
+-- v0.10: menstrual paid break days (BR-ATT-035, VN-16, BLLĐ 2019 Điều 137(4) / ND145 Điều 80
+-- [verify-legal]): 30 paid minutes per day (LABOUR.PROTECTED_BREAK.MENSTRUAL_MIN) on at least
+-- 3 days per month (LABOUR.PROTECTED_BREAK.MENSTRUAL_DAYS_PER_MONTH). The worker declares the
+-- day (ESS) or HR records it on her behalf; no approval. Daily processing credits the larger of
+-- the protected minutes of the day (pregnancy / child under 12 months / menstrual), counting at
+-- most the monthly number of ACTIVE days in date order. DATA MINIMISATION (ND13/2023, PDPL):
+-- the row holds the date only, no reason, symptom, note or document; readable only through
+-- att.menstrual_break.view / declare (SELF for the employee).
+CREATE TABLE att.menstrual_break_day (
+  tenant_id              uuid NOT NULL,
+  id                     uuid NOT NULL DEFAULT sys.uuid_v7(),
+  employment_id          uuid NOT NULL,                    -- -> hr.employment (soft)
+  work_date              date NOT NULL,
+  legal_entity_id        uuid NOT NULL,                    -- -> core.legal_entity (soft), scope as of work_date
+  org_unit_id            uuid,                             -- -> core.org_unit (soft)
+  source                 text NOT NULL,                    -- ESS (the worker) | ADMIN (HR on her behalf)
+  status                 text NOT NULL DEFAULT 'ACTIVE',
+  withdrawn_at           timestamptz,
+  withdrawn_by           uuid,
+  created_at             timestamptz NOT NULL DEFAULT now(),
+  created_by             uuid,
+  updated_at             timestamptz NOT NULL DEFAULT now(),
+  updated_by             uuid,
+  version                int NOT NULL DEFAULT 0,
+  CONSTRAINT menstrual_break_day_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT menstrual_break_day_source_ck CHECK (source IN ('ESS','ADMIN')),
+  CONSTRAINT menstrual_break_day_status_ck CHECK (status IN ('ACTIVE','WITHDRAWN')),
+  CONSTRAINT menstrual_break_day_withdrawn_ck CHECK ((status = 'WITHDRAWN') = (withdrawn_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX menstrual_break_day_active_uq ON att.menstrual_break_day (tenant_id, employment_id, work_date)
+  WHERE status = 'ACTIVE';
+COMMENT ON TABLE att.menstrual_break_day IS
+  'v0.10 BR-ATT-035: days declared for the paid menstrual break (date only, no reason). Sensitive-derived health data.';
+COMMENT ON COLUMN att.menstrual_break_day.work_date IS
+  'pii:P2 sensitive-derived (health): the existence of an ACTIVE row on a date reveals it; no detail is stored';
+COMMENT ON COLUMN att.menstrual_break_day.employment_id IS 'pii:P1';
 
 -- =============================================================================
 -- 7. OVERTIME  (BR-ATT-040..049; VN-07..VN-11)
@@ -1409,6 +1457,53 @@ CREATE INDEX retro_request_result_ix ON att.retro_request (tenant_id, applied_re
 COMMENT ON TABLE att.retro_request IS
   'Employment x LOCKED period whose days changed after the lock (BR-ATT-071); applied as retro lines at the next close.';
 
+-- v0.10: HR requests that need Core's approval before T&A applies them (ATT-P-11), when the
+-- legal entity's setting asks for one (att.period_reopen_approval / att.leave_adjust_approval,
+-- default false = applied at once as before). PERIOD_REOPEN: reopen a CLOSED period
+-- (BR-ATT-073); on approval the reopen runs, or, when Payroll holds the period, the release
+-- request of BR-ATT-087 is filed. BALANCE_ADJUST: a leave balance ADJUST row (BR-ATT-068),
+-- written on approval. The workflow subject is this row (soft reference from Core).
+CREATE TABLE att.change_request (
+  tenant_id              uuid NOT NULL,
+  id                     uuid NOT NULL DEFAULT sys.uuid_v7(),
+  request_type           text NOT NULL,
+  legal_entity_id        uuid NOT NULL,                    -- -> core.legal_entity (soft)
+  org_unit_id            uuid,                             -- -> core.org_unit (soft)
+  period_id              uuid,                             -- PERIOD_REOPEN
+  employment_id          uuid,                             -- BALANCE_ADJUST -> hr.employment (soft)
+  leave_type_id          uuid,                             -- BALANCE_ADJUST
+  leave_year             int,                              -- BALANCE_ADJUST
+  quantity               numeric(7,2),                     -- BALANCE_ADJUST, signed days
+  reason_text            text NOT NULL,
+  status                 text NOT NULL DEFAULT 'PENDING',
+  workflow_instance_id   uuid,                             -- -> core.workflow_instance (soft)
+  decided_at             timestamptz,
+  decided_by             uuid,
+  outcome                text,                             -- APPLIED: REOPENED | RELEASE_REQUESTED | ADJUSTED; NOT_APPLIED: why
+  ledger_txn_id          uuid,                             -- BALANCE_ADJUST: the ADJUST ledger row written
+  created_at             timestamptz NOT NULL DEFAULT now(),
+  created_by             uuid,
+  updated_at             timestamptz NOT NULL DEFAULT now(),
+  updated_by             uuid,
+  version                int NOT NULL DEFAULT 0,
+  CONSTRAINT change_request_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT change_request_period_fk FOREIGN KEY (tenant_id, period_id) REFERENCES att.attendance_period (tenant_id, id),
+  CONSTRAINT change_request_type_ck CHECK (request_type IN ('PERIOD_REOPEN','BALANCE_ADJUST')),
+  CONSTRAINT change_request_status_ck CHECK (status IN ('PENDING','APPLIED','NOT_APPLIED','REJECTED','CANCELLED')),
+  CONSTRAINT change_request_reason_ck CHECK (length(btrim(reason_text)) > 0),
+  CONSTRAINT change_request_shape_ck CHECK (
+        (request_type = 'PERIOD_REOPEN' AND period_id IS NOT NULL AND employment_id IS NULL AND quantity IS NULL)
+     OR (request_type = 'BALANCE_ADJUST' AND period_id IS NULL AND employment_id IS NOT NULL
+         AND leave_type_id IS NOT NULL AND leave_year IS NOT NULL AND quantity IS NOT NULL AND quantity <> 0))
+);
+-- one open reopen request per period
+CREATE UNIQUE INDEX change_request_reopen_pending_uq ON att.change_request (tenant_id, period_id)
+  WHERE request_type = 'PERIOD_REOPEN' AND status = 'PENDING';
+CREATE INDEX change_request_employment_ix ON att.change_request (tenant_id, employment_id, created_at)
+  WHERE employment_id IS NOT NULL;
+COMMENT ON TABLE att.change_request IS
+  'v0.10 ATT-P-11: period reopen / leave balance adjustment waiting for Core approval; applied by the workflow listener.';
+
 -- v0.9: staging of the Attendance Result import (BR-ATT-025, R2-18, US-ATT-019). Core's import
 -- engine commits each row on Core's pool, which an att transaction cannot join (ADR-0021), while
 -- a result version needs its header and lines in ONE att transaction (seal). Each committed row
@@ -2039,7 +2134,7 @@ BEGIN
     'att.ot_cap_ledger','att.leave_type','att.leave_policy','att.leave_request','att.leave_balance_ledger',
     'att.business_trip','att.remote_work_request','att.attendance_period','att.attendance_result',
     'att.attendance_result_line','att.attendance_result_hold','att.retro_request',
-    'att.attendance_result_import_line','att.ext_core_location','att.ext_hr_assignment','att.ext_pay_pay_group_assignment',
+    'att.attendance_result_import_line','att.menstrual_break_day','att.change_request','att.ext_core_location','att.ext_hr_assignment','att.ext_pay_pay_group_assignment',
     'att.ext_hr_employment','att.ext_hr_employment_classification','att.ext_hr_special_status']
   LOOP
     CALL sys.enable_tenant_rls(t::regclass);
@@ -2060,7 +2155,7 @@ BEGIN
     'att.overtime_request','att.overtime_result','att.ot_cap_ledger','att.leave_type','att.leave_policy',
     'att.leave_request','att.business_trip','att.remote_work_request','att.attendance_period',
     'att.attendance_result_hold','att.retro_request','att.attendance_result_import_line',
-    'att.ext_core_location','att.ext_hr_assignment',
+    'att.menstrual_break_day','att.change_request','att.ext_core_location','att.ext_hr_assignment',
     'att.ext_pay_pay_group_assignment','att.ext_hr_employment_classification','att.ext_hr_special_status']
   LOOP
     CALL sys.attach_touch_trigger(t::regclass);
@@ -2074,8 +2169,10 @@ BEGIN
     'att.schedule_pattern','att.schedule_assignment_rule','att.schedule_assignment','att.device',
     'att.enrolment_mapping','att.attendance_code','att.timesheet_correction','att.overtime_request',
     'att.leave_type','att.leave_policy','att.leave_request','att.attendance_period','att.attendance_result',
-    'att.attendance_result_hold']
+    'att.attendance_result_hold','att.change_request']
   LOOP
+    -- NOT att.menstrual_break_day (v0.10): the audit store would keep the health-derived dates;
+    -- the service records a business action with the month only.
     CALL audit.attach_row_audit(t::regclass);
   END LOOP;
 END $$;
@@ -2089,7 +2186,8 @@ GRANT SELECT, INSERT, UPDATE ON
   att.daily_timesheet, att.timesheet_correction, att.overtime_request, att.overtime_result, att.ot_cap_ledger,
   att.leave_type, att.leave_policy, att.leave_request, att.business_trip, att.remote_work_request,
   att.attendance_period, att.attendance_result, att.attendance_result_hold, att.retro_request,
-  att.attendance_result_import_line, att.ext_core_location, att.ext_hr_assignment, att.ext_pay_pay_group_assignment,
+  att.attendance_result_import_line, att.menstrual_break_day, att.change_request,
+  att.ext_core_location, att.ext_hr_assignment, att.ext_pay_pay_group_assignment,
   att.ext_hr_employment, att.ext_hr_employment_classification, att.ext_hr_special_status
 TO yhrm_app_att;
 -- att.ext_hr_employment has no trg_touch (key is employment_id, there is no id column):

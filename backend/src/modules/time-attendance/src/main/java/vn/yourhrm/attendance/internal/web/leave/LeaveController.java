@@ -214,11 +214,19 @@ class LeaveController {
         return balances.ledger(employmentId, leaveTypeId, leaveYear);
     }
 
+    /**
+     * 201 with the ADJUST ledger row; 202 with {@code {outcome: APPROVAL_REQUESTED, approvalRequestId}} when the legal
+     * entity requires an approval ({@code att.leave_adjust_approval}, workflow {@code att.BALANCE_ADJUST}).
+     */
     @PostMapping("/employments/{employmentId}/leave-adjustments")
     @RequiresPermission(AttendancePermissions.LEAVE_BALANCE_ADJUST)
-    public ResponseEntity<LedgerRow> adjust(@PathVariable UUID employmentId, @RequestBody AdjustRequest req) {
-        return ResponseEntity.status(201).body(balances.adjust(employmentId,
-                new AdjustInput(req.leaveTypeId(), req.leaveYear(), req.quantity(), req.reason())));
+    public ResponseEntity<?> adjust(@PathVariable UUID employmentId, @RequestBody AdjustRequest req) {
+        var o = balances.adjustOrRequest(employmentId,
+                new AdjustInput(req.leaveTypeId(), req.leaveYear(), req.quantity(), req.reason()));
+        if (o.row() != null) {
+            return ResponseEntity.status(201).body(o.row());
+        }
+        return ResponseEntity.status(202).body(o);
     }
 
     @PostMapping("/leave-balances/accrual")

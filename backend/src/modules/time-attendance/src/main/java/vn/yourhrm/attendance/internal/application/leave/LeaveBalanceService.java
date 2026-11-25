@@ -23,11 +23,14 @@ import vn.yourhrm.attendance.api.AttendancePermissions;
 import vn.yourhrm.attendance.api.LeaveEncashmentFlagged;
 import vn.yourhrm.attendance.api.LeaveSettlements;
 import vn.yourhrm.attendance.internal.application.timesheet.LockedDayChangeSink;
+import vn.yourhrm.attendance.internal.application.approval.ApprovalCatalogues;
 import vn.yourhrm.attendance.internal.domain.leave.LeaveRules;
 import vn.yourhrm.attendance.internal.domain.leave.LeaveRules.YearEndSplit;
 import vn.yourhrm.attendance.internal.infra.AttDb;
 import vn.yourhrm.attendance.internal.infra.AttOutbox;
 import vn.yourhrm.attendance.internal.infra.AttTransactional;
+import vn.yourhrm.attendance.internal.infra.approval.ChangeRequestStore;
+import vn.yourhrm.attendance.internal.infra.approval.ChangeRequestStore.ChangeRequest;
 import vn.yourhrm.attendance.internal.infra.leave.LeaveStore;
 import vn.yourhrm.attendance.internal.infra.leave.LeaveStore.EmploymentFacts;
 import vn.yourhrm.attendance.internal.infra.leave.LeaveStore.LedgerRow;
@@ -44,6 +47,8 @@ import vn.yourhrm.shared.auth.api.AuthorizationTarget;
 import vn.yourhrm.shared.common.error.ApiException;
 import vn.yourhrm.shared.common.tenancy.TenantContext;
 import vn.yourhrm.shared.common.time.BusinessClock;
+import vn.yourhrm.shared.workflow.api.WorkflowService;
+import vn.yourhrm.shared.workflow.api.WorkflowService.StartRequest;
 
 /**
  * Leave balances (BR-ATT-058, 060, 067, 068). The balance of an employment × type × leave year is the sum of its ledger
@@ -55,7 +60,9 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  *       or is flagged by policy; carried days unused at their expiry follow the same policy action (taken days
  *       consume carried days first). Encashed and flagged days are handed to Payroll (ATT-P-06):
  *       {@code att.LeaveEncashmentFlagged}, and encashed days as LEAVE_ENCASH_DAYS of the Attendance Result;</li>
- *   <li><b>adjustments</b> by HR with a mandatory reason;</li>
+ *   <li><b>adjustments</b> by HR with a mandatory reason; when the legal entity requires an approval
+ *       ({@code att.leave_adjust_approval}, ATT-P-11) the adjustment is a request in Core's workflow
+ *       ({@code att.BALANCE_ADJUST}) and the ADJUST row is written on the final approval;</li>
  *   <li><b>termination settlement</b>: the year's entitlement prorated to the last working day, the days still owed
  *       (encashed) or taken in advance (to recover), published to Payroll / People through {@link LeaveSettlements}.</li>
  * </ul>
@@ -76,6 +83,14 @@ public class LeaveBalanceService implements LeaveSettlements {
     public record AdjustInput(UUID leaveTypeId, Integer leaveYear, BigDecimal quantity, String reason) {
     }
 
+    /**
+     * @param outcome           ADJUSTED (the row is written) or APPROVAL_REQUESTED (it waits for the workflow)
+     * @param row               the ADJUST ledger row when ADJUSTED, else null
+     * @param approvalRequestId the {@code att.change_request} when APPROVAL_REQUESTED, else null
+     */
+    public record AdjustOutcome(String outcome, LedgerRow row, UUID approvalRequestId) {
+    }
+
     public record RunSummary(String run, int employments, int written, int skipped, List<String> flagged,
             Map<UUID, String> failures) {
     }
@@ -89,11 +104,15 @@ public class LeaveBalanceService implements LeaveSettlements {
     private final TransactionTemplate perEmployment;
     private final AttOutbox outbox;
     private final ObjectProvider<LockedDayChangeSink> closedDaySinks;
+    private final ChangeRequestStore changeRequests;
+    private final ApprovalCatalogues approvals;
+    private final WorkflowService workflow;
 
     public LeaveBalanceService(LeaveStore store, PunchStore punches, LeaveEntitlements entitlements,
             AuthorizationService authz, AuditLog audit, BusinessClock clock,
             @Qualifier(AttDb.TX) PlatformTransactionManager attTm, AttOutbox outbox,
-            ObjectProvider<LockedDayChangeSink> closedDaySinks) {
+            ObjectProvider<LockedDayChangeSink> closedDaySinks, ChangeRequestStore changeRequests,
+            ApprovalCatalogues approvals, WorkflowService workflow) {
         this.outbox = outbox;
         this.closedDaySinks = closedDaySinks;
         this.store = store;
@@ -104,6 +123,9 @@ public class LeaveBalanceService implements LeaveSettlements {
         this.clock = clock;
         this.perEmployment = new TransactionTemplate(attTm);
         this.perEmployment.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.changeRequests = changeRequests;
+        this.approvals = approvals;
+        this.workflow = workflow;
     }
 
     // ------------------------------------------------------------------------------------------- balances
@@ -165,9 +187,87 @@ public class LeaveBalanceService implements LeaveSettlements {
         return store.ledger(employmentId, leaveTypeId, leaveYear);
     }
 
-    /** A manual movement with a mandatory reason (BR-ATT-068). */
+    /** A manual movement with a mandatory reason (BR-ATT-068), written at once (no approval). */
     @AttTransactional
     public LedgerRow adjust(UUID employmentId, AdjustInput in) {
+        Adjustment a = checkAdjust(employmentId, in);
+        return writeAdjust(a);
+    }
+
+    /**
+     * A manual movement with a mandatory reason (BR-ATT-068): written at once, or, when the legal entity requires an
+     * approval ({@code att.leave_adjust_approval}, ATT-P-11), filed as an {@code att.BALANCE_ADJUST} request whose
+     * ADJUST row is written on the final approval ({@link #applyAdjustOutcome}).
+     */
+    @AttTransactional
+    public AdjustOutcome adjustOrRequest(UUID employmentId, AdjustInput in) {
+        Adjustment a = checkAdjust(employmentId, in);
+        if (!approvals.required(ApprovalCatalogues.SETTING_ADJUST_APPROVAL, a.legalEntityId())) {
+            return new AdjustOutcome("ADJUSTED", writeAdjust(a), null);
+        }
+        UUID requestId = changeRequests.insertAdjust(employmentId, a.legalEntityId(), a.orgUnitId(), a.type().id(),
+                a.year(), a.quantity(), a.reason());
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("leaveType", a.type().data().code());
+        summary.put("leaveYear", a.year());
+        summary.put("quantity", a.quantity());
+        summary.put("reason", a.reason());
+        var started = workflow.start(new StartRequest(ApprovalCatalogues.PROCESS_BALANCE_ADJUST,
+                ApprovalCatalogues.SUBJECT_CHANGE_REQUEST, requestId, 0, "att-balance-adjust-" + requestId, null,
+                punches.personOf(employmentId).orElse(null), a.legalEntityId(), a.orgUnitId(), null, null, summary,
+                Map.of("leaveType", a.type().data().code(), "quantity", a.quantity()), Map.of()));
+        changeRequests.setWorkflow(requestId, started.instanceId());
+        audit.record(new BusinessAction("ADJUST_APPROVAL_REQUEST", "att", "leave_balance", employmentId,
+                a.legalEntityId(), Map.of("leaveType", a.type().data().code(), "leaveYear", String.valueOf(a.year()),
+                        "quantity", a.quantity().toPlainString(), "changeRequestId", requestId.toString())));
+        if ("APPROVED".equals(started.status())) { // every step skipped
+            applyAdjustOutcome(requestId, "APPROVED", null);
+            ChangeRequest r = changeRequests.find(requestId).orElseThrow();
+            if ("APPLIED".equals(r.status())) {
+                return new AdjustOutcome("ADJUSTED", store.ledger(employmentId, a.type().id(), a.year()).getLast(),
+                        requestId);
+            }
+        }
+        return new AdjustOutcome("APPROVAL_REQUESTED", null, requestId);
+    }
+
+    /**
+     * The final outcome of an {@code att.BALANCE_ADJUST} approval (workflow listener; idempotent). APPROVED writes the
+     * ADJUST row requested (no new permission check: the approval is the authority); a leave type that no longer
+     * tracks a balance or an employment that left T&amp;A's projection is NOT_APPLIED.
+     */
+    @AttTransactional
+    public Map<String, Object> applyAdjustOutcome(UUID requestId, String outcome, UUID decidedBy) {
+        ChangeRequest r = changeRequests.find(requestId)
+                .orElseThrow(() -> ApiException.notFound("Change request", requestId));
+        if (!"PENDING".equals(r.status()) || !ChangeRequestStore.BALANCE_ADJUST.equals(r.requestType())) {
+            return Map.of("status", r.status());
+        }
+        if (!"APPROVED".equals(outcome)) {
+            String status = "REJECTED".equals(outcome) ? "REJECTED" : "CANCELLED";
+            changeRequests.decide(r.id(), status, decidedBy, null, null);
+            return Map.of("status", status);
+        }
+        Optional<TypeRow> type = store.type(r.leaveTypeId()).filter(x -> x.data().tracksBalance());
+        LocalDate today = clock.today();
+        Optional<PunchStore.Placement> where = punches.placement(r.employmentId(), today);
+        if (type.isEmpty() || where.isEmpty() || store.employment(r.employmentId(), today).isEmpty()) {
+            String why = type.isEmpty() ? "leave-type-not-tracked" : "employment-unknown";
+            changeRequests.decide(r.id(), "NOT_APPLIED", decidedBy, why, null);
+            return Map.of("status", "NOT_APPLIED", "reason", why);
+        }
+        LedgerRow row = writeAdjust(new Adjustment(r.employmentId(), where.get().legalEntityId(),
+                where.get().orgUnitId(), type.get(), r.leaveYear(), r.quantity(), r.reason()));
+        changeRequests.decide(r.id(), "APPLIED", decidedBy, "ADJUSTED", row.id());
+        return Map.of("status", "APPLIED", "ledgerTxnId", row.id().toString());
+    }
+
+    /** A validated adjustment (BR-ATT-068). */
+    private record Adjustment(UUID employmentId, UUID legalEntityId, UUID orgUnitId, TypeRow type, int year,
+            BigDecimal quantity, String reason) {
+    }
+
+    private Adjustment checkAdjust(UUID employmentId, AdjustInput in) {
         String reason = LeaveInputs.text(in.reason());
         if (reason == null) {
             throw invalid("reason-required", "A reason is required for a balance adjustment (BR-ATT-068)");
@@ -183,12 +283,18 @@ public class LeaveBalanceService implements LeaveSettlements {
         EmploymentFacts facts = store.employment(employmentId, today)
                 .orElseThrow(() -> ApiException.notFound("Employment", employmentId));
         int year = in.leaveYear() != null ? in.leaveYear() : LeaveRules.leaveYearOf(today, startMonth(t, facts, today));
-        store.insertTxn(new NewTxn(employmentId, where.legalEntityId(), where.orgUnitId(), t.id(), t.data().code(),
-                year, "ADJUST", in.quantity(), today, null, null, null, "ADMIN", null, reason, null, "APP"));
-        audit.record(new BusinessAction("ADJUST", "att", "leave_balance", employmentId, where.legalEntityId(),
-                Map.of("leaveType", t.data().code(), "leaveYear", String.valueOf(year), "quantity",
-                        in.quantity().toPlainString())));
-        List<LedgerRow> rows = store.ledger(employmentId, t.id(), year);
+        return new Adjustment(employmentId, where.legalEntityId(), where.orgUnitId(), t, year, in.quantity(), reason);
+    }
+
+    private LedgerRow writeAdjust(Adjustment a) {
+        TypeRow t = a.type();
+        store.insertTxn(new NewTxn(a.employmentId(), a.legalEntityId(), a.orgUnitId(), t.id(), t.data().code(),
+                a.year(), "ADJUST", a.quantity(), clock.today(), null, null, null, "ADMIN", null, a.reason(), null,
+                "APP"));
+        audit.record(new BusinessAction("ADJUST", "att", "leave_balance", a.employmentId(), a.legalEntityId(),
+                Map.of("leaveType", t.data().code(), "leaveYear", String.valueOf(a.year()), "quantity",
+                        a.quantity().toPlainString())));
+        List<LedgerRow> rows = store.ledger(a.employmentId(), t.id(), a.year());
         return rows.getLast();
     }
 

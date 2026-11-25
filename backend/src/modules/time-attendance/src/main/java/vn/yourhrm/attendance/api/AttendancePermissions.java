@@ -57,6 +57,19 @@ public final class AttendancePermissions {
      */
     public static final String TIMESHEET_CORRECTION_REQUEST = "att.timesheet_correction.request";
 
+    /**
+     * Declare or withdraw a day of the paid menstrual break (BR-ATT-035, VN-16): granted with SELF scope to employees
+     * (ESS), wider to HR recording it on the worker's behalf. Also lets the worker read her own declarations. The
+     * declaration holds the date only (health-derived data, no reason).
+     */
+    public static final String MENSTRUAL_BREAK_DECLARE = "att.menstrual_break.declare";
+
+    /**
+     * Read the menstrual-break declarations of other employees (health-derived, ND13/2023): restricted to the HR / T&amp;A
+     * staff that must check the credited minutes; every read is audited. Managers do not need it.
+     */
+    public static final String MENSTRUAL_BREAK_VIEW = "att.menstrual_break.view";
+
     /** The attendance code catalogue: platform defaults and tenant codes with their payroll category (BR-ATT-033). */
     public static final String ATTENDANCE_CODE_VIEW = "att.attendance_code.view";
     public static final String ATTENDANCE_CODE_UPDATE = "att.attendance_code.update";
