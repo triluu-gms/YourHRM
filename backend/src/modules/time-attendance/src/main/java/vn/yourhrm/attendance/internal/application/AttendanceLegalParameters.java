@@ -35,6 +35,16 @@ public class AttendanceLegalParameters {
     public static final String PROTECTED_BREAK_CHILD_MIN = "LABOUR.PROTECTED_BREAK.CHILD_UNDER_12M_MIN";
     /** VN-16 / BR-ATT-035: paid reduction minutes per day for a pregnant worker from month 7 (BRD default 60). */
     public static final String PROTECTED_BREAK_PREGNANCY_MIN = "LABOUR.PROTECTED_BREAK.PREGNANCY_MIN";
+    /**
+     * VN-16 / BR-ATT-035 (BLLĐ 2019 Art. 137(4), ND145 Art. 80): paid break minutes per day during menstruation,
+     * counted as working time (BRD default 30).
+     */
+    public static final String PROTECTED_BREAK_MENSTRUAL_MIN = "LABOUR.PROTECTED_BREAK.MENSTRUAL_MIN";
+    /**
+     * VN-16 / BR-ATT-035: days per calendar month the menstrual break applies to (BRD default 3, a statutory minimum:
+     * a LEGAL_ENTITY override may grant more where the pack allows it).
+     */
+    public static final String PROTECTED_BREAK_MENSTRUAL_DAYS = "LABOUR.PROTECTED_BREAK.MENSTRUAL_DAYS_PER_MONTH";
     /** VN-07 / BR-ATT-045: normal + overtime hours on a working day (BRD default 12). */
     public static final String OT_MAX_DAY_TOTAL_HOURS = "LABOUR.OT.MAX_DAY_TOTAL_HOURS";
     /** VN-07 / BR-ATT-045: overtime hours on a weekly rest day or holiday (BRD default 12). */

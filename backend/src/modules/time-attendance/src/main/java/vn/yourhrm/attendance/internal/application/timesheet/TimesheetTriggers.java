@@ -116,6 +116,15 @@ class TimesheetTriggers {
                 e.endDate().isAfter(today) ? today : e.endDate()));
     }
 
+    /** A menstrual-break day declared or withdrawn (BR-ATT-035): that day is recomputed (future days when they come). */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    void onMenstrualBreak(MenstrualBreakChanged e) {
+        if (e.workDate().isAfter(clock.today())) {
+            return;
+        }
+        inTenant(e.tenantId(), () -> run(e.employmentId(), e.workDate(), e.workDate()));
+    }
+
     @EventListener
     void onWorkflow(WorkflowCompleted e) {
         if (!TimesheetCatalogues.PROCESS_CORRECTION.equals(e.processTypeCode())) {

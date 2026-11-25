@@ -35,6 +35,7 @@ import vn.yourhrm.attendance.internal.domain.timesheet.DayModel.DayResult;
 import vn.yourhrm.attendance.internal.domain.timesheet.DayModel.Leave;
 import vn.yourhrm.attendance.internal.domain.timesheet.DayModel.Punch;
 import vn.yourhrm.attendance.internal.domain.timesheet.DayModel.Shift;
+import vn.yourhrm.attendance.internal.domain.timesheet.ProtectedBreaks;
 import vn.yourhrm.attendance.internal.domain.timesheet.PunchAttachment;
 import vn.yourhrm.attendance.internal.infra.AttDb;
 import vn.yourhrm.attendance.internal.infra.AttTransactional;
@@ -43,6 +44,7 @@ import vn.yourhrm.attendance.internal.infra.punch.PunchStore.EmploymentDates;
 import vn.yourhrm.attendance.internal.infra.punch.PunchStore.PunchRow;
 import vn.yourhrm.attendance.internal.infra.schedule.ShiftPatternStore;
 import vn.yourhrm.attendance.internal.infra.schedule.ShiftPatternStore.ShiftRow;
+import vn.yourhrm.attendance.internal.infra.timesheet.MenstrualBreakStore;
 import vn.yourhrm.attendance.internal.infra.timesheet.TimesheetStore;
 import vn.yourhrm.attendance.internal.infra.timesheet.TimesheetStore.CodeRow;
 import vn.yourhrm.attendance.internal.infra.timesheet.TimesheetStore.CorrectionRow;
@@ -97,6 +99,7 @@ public class TimesheetProcessor {
     private final ShiftPatternStore shifts;
     private final PunchStore punches;
     private final TimesheetStore store;
+    private final MenstrualBreakStore menstrual;
     private final Settings settings;
     private final AttendanceLegalParameters legal;
     private final BusinessClock clock;
@@ -113,13 +116,15 @@ public class TimesheetProcessor {
     }
 
     public TimesheetProcessor(WorkSchedules schedules, ShiftPatternStore shifts, PunchStore punches,
-            TimesheetStore store, Settings settings, AttendanceLegalParameters legal, BusinessClock clock,
+            TimesheetStore store, MenstrualBreakStore menstrual, Settings settings, AttendanceLegalParameters legal,
+            BusinessClock clock,
             ObjectProvider<ActualOvertimeSink> otSinks, ObjectProvider<LockedDayChangeSink> lockedSinks,
             @Qualifier(AttDb.TX) PlatformTransactionManager attTm) {
         this.schedules = schedules;
         this.shifts = shifts;
         this.punches = punches;
         this.store = store;
+        this.menstrual = menstrual;
         this.settings = settings;
         this.legal = legal;
         this.clock = clock;
@@ -218,6 +223,10 @@ public class TimesheetProcessor {
                 .forEach(l -> leaves.computeIfAbsent(l.date(), k -> new ArrayList<>()).add(l));
         Map<String, CodeRow> codes = store.effectiveCodes();
         Map<String, String> pairing = new HashMap<>();
+        // BR-ATT-035: declared menstrual-break days of the whole months of the range (the monthly count is per month)
+        List<LocalDate> declared = menstrual.activeDates(employmentId, from.withDayOfMonth(1),
+                to.withDayOfMonth(to.lengthOfMonth()));
+        Map<String, Integer> menstrualDays = new HashMap<>();
 
         int written = 0;
         int unchanged = 0;
@@ -273,7 +282,11 @@ public class TimesheetProcessor {
             UUID loc = pl.map(PunchStore.Placement::locationId).orElse(null);
             LocalTime[] night = new LocalTime[2];
             UUID pack = nightWindow(shift == null ? null : shiftRows.get(p.shiftId()), le, loc, d, night);
-            int protectedMin = protectedMinutes(employmentId, le, loc, d);
+            int perMonth = declared.isEmpty() ? 0
+                    : menstrualDays.computeIfAbsent(le + "|" + loc + "|" + d.withDayOfMonth(1),
+                            k -> legalInt(AttendanceLegalParameters.PROTECTED_BREAK_MENSTRUAL_DAYS, le, loc, day));
+            boolean menstrualDay = ProtectedBreaks.credited(declared, perMonth).contains(d);
+            int protectedMin = protectedMinutes(employmentId, le, loc, d, menstrualDay);
             DayInput input = new DayInput(d, zone, employed ? "EMPLOYED" : "NOT_EMPLOYED", dayType, paidHoliday,
                     shift, dayPunches, dayLeaves, override, manual, mode, night[0], night[1], protectedMin);
             DayResult result = DayCalculator.compute(input);
@@ -395,20 +408,24 @@ public class TimesheetProcessor {
         return start.get().packId();
     }
 
-    /** BR-ATT-035: the statutory paid reduction minutes as of the work date (the larger one applies). */
-    private int protectedMinutes(UUID employmentId, UUID le, UUID loc, LocalDate d) {
+    /**
+     * BR-ATT-035: the statutory paid reduction minutes as of the work date: pregnancy, child under 12 months and a
+     * credited menstrual-break day; the larger one applies (never the sum). A missing parameter credits nothing.
+     */
+    private int protectedMinutes(UUID employmentId, UUID le, UUID loc, LocalDate d, boolean menstrualDay) {
         boolean[] f = store.protectedFlags(employmentId, d);
-        int min = 0;
-        LegalParameters.Scope scope = new LegalParameters.Scope(le, loc);
-        if (f[0]) {
-            min = Math.max(min, legal.find(AttendanceLegalParameters.PROTECTED_BREAK_PREGNANCY_MIN, scope, d)
-                    .map(LegalParameters.Value::asInt).orElse(0));
+        return ProtectedBreaks.larger(
+                f[0] ? legalInt(AttendanceLegalParameters.PROTECTED_BREAK_PREGNANCY_MIN, le, loc, d) : 0,
+                f[1] ? legalInt(AttendanceLegalParameters.PROTECTED_BREAK_CHILD_MIN, le, loc, d) : 0,
+                menstrualDay ? legalInt(AttendanceLegalParameters.PROTECTED_BREAK_MENSTRUAL_MIN, le, loc, d) : 0);
+    }
+
+    private int legalInt(String key, UUID le, UUID loc, LocalDate d) {
+        try {
+            return legal.find(key, new LegalParameters.Scope(le, loc), d).map(LegalParameters.Value::asInt).orElse(0);
+        } catch (RuntimeException e) {
+            return 0;
         }
-        if (f[1]) {
-            min = Math.max(min, legal.find(AttendanceLegalParameters.PROTECTED_BREAK_CHILD_MIN, scope, d)
-                    .map(LegalParameters.Value::asInt).orElse(0));
-        }
-        return min;
     }
 
     static String sha256(String s) {
