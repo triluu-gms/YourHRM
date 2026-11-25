@@ -36,9 +36,35 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.named<Test>("test") {
+tasks.withType<Test>().configureEach {
     // The DDL baseline (database/postgresql/ddl) is loaded into a throw-away Testcontainers PostgreSQL 17.
     systemProperty("yhrm.ddl.dir", rootProject.projectDir.resolve("../database/postgresql/ddl").canonicalPath)
     systemProperty("yhrm.seed.file", projectDir.resolve("src/main/resources/dev/seed-dev-tenant.sql").canonicalPath)
     inputs.dir(rootProject.projectDir.resolve("../database/postgresql/ddl")).withPropertyName("ddl").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+tasks.named<Test>("test") {
+    // Performance tests (tests/performance/README.md) never run in the default build.
+    useJUnitPlatform { excludeTags("perf") }
+}
+
+// T&A performance tests (NFR-ATT-002 / 003): ./gradlew :app:perfTest -Dperf.employees=10000 (needs Docker).
+// Every -Dperf.* property of the Gradle invocation is passed to the test JVM.
+val perfTest by tasks.registering(Test::class) {
+    description = "Runs the performance tests (JUnit tag 'perf') against Testcontainers PostgreSQL 17."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("perf") }
+    shouldRunAfter(tasks.named("test"))
+    maxHeapSize = providers.systemProperty("perf.heap").getOrElse("3g")
+    outputs.upToDateWhen { false }
+    System.getProperties().stringPropertyNames().filter { it.startsWith("perf.") && it != "perf.heap" }
+        .forEach { systemProperty(it, System.getProperty(it)) }
+    systemProperty("perf.reportFile", System.getProperty("perf.reportFile")
+        ?: layout.buildDirectory.file("perf/att-perf.csv").get().asFile.absolutePath)
+    testLogging {
+        showStandardStreams = true
+        events("passed", "failed", "skipped")
+    }
 }
