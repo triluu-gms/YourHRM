@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,10 +20,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.yourhrm.attendance.api.AttendancePermissions;
+import vn.yourhrm.attendance.api.LeaveEncashmentFlagged;
 import vn.yourhrm.attendance.api.LeaveSettlements;
+import vn.yourhrm.attendance.internal.application.timesheet.LockedDayChangeSink;
 import vn.yourhrm.attendance.internal.domain.leave.LeaveRules;
 import vn.yourhrm.attendance.internal.domain.leave.LeaveRules.YearEndSplit;
 import vn.yourhrm.attendance.internal.infra.AttDb;
+import vn.yourhrm.attendance.internal.infra.AttOutbox;
 import vn.yourhrm.attendance.internal.infra.AttTransactional;
 import vn.yourhrm.attendance.internal.infra.leave.LeaveStore;
 import vn.yourhrm.attendance.internal.infra.leave.LeaveStore.EmploymentFacts;
@@ -38,6 +42,7 @@ import vn.yourhrm.core.api.AuditLog.BusinessAction;
 import vn.yourhrm.shared.auth.api.AuthorizationService;
 import vn.yourhrm.shared.auth.api.AuthorizationTarget;
 import vn.yourhrm.shared.common.error.ApiException;
+import vn.yourhrm.shared.common.tenancy.TenantContext;
 import vn.yourhrm.shared.common.time.BusinessClock;
 
 /**
@@ -47,8 +52,9 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  *   <li><b>accrual</b> (monthly, or granted up front for the year / prorated), with the ND145 half-month rule and the
  *       seniority steps; idempotent per employment × type × month;</li>
  *   <li><b>year end</b>: carry over up to the policy's maximum with an expiry date; the remainder expires, is encashed
- *       or is flagged by policy; carried days unused at their expiry expire (taken days consume carried days
- *       first);</li>
+ *       or is flagged by policy; carried days unused at their expiry follow the same policy action (taken days
+ *       consume carried days first). Encashed and flagged days are handed to Payroll (ATT-P-06):
+ *       {@code att.LeaveEncashmentFlagged}, and encashed days as LEAVE_ENCASH_DAYS of the Attendance Result;</li>
  *   <li><b>adjustments</b> by HR with a mandatory reason;</li>
  *   <li><b>termination settlement</b>: the year's entitlement prorated to the last working day, the days still owed
  *       (encashed) or taken in advance (to recover), published to Payroll / People through {@link LeaveSettlements}.</li>
@@ -81,10 +87,15 @@ public class LeaveBalanceService implements LeaveSettlements {
     private final AuditLog audit;
     private final BusinessClock clock;
     private final TransactionTemplate perEmployment;
+    private final AttOutbox outbox;
+    private final ObjectProvider<LockedDayChangeSink> closedDaySinks;
 
     public LeaveBalanceService(LeaveStore store, PunchStore punches, LeaveEntitlements entitlements,
             AuthorizationService authz, AuditLog audit, BusinessClock clock,
-            @Qualifier(AttDb.TX) PlatformTransactionManager attTm) {
+            @Qualifier(AttDb.TX) PlatformTransactionManager attTm, AttOutbox outbox,
+            ObjectProvider<LockedDayChangeSink> closedDaySinks) {
+        this.outbox = outbox;
+        this.closedDaySinks = closedDaySinks;
         this.store = store;
         this.punches = punches;
         this.entitlements = entitlements;
@@ -350,12 +361,15 @@ public class LeaveBalanceService implements LeaveSettlements {
             String action = p == null ? "FORFEIT" : p.expiryAction();
             switch (action) {
                 case "ENCASH" -> {
-                    store.insertTxn(txn(f, t, year, "ENCASH", split.remainder().negate(), ye, null, "CARRY_RUN", null,
-                            "Unused days above the carry-over maximum, paid out"));
-                    n++;
+                    n += handOver(f, t, year, "YEAR_END", "ENCASH", split.remainder(), ye, "CARRY_RUN", null,
+                            "Unused days above the carry-over maximum, paid out (ATT-P-06)");
                 }
-                case "FLAG" -> flagged.add(employmentId + " " + t.data().code() + " " + year + ": "
-                        + split.remainder() + " days above the carry-over maximum");
+                case "FLAG" -> {
+                    n += handOver(f, t, year, "YEAR_END", "FLAG", split.remainder(), ye, "CARRY_RUN", null,
+                            "Unused days above the carry-over maximum, flagged for payout (ATT-P-06)");
+                    flagged.add(employmentId + " " + t.data().code() + " " + year + ": "
+                            + split.remainder() + " days above the carry-over maximum");
+                }
                 default -> {
                     store.insertTxn(txn(f, t, year, "EXPIRE", split.remainder().negate(), ye, null, "CARRY_RUN", null,
                             "Unused days above the carry-over maximum, forfeited"));
@@ -384,6 +398,7 @@ public class LeaveBalanceService implements LeaveSettlements {
         LocalDate d = asOf == null || asOf.isAfter(clock.today()) ? clock.today() : asOf;
         List<LedgerRow> rows = perEmployment.execute(s -> store.carriesToExpire(d, legalEntityId));
         int[] written = {0};
+        List<String> flagged = new ArrayList<>();
         Map<UUID, String> failures = new LinkedHashMap<>();
         for (LedgerRow c : rows) {
             each(c.employmentId(), failures, id -> {
@@ -392,15 +407,63 @@ public class LeaveBalanceService implements LeaveSettlements {
                 if (rest.signum() > 0) {
                     EmploymentFacts f = store.employment(id, c.expiresOn()).orElseThrow();
                     TypeRow t = store.type(c.leaveTypeId()).orElseThrow();
-                    if (store.insertTxn(txn(f, t, c.leaveYear(), "EXPIRE", rest.negate(), c.expiresOn(), null,
-                            "CARRY_EXPIRY", c.id(), "Carried days not taken by " + c.expiresOn()))) {
-                        written[0]++;
+                    // the expiry action of the policy in force at the expiry (ATT-P-06), FORFEIT without a policy
+                    String action = policy(t, f, c.expiresOn()).map(PolicyData::expiryAction).orElse("FORFEIT");
+                    String why = "Carried days not taken by " + c.expiresOn();
+                    switch (action) {
+                        case "ENCASH" -> written[0] += handOver(f, t, c.leaveYear(), "CARRY_EXPIRY", "ENCASH", rest,
+                                c.expiresOn(), "CARRY_EXPIRY", c.id(), why + ", paid out (ATT-P-06)");
+                        case "FLAG" -> {
+                            written[0] += handOver(f, t, c.leaveYear(), "CARRY_EXPIRY", "FLAG", rest, c.expiresOn(),
+                                    "CARRY_EXPIRY", c.id(), why + ", flagged for payout (ATT-P-06)");
+                            flagged.add(id + " " + t.data().code() + " " + c.leaveYear() + ": " + rest
+                                    + " carried days expired on " + c.expiresOn());
+                        }
+                        default -> {
+                            if (store.insertTxn(txn(f, t, c.leaveYear(), "EXPIRE", rest.negate(), c.expiresOn(),
+                                    null, "CARRY_EXPIRY", c.id(), why))) {
+                                written[0]++;
+                            }
+                        }
                     }
                 }
             });
         }
-        return new RunSummary("CARRY_EXPIRY " + d, rows.size(), written[0], rows.size() - written[0], List.of(),
+        return new RunSummary("CARRY_EXPIRY " + d, rows.size(), written[0], rows.size() - written[0], flagged,
                 failures);
+    }
+
+    /**
+     * Hands leftover days to Payroll (ATT-P-06): ENCASH writes the ENCASH ledger row (the days then travel as
+     * LEAVE_ENCASH_DAYS in the Attendance Result of the period covering {@code date}); FLAG writes a zero-quantity
+     * ADJUST marker (the days stay on the balance for a decision; the marker makes the run idempotent). Both publish
+     * {@code att.LeaveEncashmentFlagged} in the same transaction. When the period covering {@code date} is already
+     * CLOSED / LOCKED, an ENCASH records a retro request so the next close carries it as a delta (BR-ATT-071).
+     *
+     * @return the number of ledger rows written (0 when an idempotency index refused it)
+     */
+    private int handOver(EmploymentFacts f, TypeRow t, int year, String run, String outcome, BigDecimal days,
+            LocalDate date, String refType, UUID refId, String reason) {
+        boolean encash = "ENCASH".equals(outcome);
+        Optional<UUID> id = store.insertTxnId(txn(f, t, year, encash ? "ENCASH" : "ADJUST",
+                encash ? days.negate() : BigDecimal.ZERO, date, null, refType, refId, reason));
+        if (id.isEmpty()) {
+            return 0;
+        }
+        boolean retro = false;
+        if (encash) {
+            Optional<UUID> closed = store.closedPeriodOf(f.employmentId(), date);
+            if (closed.isPresent()) {
+                retro = true;
+                closedDaySinks.orderedStream().forEach(s -> s.lockedDayChanged(f.employmentId(), closed.get(), date));
+            }
+        }
+        outbox.publish(new LeaveEncashmentFlagged(TenantContext.current().tenantId(), f.legalEntityId(),
+                f.employmentId(), t.id(), t.data().code(), year, run, outcome, days, date, id.get(), retro));
+        audit.record(new BusinessAction(encash ? "LEAVE_ENCASH" : "LEAVE_FLAG", "att", "leave_balance",
+                f.employmentId(), f.legalEntityId(), Map.of("leaveType", t.data().code(), "leaveYear",
+                        String.valueOf(year), "run", run, "days", days.toPlainString(), "date", date.toString())));
+        return 1;
     }
 
     // ------------------------------------------------------------------------------------------- settlement
@@ -470,8 +533,10 @@ public class LeaveBalanceService implements LeaveSettlements {
             }
             boolean finalised = store.hasRef(employmentId, t.id(), year, "TERMINATION");
             BigDecimal total = sums.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-            // after finalisation the ENCASH row zeroed the owed days: report what was settled
-            BigDecimal remaining = finalised ? total.subtract(z(sums.get("ENCASH")))
+            // after finalisation the termination ENCASH row zeroed the owed days: report what was settled. Days paid
+            // out earlier by a carry-expiry run (ATT-P-06) are not part of it: they went to Payroll in their period.
+            BigDecimal remaining = finalised
+                    ? total.subtract(store.sumOf(employmentId, t.id(), year, "ENCASH", "TERMINATION"))
                     : total.add(prorationDelta(f, t, year));
             BigDecimal taken = z(sums.get("TAKE")).add(z(sums.get("CANCEL"))).negate();
             lines.add(new Line(t.id(), t.data().code(), year, remaining.add(taken), taken, remaining, finalised));

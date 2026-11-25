@@ -216,7 +216,7 @@ public class ResultImportService {
             lines.add(new NewLine(s.employmentId(), s.assignmentKey(), s.segmentFrom(), s.segmentTo(),
                     s.legalEntityId(), s.orgUnitId(), s.payGroupId(), s.costCentreId(), s.category(), s.unit(),
                     s.quantity(), s.periodQuantity(), false, null, null, null, null,
-                    "{\"importJobId\":\"" + jobId + "\",\"rowNo\":" + s.rowNo() + "}"));
+                    "{\"importJobId\":\"" + jobId + "\",\"rowNo\":" + s.rowNo() + "}", null));
         }
         String checksum = ResultLines.checksum(lines.stream().map(l -> ResultLines.canonical(l.employmentId(),
                 l.segmentFrom(), l.segmentTo(), l.category(), l.unit(), l.quantity(), l.periodQuantity(),

@@ -18,9 +18,11 @@ import vn.yourhrm.attendance.api.AttendanceResults.Hold;
 import vn.yourhrm.attendance.api.AttendanceResults.Line;
 import vn.yourhrm.attendance.api.AttendanceResults.Result;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.CodeQty;
+import vn.yourhrm.attendance.internal.domain.period.ResultLines.Dated;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.DayFacts;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Existing;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Overtime;
+import vn.yourhrm.attendance.internal.domain.period.ResultLines.SegmentKeys;
 import vn.yourhrm.attendance.internal.infra.AttDb;
 import vn.yourhrm.shared.common.tenancy.TenantContext;
 
@@ -42,7 +44,12 @@ public class AttendanceResultStore {
     public record NewLine(UUID employmentId, UUID assignmentKey, LocalDate segmentFrom, LocalDate segmentTo,
             UUID legalEntityId, UUID orgUnitId, UUID payGroupId, UUID costCentreId, String category, String unit,
             BigDecimal quantity, BigDecimal periodQuantity, boolean precededByDayOt, UUID originalPeriodId,
-            UUID originalResultId, LocalDate originalSegmentFrom, String retroReason, String sourceRefJson) {
+            UUID originalResultId, LocalDate originalSegmentFrom, String retroReason, String sourceRefJson,
+            SegmentKeys keys) {
+
+        public NewLine {
+            keys = keys == null ? SegmentKeys.NONE : keys;
+        }
     }
 
     /** One day read for a close, with the manual-override flag and the legal pack it was computed with. */
@@ -157,15 +164,17 @@ public class AttendanceResultStore {
         db.jdbc().sql("""
                         insert into att.attendance_result_line (tenant_id, result_id, period_start, employment_id,
                                assignment_key, segment_from, segment_to, legal_entity_id, org_unit_id, pay_group_id,
-                               cost_centre_id, category_code, quantity, unit, period_quantity, preceded_by_day_ot,
-                               is_retro, original_period_id, original_result_id, original_segment_from, retro_reason,
-                               source_ref, created_by)
-                        values (:t, :r, :ps, :e, :ak, :sf, :st, :le, :ou, :pg, :cc, :cat, :q, :u, :pq, :pre,
-                                :retro, :op, :or, :osf, :rr, cast(:src as jsonb), :by)""")
+                               cost_centre_id, schedule_pattern_id, employee_group_code, fte, category_code, quantity,
+                               unit, period_quantity, preceded_by_day_ot, is_retro, original_period_id, original_result_id,
+                               original_segment_from, retro_reason, source_ref, created_by)
+                        values (:t, :r, :ps, :e, :ak, :sf, :st, :le, :ou, :pg, :cc, :sp, :eg, :fte, :cat, :q, :u,
+                                :pq, :pre, :retro, :op, :or, :osf, :rr, cast(:src as jsonb), :by)""")
                 .param("t", tenant()).param("r", resultId).param("ps", periodStart).param("e", l.employmentId())
                 .param("ak", l.assignmentKey()).param("sf", l.segmentFrom()).param("st", l.segmentTo())
                 .param("le", l.legalEntityId()).param("ou", l.orgUnitId()).param("pg", l.payGroupId())
-                .param("cc", l.costCentreId()).param("cat", l.category()).param("q", l.quantity())
+                .param("cc", l.costCentreId()).param("sp", l.keys().schedulePatternId())
+                .param("eg", l.keys().employeeGroup()).param("fte", l.keys().fte()).param("cat", l.category())
+                .param("q", l.quantity())
                 .param("u", l.unit()).param("pq", l.periodQuantity()).param("pre", l.precededByDayOt())
                 .param("retro", l.originalPeriodId() != null).param("op", l.originalPeriodId())
                 .param("or", l.originalResultId()).param("osf", l.originalSegmentFrom())
@@ -177,7 +186,7 @@ public class AttendanceResultStore {
                         select employment_id, assignment_key, segment_from, segment_to, legal_entity_id, org_unit_id,
                                pay_group_id, cost_centre_id, category_code, unit, quantity, period_quantity,
                                preceded_by_day_ot, is_retro, original_period_id, original_result_id,
-                               original_segment_from, retro_reason
+                               original_segment_from, retro_reason, schedule_pattern_id, employee_group_code, fte
                           from att.attendance_result_line
                          where tenant_id = :t and result_id = :r and (cast(:e as uuid) is null or employment_id = :e)
                          order by employment_id, is_retro, segment_from, category_code, preceded_by_day_ot""")
@@ -187,7 +196,8 @@ public class AttendanceResultStore {
                         rs.getObject(5, UUID.class), rs.getObject(6, UUID.class), rs.getObject(7, UUID.class),
                         rs.getObject(8, UUID.class), rs.getString(9), rs.getString(10), rs.getBigDecimal(11),
                         rs.getBigDecimal(12), rs.getBoolean(13), rs.getBoolean(14), rs.getObject(15, UUID.class),
-                        rs.getObject(16, UUID.class), rs.getObject(17, LocalDate.class), rs.getString(18)))
+                        rs.getObject(16, UUID.class), rs.getObject(17, LocalDate.class), rs.getString(18),
+                        rs.getObject(19, UUID.class), rs.getString(20), rs.getBigDecimal(21)))
                 .list();
     }
 
@@ -305,19 +315,34 @@ public class AttendanceResultStore {
 
     /**
      * Days of the period ({@code daily_timesheet.period_id}) in {@code [from, to]}, of one employment or of all,
-     * ordered by employment and date. The cost centre is the assignment line's on that date.
+     * ordered by employment and date. The cost centre, FTE and schedule pattern are the assignment line's on that date,
+     * the employee group the dated classification's (else the line's): the segment keys of BRD §7.3 ({@link #lineKeys}).
      */
     public List<ClosingDay> days(UUID periodId, UUID payGroupId, UUID employmentId, LocalDate from, LocalDate to) {
         return db.jdbc().sql("""
                         select d.employment_id, d.work_date, d.day_status, d.assignment_key, d.legal_entity_id,
-                               d.org_unit_id,
-                               (select a.cost_centre_id from att.ext_hr_assignment a
-                                 where a.tenant_id = d.tenant_id and a.assignment_key = d.assignment_key
-                                   and a.valid_during @> d.work_date limit 1),
+                               d.org_unit_id, a.cost_centre_id,
                                d.codes::text, d.night_hours, d.late_min, d.early_min, d.exceptions, d.worked_hours,
-                               s.shift_group_code, d.is_manual_override, d.legal_pack_id
+                               s.shift_group_code, d.is_manual_override, d.legal_pack_id,
+                               sa.pattern_id,
+                               case when cl.employment_id is not null then cl.employee_category_code
+                                    else a.employee_category_code end,
+                               a.fte
                           from att.daily_timesheet d
                           left join att.shift_definition s on s.tenant_id = d.tenant_id and s.id = d.shift_id
+                          left join lateral (select x.cost_centre_id, x.employee_category_code, x.fte
+                                               from att.ext_hr_assignment x
+                                              where x.tenant_id = d.tenant_id and x.assignment_key = d.assignment_key
+                                                and x.valid_during @> d.work_date limit 1) a on true
+                          left join lateral (select x.pattern_id from att.schedule_assignment x
+                                              where x.tenant_id = d.tenant_id and x.assignment_key = d.assignment_key
+                                                and x.status = 'ACTIVE' and x.valid_during @> d.work_date
+                                              limit 1) sa on true
+                          left join lateral (select x.employment_id, x.employee_category_code
+                                               from att.ext_hr_employment_classification x
+                                              where x.tenant_id = d.tenant_id and x.employment_id = d.employment_id
+                                                and d.assignment_key is not null
+                                                and x.valid_during @> d.work_date limit 1) cl on true
                          where d.tenant_id = :t and d.period_id = :p and d.work_date between :f and :to
                            and (cast(:e as uuid) is null or d.employment_id = :e)
                          order by d.employment_id, d.work_date""")
@@ -327,20 +352,66 @@ public class AttendanceResultStore {
                                 rs.getObject(4, UUID.class), rs.getObject(5, UUID.class), rs.getObject(6, UUID.class),
                                 payGroupId, rs.getObject(7, UUID.class), codes(rs.getString(8)),
                                 rs.getBigDecimal(9), rs.getInt(10), rs.getInt(11), strings(rs.getArray(12)),
-                                rs.getBigDecimal(13), rs.getString(14)),
+                                rs.getBigDecimal(13), rs.getString(14),
+                                new SegmentKeys(rs.getObject(17, UUID.class), rs.getString(18),
+                                        rs.getBigDecimal(19))),
                         rs.getBoolean(15), rs.getObject(16, UUID.class)))
                 .list();
     }
 
-    /** Cost centre of an assignment line on a date (for days recomputed in memory). */
-    public Optional<UUID> costCentre(UUID assignmentKey, LocalDate date) {
+    /** Cost centre and segment keys of an assignment line on a date (for days recomputed in memory). */
+    public record LineKeys(UUID costCentreId, SegmentKeys keys) {
+
+        public static final LineKeys NONE = new LineKeys(null, SegmentKeys.NONE);
+    }
+
+    /**
+     * The cost centre of the assignment line on the date, its schedule pattern ({@code att.schedule_assignment}), the
+     * employee group (dated classification, else the line's) and its FTE: the segment keys of BRD §7.3.
+     */
+    public LineKeys lineKeys(UUID employmentId, UUID assignmentKey, LocalDate date) {
         if (assignmentKey == null) {
-            return Optional.empty();
+            return LineKeys.NONE;
         }
         return db.jdbc().sql("""
-                        select cost_centre_id from att.ext_hr_assignment
-                         where tenant_id = :t and assignment_key = :k and valid_during @> cast(:d as date) limit 1""")
-                .param("t", tenant()).param("k", assignmentKey).param("d", date).query(UUID.class).optional();
+                        select a.cost_centre_id, sa.pattern_id,
+                               case when cl.employment_id is not null then cl.employee_category_code
+                                    else a.employee_category_code end,
+                               a.fte
+                          from (select 1) one
+                          left join lateral (select x.cost_centre_id, x.employee_category_code, x.fte
+                                               from att.ext_hr_assignment x
+                                              where x.tenant_id = :t and x.assignment_key = :k
+                                                and x.valid_during @> cast(:d as date) limit 1) a on true
+                          left join lateral (select x.pattern_id from att.schedule_assignment x
+                                              where x.tenant_id = :t and x.assignment_key = :k
+                                                and x.status = 'ACTIVE' and x.valid_during @> cast(:d as date)
+                                              limit 1) sa on true
+                          left join lateral (select x.employment_id, x.employee_category_code
+                                               from att.ext_hr_employment_classification x
+                                              where x.tenant_id = :t and x.employment_id = :e
+                                                and x.valid_during @> cast(:d as date) limit 1) cl on true""")
+                .param("t", tenant()).param("k", assignmentKey).param("e", employmentId).param("d", date)
+                .query((rs, n) -> new LineKeys(rs.getObject(1, UUID.class),
+                        new SegmentKeys(rs.getObject(2, UUID.class), rs.getString(3), rs.getBigDecimal(4))))
+                .optional().orElse(LineKeys.NONE);
+    }
+
+    /**
+     * Leave days paid out by the year-end / carry-expiry runs (ATT-P-06) with a ledger date in {@code [from, to]}, as
+     * LEAVE_ENCASH_DAYS. Termination payouts (ref TERMINATION) are left out: the leaver's settlement carries them
+     * (BR-ATT-067), so a day is never paid twice.
+     */
+    public List<Dated> leaveEncash(UUID employmentId, LocalDate from, LocalDate to) {
+        return db.jdbc().sql("""
+                        select txn_date, -sum(quantity) from att.leave_balance_ledger
+                         where tenant_id = :t and employment_id = :e and txn_type = 'ENCASH' and unit = 'DAY'
+                           and ref_type in ('CARRY_RUN', 'CARRY_EXPIRY') and txn_date between :f and :to
+                         group by txn_date order by txn_date""")
+                .param("t", tenant()).param("e", employmentId).param("f", from).param("to", to)
+                .query((rs, n) -> new Dated(rs.getObject(1, LocalDate.class), "LEAVE_ENCASH_DAYS", "DAY",
+                        rs.getBigDecimal(2)))
+                .list();
     }
 
     public List<Overtime> overtime(UUID employmentId, LocalDate from, LocalDate to) {
@@ -507,7 +578,8 @@ public class AttendanceResultStore {
         return db.jdbc().sql("""
                         select coalesce(l.original_segment_from, l.segment_from), l.segment_to, l.assignment_key,
                                l.legal_entity_id, l.org_unit_id, l.pay_group_id, l.cost_centre_id, l.category_code,
-                               l.unit, l.quantity, l.preceded_by_day_ot
+                               l.unit, l.quantity, l.preceded_by_day_ot, l.schedule_pattern_id, l.employee_group_code,
+                               l.fte
                           from att.attendance_result_line l
                           join att.attendance_result r on r.tenant_id = l.tenant_id and r.id = l.result_id
                          where l.tenant_id = :t and l.employment_id = :e
@@ -518,7 +590,8 @@ public class AttendanceResultStore {
                 .query((rs, n) -> new Existing(rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class),
                         rs.getObject(3, UUID.class), rs.getObject(4, UUID.class), rs.getObject(5, UUID.class),
                         rs.getObject(6, UUID.class), rs.getObject(7, UUID.class), rs.getString(8), rs.getString(9),
-                        rs.getBigDecimal(10), rs.getBoolean(11)))
+                        rs.getBigDecimal(10), rs.getBoolean(11),
+                        new SegmentKeys(rs.getObject(12, UUID.class), rs.getString(13), rs.getBigDecimal(14))))
                 .list();
     }
 

@@ -38,12 +38,14 @@ public interface AttendanceResults {
 
     /**
      * One line (BRD §7.3). Retro lines carry {@code retro}, the original period / result / segment and the reason;
-     * their category is {@code RETRO.<original category>} and their quantity is signed.
+     * their category is {@code RETRO.<original category>} and their quantity is signed. The segment keys beyond the
+     * placement (schedule pattern, employee group, FTE) are null on imported lines and on lines before v0.10.
      */
     record Line(UUID employmentId, UUID assignmentKey, LocalDate segmentFrom, LocalDate segmentTo,
             UUID legalEntityId, UUID orgUnitId, UUID payGroupId, UUID costCentreId, String category, String unit,
             BigDecimal quantity, BigDecimal periodQuantity, boolean precededByDayOt, boolean retro,
-            UUID originalPeriodId, UUID originalResultId, LocalDate originalSegmentFrom, String retroReason) {
+            UUID originalPeriodId, UUID originalResultId, LocalDate originalSegmentFrom, String retroReason,
+            UUID schedulePatternId, String employeeGroupCode, BigDecimal fte) {
     }
 
     /** @param status ACTIVE, RELEASED or CONSUMED */
