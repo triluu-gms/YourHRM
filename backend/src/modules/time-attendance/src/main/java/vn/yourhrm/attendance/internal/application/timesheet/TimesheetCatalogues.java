@@ -78,8 +78,11 @@ public class TimesheetCatalogues implements SettingCatalogue, ProcessTypeCatalog
 
     public static final List<DefaultCode> DEFAULT_CODES = List.of(
             new DefaultCode("X", "Đi làm", "Worked", "WORK", "WORKED_DAYS", null, true, "EMPLOYER", false, 10),
-            new DefaultCode("CT", "Công tác", "Business trip", "TRIP", "WORKED_DAYS", "TRIP", true, "EMPLOYER", false,
-                    20),
+            // trips (P1: attendance codes, BR-ATT-070 is P2): the sub-code is the TRIP_DAYS destination (§7.3 item 14)
+            new DefaultCode("CT", "Công tác trong nước", "Domestic business trip", "TRIP", "WORKED_DAYS", "DOMESTIC",
+                    true, "EMPLOYER", false, 20),
+            new DefaultCode("CTNN", "Công tác nước ngoài", "Overseas business trip", "TRIP", "WORKED_DAYS",
+                    "OVERSEAS", true, "EMPLOYER", false, 25),
             new DefaultCode("WFH", "Làm việc tại nhà", "Work from home", "WFH", "WORKED_DAYS", "WFH", true, "EMPLOYER",
                     false, 30),
             new DefaultCode("P", "Nghỉ phép năm", "Annual leave", "LEAVE", "PAID_LEAVE_DAYS", "ANNUAL", false,

@@ -579,7 +579,13 @@ public class LeaveStore {
 
     /** Inserts a ledger row; false when an idempotency index (one OPENING per year, one ACCRUE per month) refused it. */
     public boolean insertTxn(NewTxn x) {
-        return db.jdbc().sql("""
+        return insertTxnId(x).isPresent();
+    }
+
+    /** {@link #insertTxn} returning the id of the row written, empty when it was refused. */
+    public Optional<UUID> insertTxnId(NewTxn x) {
+        UUID id = Ids.newId();
+        boolean written = db.jdbc().sql("""
                         insert into att.leave_balance_ledger (tenant_id, id, employment_id, legal_entity_id,
                                org_unit_id, leave_type_id, leave_type_code, leave_year, txn_type, quantity, unit,
                                txn_date, accrual_month, expires_on, leave_request_id, ref_type, ref_id, reason,
@@ -587,13 +593,14 @@ public class LeaveStore {
                         values (:t, :id, :e, :le, :ou, :lt, :code, :y, :type, :q, 'DAY', :d, :am, :exp, :req, :rt,
                                :rid, :reason, :job, :src, :by)
                         on conflict do nothing""")
-                .param("t", tenant()).param("id", Ids.newId()).param("e", x.employmentId())
+                .param("t", tenant()).param("id", id).param("e", x.employmentId())
                 .param("le", x.legalEntityId()).param("ou", x.orgUnitId()).param("lt", x.leaveTypeId())
                 .param("code", x.leaveTypeCode()).param("y", x.leaveYear()).param("type", x.txnType())
                 .param("q", x.quantity()).param("d", x.txnDate()).param("am", x.accrualMonth())
                 .param("exp", x.expiresOn()).param("req", x.leaveRequestId()).param("rt", x.refType())
                 .param("rid", x.refId()).param("reason", x.reason()).param("job", x.importJobId())
                 .param("src", x.source()).param("by", actor()).update() == 1;
+        return written ? Optional.of(id) : Optional.empty();
     }
 
     public List<LedgerRow> ledger(UUID employmentId, UUID leaveTypeId, Integer leaveYear) {
@@ -633,7 +640,7 @@ public class LeaveStore {
         return db.jdbc().sql("""
                         select exists (select 1 from att.leave_balance_ledger
                          where tenant_id = :t and employment_id = :e and leave_type_id = :lt and leave_year = :y
-                           and ref_type = 'CARRY_RUN' and txn_type in ('CARRY','EXPIRE','ENCASH'))""")
+                           and ref_type = 'CARRY_RUN' and txn_type in ('CARRY','EXPIRE','ENCASH','ADJUST'))""")
                 .param("t", tenant()).param("e", employmentId).param("lt", leaveTypeId).param("y", leaveYear)
                 .query(Boolean.class).single();
     }
@@ -656,7 +663,8 @@ public class LeaveStore {
                          where c.tenant_id = :t and c.txn_type = 'CARRY' and c.quantity > 0 and c.expires_on <= :d
                            and (cast(:le as uuid) is null or c.legal_entity_id = :le)
                            and not exists (select 1 from att.leave_balance_ledger x
-                                            where x.tenant_id = c.tenant_id and x.txn_type = 'EXPIRE'
+                                            where x.tenant_id = c.tenant_id
+                                              and x.txn_type in ('EXPIRE', 'ENCASH', 'ADJUST')
                                               and x.ref_type = 'CARRY_EXPIRY' and x.ref_id = c.id)
                          order by c.employment_id, c.expires_on""")
                 .param("t", tenant()).param("d", asOf).param("le", legalEntityId).query(this::ledgerRow).list();
@@ -752,6 +760,29 @@ public class LeaveStore {
                            and ref_type = :rt)""")
                 .param("t", tenant()).param("e", employmentId).param("lt", leaveTypeId).param("y", leaveYear)
                 .param("rt", refType).query(Boolean.class).single();
+    }
+
+    /** Sum of the rows of a transaction type with a reference type (e.g. ENCASH of TERMINATION), 0 without any. */
+    public BigDecimal sumOf(UUID employmentId, UUID leaveTypeId, int leaveYear, String txnType, String refType) {
+        return db.jdbc().sql("""
+                        select coalesce(sum(quantity), 0) from att.leave_balance_ledger
+                         where tenant_id = :t and employment_id = :e and leave_type_id = :lt and leave_year = :y
+                           and txn_type = :tt and ref_type = :rt""")
+                .param("t", tenant()).param("e", employmentId).param("lt", leaveTypeId).param("y", leaveYear)
+                .param("tt", txnType).param("rt", refType).query(BigDecimal.class).single();
+    }
+
+    /**
+     * The attendance period the employment's day {@code date} belongs to when that period is already CLOSED or LOCKED
+     * (a ledger row dated there misses its result: it travels as a retro delta, BR-ATT-071).
+     */
+    public Optional<UUID> closedPeriodOf(UUID employmentId, LocalDate date) {
+        return db.jdbc().sql("""
+                        select p.id from att.daily_timesheet d
+                          join att.attendance_period p on p.tenant_id = d.tenant_id and p.id = d.period_id
+                         where d.tenant_id = :t and d.employment_id = :e and d.work_date = :d
+                           and p.status in ('CLOSED', 'LOCKED')""")
+                .param("t", tenant()).param("e", employmentId).param("d", date).query(UUID.class).optional();
     }
 
     public JobFlags jobFlags(UUID employmentId, LocalDate date) {

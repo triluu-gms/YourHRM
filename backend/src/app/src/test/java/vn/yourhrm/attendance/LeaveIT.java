@@ -387,6 +387,61 @@ class LeaveIT extends IntegrationTest {
         assertThat(ledgerSum(w, "ENCASH", lwdYear)).isEqualByComparingTo(line.remaining().negate());
     }
 
+    int encashEvents(World w, String outcome, String run) {
+        return ADMIN.queryForObject("""
+                select count(*) from att.outbox_event where tenant_id = ? and event_type = 'att.LeaveEncashmentFlagged'
+                   and payload ->> 'outcome' = ? and payload ->> 'run' = ?""", Integer.class, w.tenant(), outcome,
+                run);
+    }
+
+    /** ATT-P-06: leftover days of the leave runs are paid out (ENCASH) or flagged (FLAG) and handed to Payroll. */
+    @Test
+    void leftoverLeaveIsEncashedOrFlaggedForPayroll() throws Exception {
+        World w = world("att-lv-encash");
+        UUID annual = typeId(w, "ANNUAL");
+        postJson(w.admin(), "/leave-policies", """
+                {"leaveTypeId":"%s","code":"AN-ENC","accrualMethod":"MONTHLY","carryOverMaxDays":2,
+                 "carryOverExpiryMonths":3,"expiryAction":"ENCASH","validFrom":"2020-01-01"}"""
+                .formatted(annual)).andExpect(status().isCreated());
+        int y2 = TODAY.getYear() - 2;
+        int y1 = TODAY.getYear() - 1;
+        String adj = "{\"leaveTypeId\":\"%s\",\"leaveYear\":%d,\"quantity\":%s,\"reason\":\"Số dư\"}";
+        postJson(w.admin(), "/employments/" + w.e() + "/leave-adjustments", adj.formatted(annual, y2, "5"))
+                .andExpect(status().isCreated());
+        String ye = "{\"legalEntityId\":\"%s\",\"year\":%d}";
+        // 2 carried (2 rows) + 3 paid out (1 row), announced once
+        postJson(w.admin(), "/leave-balances/year-end", ye.formatted(w.le(), y2))
+                .andExpect(jsonPath("$.written").value(3));
+        assertThat(ledgerSum(w, "ENCASH", y2)).isEqualByComparingTo("-3");
+        assertThat(encashEvents(w, "ENCASH", "YEAR_END")).isEqualTo(1);
+        postJson(w.admin(), "/leave-balances/year-end", ye.formatted(w.le(), y2))
+                .andExpect(jsonPath("$.written").value(0));
+        assertThat(encashEvents(w, "ENCASH", "YEAR_END")).isEqualTo(1);
+        // the carried days expire untaken: paid out too, once
+        String exp = "{\"legalEntityId\":\"%s\"}".formatted(w.le());
+        postJson(w.admin(), "/leave-balances/carry-expiry", exp).andExpect(jsonPath("$.written").value(1));
+        assertThat(ledgerSum(w, "ENCASH", y1)).isEqualByComparingTo("-2");
+        assertThat(ledgerSum(w, "EXPIRE", y1)).isEqualByComparingTo("0");
+        postJson(w.admin(), "/leave-balances/carry-expiry", exp).andExpect(jsonPath("$.written").value(0));
+        assertThat(encashEvents(w, "ENCASH", "CARRY_EXPIRY")).isEqualTo(1);
+
+        // FLAG: the days stay on the balance, a zero marker keeps the run idempotent
+        World f = world("att-lv-flag");
+        UUID annualF = typeId(f, "ANNUAL");
+        postJson(f.admin(), "/leave-policies", """
+                {"leaveTypeId":"%s","code":"AN-FLG","accrualMethod":"MONTHLY","carryOverMaxDays":0,
+                 "expiryAction":"FLAG","validFrom":"2020-01-01"}""".formatted(annualF))
+                .andExpect(status().isCreated());
+        postJson(f.admin(), "/employments/" + f.e() + "/leave-adjustments", adj.formatted(annualF, y2, "3"))
+                .andExpect(status().isCreated());
+        postJson(f.admin(), "/leave-balances/year-end", ye.formatted(f.le(), y2))
+                .andExpect(jsonPath("$.written").value(1)).andExpect(jsonPath("$.flagged.length()").value(1));
+        postJson(f.admin(), "/leave-balances/year-end", ye.formatted(f.le(), y2))
+                .andExpect(jsonPath("$.written").value(0));
+        assertThat(encashEvents(f, "FLAG", "YEAR_END")).isEqualTo(1);
+        assertThat(ledgerSum(f, "ADJUST", y2)).isEqualByComparingTo("3");   // the balance is untouched
+    }
+
     @Test
     void openingBalancesAreLoadedAtGoLive() throws Exception {
         World w = world("att-lv-ob");

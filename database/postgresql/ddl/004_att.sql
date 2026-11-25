@@ -80,6 +80,11 @@
 --     att.attendance_code, att.holiday_calendar and att.holiday_date, through policies that
 --     admit the sentinel tenant only, plus INSERT on audit.audit_event for those rows' row
 --     audit. No access to any tenant row (DESIGN §2.3 exception, like Core's master data).
+-- v0.10 (2026-11-25, Attendance Result contract gaps, BRD §7.3 / P10):
+--   att.attendance_result_line.schedule_pattern_id / employee_group_code / fte: the segment keys
+--     beyond the assignment placement (a new segment starts when the work schedule, the employee
+--     group or the FTE changes, §7.3 "mức chi tiết"); NULL on import lines and on older rows.
+--     Not added to the reporting publication column list (007) yet.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -1285,6 +1290,9 @@ CREATE TABLE att.attendance_result_line (
   org_unit_id            uuid,                             -- -> core.org_unit (soft), M9
   pay_group_id           uuid,                             -- -> pay.pay_group (soft)
   cost_centre_id         uuid,                             -- -> core.cost_centre (soft)
+  schedule_pattern_id    uuid,                             -- v0.10 segment key: att.schedule_pattern of the segment (no FK: history)
+  employee_group_code    text,                             -- v0.10 segment key: employee category of the segment (People)
+  fte                    numeric(5,4),                     -- v0.10 segment key: FTE of the assignment line
   category_code          text NOT NULL,                    -- STD_DAYS | WORKED_DAYS | PAID_LEAVE_DAYS.ANNUAL | OT_HOURS.OT-WD-N | RETRO.* ...
   quantity               numeric(12,2) NOT NULL,           -- 2 decimals (BRD §7.3); signed for retro deltas
   unit                   text NOT NULL,

@@ -367,16 +367,37 @@ public class PeriodService {
         return new BigDecimal[] {encash.setScale(2, RoundingMode.HALF_UP), recover.setScale(2, RoundingMode.HALF_UP)};
     }
 
-    /** LEAVE_ENCASH_DAYS / LEAVE_RECOVER_DAYS (BRD §7.3 #15) on the last segment of the leaver's lines. */
+    /**
+     * LEAVE_ENCASH_DAYS / LEAVE_RECOVER_DAYS (BRD §7.3 #15) on the last segment of the leaver's lines. The settlement
+     * counts only termination payouts; days paid out earlier in the period by a leave run (ATT-P-06) are already a
+     * LEAVE_ENCASH_DAYS line, which is added to (one line per segment and category).
+     */
     private static Built withSettlement(Built b, BigDecimal[] settlement) {
         NewLine last = b.lines().stream().max(java.util.Comparator.comparing(NewLine::segmentTo)).orElseThrow();
         List<NewLine> out = new ArrayList<>(b.lines());
         String[] cats = {"LEAVE_ENCASH_DAYS", "LEAVE_RECOVER_DAYS"};
         for (int i = 0; i < 2; i++) {
             if (settlement[i].signum() > 0) {
+                String cat = cats[i];
+                BigDecimal add = settlement[i];
+                int existing = -1;
+                for (int j = 0; j < out.size(); j++) {
+                    NewLine l = out.get(j);
+                    if (l.category().equals(cat) && l.segmentFrom().equals(last.segmentFrom())
+                            && l.employmentId().equals(last.employmentId())) {
+                        existing = j;
+                    }
+                }
+                if (existing >= 0) {
+                    NewLine l = out.get(existing);
+                    out.set(existing, new NewLine(l.employmentId(), l.assignmentKey(), l.segmentFrom(),
+                            l.segmentTo(), l.legalEntityId(), l.orgUnitId(), l.payGroupId(), l.costCentreId(), cat,
+                            l.unit(), l.quantity().add(add), null, false, null, null, null, null, null, l.keys()));
+                    continue;
+                }
                 out.add(new NewLine(last.employmentId(), last.assignmentKey(), last.segmentFrom(), last.segmentTo(),
                         last.legalEntityId(), last.orgUnitId(), last.payGroupId(), last.costCentreId(), cats[i], "DAY",
-                        settlement[i], null, false, null, null, null, null, null));
+                        settlement[i], null, false, null, null, null, null, null, last.keys()));
             }
         }
         return new Built(out, b.overrideDays(), b.legalPackId(), b.employments());

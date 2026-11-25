@@ -22,6 +22,7 @@ import vn.yourhrm.attendance.internal.domain.period.ResultLines.CodeQty;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.DayFacts;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Delta;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Line;
+import vn.yourhrm.attendance.internal.domain.period.ResultLines.MealRule;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Segment;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines.Standard;
 import vn.yourhrm.attendance.internal.domain.schedule.StandardDays;
@@ -29,9 +30,11 @@ import vn.yourhrm.attendance.internal.infra.period.AttendancePeriodStore;
 import vn.yourhrm.attendance.internal.infra.period.AttendancePeriodStore.Period;
 import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore;
 import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore.ClosingDay;
+import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore.LineKeys;
 import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore.NewLine;
 import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore.RetroCandidate;
 import vn.yourhrm.attendance.internal.infra.timesheet.TimesheetStore;
+import vn.yourhrm.core.api.Settings;
 
 /**
  * Computes the lines of a result version (BRD §7.3) from the stored days of the period, the paid overtime and the
@@ -55,9 +58,11 @@ class PeriodLines {
     private final TimesheetStore timesheets;
     private final WorkScheduleResolver resolver;
     private final TimesheetProcessor processor;
+    private final Settings settings;
 
     PeriodLines(AttendanceResultStore store, AttendancePeriodStore periods, TimesheetStore timesheets,
-            WorkScheduleResolver resolver, TimesheetProcessor processor) {
+            WorkScheduleResolver resolver, TimesheetProcessor processor, Settings settings) {
+        this.settings = settings;
         this.store = store;
         this.periods = periods;
         this.timesheets = timesheets;
@@ -113,7 +118,7 @@ class PeriodLines {
             Period p = periods.find(r.periodId()).orElseThrow();
             List<DayFacts> fresh = new ArrayList<>();
             for (Preview v : processor.preview(r.employmentId(), r.periodStart(), r.periodEnd())) {
-                fresh.add(facts(v));
+                fresh.add(facts(r.employmentId(), v));
             }
             List<Line> freshLines = linesOf(p, r.employmentId(), fresh, codes, p.periodEnd());
             List<Delta> deltas = ResultLines.diff(freshLines, store.handedOver(r.periodId(), r.employmentId()));
@@ -146,16 +151,17 @@ class PeriodLines {
         if (otTo.isAfter(to) && p.otPeriodEnd() == null) {
             otTo = to;
         }
+        // the tenant rule of MEAL_ELIGIBLE_DAYS in force on the period's last day (§7.3 item 13)
+        MealRule meal = ResultCatalogues.mealRule(settings, p.legalEntityId(), p.periodEnd());
         return ResultLines.lines(withPayGroup(days, p.payGroupId()), codes,
-                store.overtime(employmentId, otFrom, otTo), standard(p, employmentId, days, to));
+                store.overtime(employmentId, otFrom, otTo), standard(p, employmentId, days, to), meal,
+                store.leaveEncash(employmentId, p.periodStart(), to));
     }
 
     private static List<DayFacts> withPayGroup(List<DayFacts> days, UUID payGroupId) {
         List<DayFacts> out = new ArrayList<>(days.size());
         for (DayFacts d : days) {
-            out.add(d.payGroupId() != null || payGroupId == null ? d : new DayFacts(d.date(), d.employed(),
-                    d.assignmentKey(), d.legalEntityId(), d.orgUnitId(), payGroupId, d.costCentreId(), d.codes(),
-                    d.nightHours(), d.lateMin(), d.earlyMin(), d.exceptions(), d.workedHours(), d.shiftGroupCode()));
+            out.add(d.payGroupId() != null || payGroupId == null ? d : d.withPayGroup(payGroupId));
         }
         return out;
     }
@@ -196,13 +202,14 @@ class PeriodLines {
         return out;
     }
 
-    private DayFacts facts(Preview v) {
+    private DayFacts facts(UUID employmentId, Preview v) {
         var r = v.result();
         var pl = v.placement();
         List<CodeQty> codes = r.codes().stream().map(c -> new CodeQty(c.code(), c.qty())).toList();
+        LineKeys k = store.lineKeys(employmentId, pl.assignmentKey(), v.date());
         return new DayFacts(v.date(), !"NOT_EMPLOYED".equals(r.dayStatus()), pl.assignmentKey(), pl.legalEntityId(),
-                pl.orgUnitId(), pl.payGroupId(), store.costCentre(pl.assignmentKey(), v.date()).orElse(null), codes,
-                r.nightHours(), r.lateMin(), r.earlyMin(), r.exceptions(), r.workedHours(), v.shiftGroupCode());
+                pl.orgUnitId(), pl.payGroupId(), k.costCentreId(), codes, r.nightHours(), r.lateMin(), r.earlyMin(),
+                r.exceptions(), r.workedHours(), v.shiftGroupCode(), k.keys());
     }
 
     private static NewLine newLine(UUID employmentId, Segment s, String category, String unit, BigDecimal q,
@@ -210,6 +217,6 @@ class PeriodLines {
             String reason, String sourceRef) {
         return new NewLine(employmentId, s.assignmentKey(), s.from(), s.to(), s.legalEntityId(), s.orgUnitId(),
                 s.payGroupId(), s.costCentreId(), category, unit, q, pq, preceded, originalPeriodId, originalResultId,
-                originalFrom, reason, sourceRef);
+                originalFrom, reason, sourceRef, s.keys());
     }
 }
