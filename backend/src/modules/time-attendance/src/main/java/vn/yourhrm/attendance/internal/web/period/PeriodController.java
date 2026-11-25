@@ -81,7 +81,10 @@ class PeriodController {
                 r == null ? null : r.waiveReason()));
     }
 
-    /** 200 REOPENED, or 202 RELEASE_REQUESTED when Payroll holds the period (BR-ATT-087). */
+    /**
+     * 200 REOPENED; 202 RELEASE_REQUESTED when Payroll holds the period (BR-ATT-087), or APPROVAL_REQUESTED when the
+     * legal entity requires an approval ({@code att.period_reopen_approval}, workflow {@code att.PERIOD_REOPEN}).
+     */
     @PostMapping("/attendance-periods/{id}/reopen")
     @RequiresPermission(AttendancePermissions.PERIOD_REOPEN)
     public ResponseEntity<ReopenOutcome> reopen(@PathVariable UUID id, @RequestBody(required = false) ReopenRequest r) {

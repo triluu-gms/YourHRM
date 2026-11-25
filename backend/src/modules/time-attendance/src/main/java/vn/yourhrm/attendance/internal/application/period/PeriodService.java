@@ -25,12 +25,15 @@ import vn.yourhrm.attendance.api.AttendanceResults.Result;
 import vn.yourhrm.attendance.api.LeaveSettlements;
 import vn.yourhrm.attendance.api.LeaverAttendanceClosed;
 import vn.yourhrm.attendance.api.RetroDeltaCreated;
+import vn.yourhrm.attendance.internal.application.approval.ApprovalCatalogues;
 import vn.yourhrm.attendance.internal.application.period.PeriodLines.Built;
 import vn.yourhrm.attendance.internal.application.period.PeriodLines.Retro;
 import vn.yourhrm.attendance.internal.domain.period.ResultLines;
 import vn.yourhrm.attendance.internal.domain.timesheet.DayModel;
 import vn.yourhrm.attendance.internal.infra.AttOutbox;
 import vn.yourhrm.attendance.internal.infra.AttTransactional;
+import vn.yourhrm.attendance.internal.infra.approval.ChangeRequestStore;
+import vn.yourhrm.attendance.internal.infra.approval.ChangeRequestStore.ChangeRequest;
 import vn.yourhrm.attendance.internal.infra.period.AttendancePeriodStore;
 import vn.yourhrm.attendance.internal.infra.period.AttendancePeriodStore.Period;
 import vn.yourhrm.attendance.internal.infra.period.AttendanceResultStore;
@@ -50,6 +53,8 @@ import vn.yourhrm.shared.auth.api.AuthorizationTarget;
 import vn.yourhrm.shared.common.error.ApiException;
 import vn.yourhrm.shared.common.tenancy.TenantContext;
 import vn.yourhrm.shared.common.time.BusinessClock;
+import vn.yourhrm.shared.workflow.api.WorkflowService;
+import vn.yourhrm.shared.workflow.api.WorkflowService.StartRequest;
 
 /**
  * Attendance periods and their close (BRD §4.8, P8/P9):
@@ -67,6 +72,9 @@ import vn.yourhrm.shared.common.time.BusinessClock;
  *       day, {@code att.LeaverAttendanceClosed}.</li>
  *   <li><b>Held reopen</b> (BR-ATT-087): recorded on the period, the payroll administrators are notified, and the
  *       reopen runs when Payroll releases the hold ({@link #reopenAfterRelease}).</li>
+ *   <li><b>Approved reopen</b> (ATT-P-11, {@code att.PERIOD_REOPEN}): when the legal entity's setting
+ *       {@code att.period_reopen_approval} is on, the reopen is a request in Core's workflow and runs on the final
+ *       approval ({@link #applyReopenOutcome}); the approval comes first, then the held-reopen rule above.</li>
  * </ul>
  */
 @Service
@@ -91,8 +99,16 @@ public class PeriodService {
             java.time.Instant reopenRequestedAt, String reopenRequestReason, Hold activeHold, int version) {
     }
 
-    /** @param outcome REOPENED, or RELEASE_REQUESTED when Payroll holds the period */
-    public record ReopenOutcome(String outcome, PeriodView period, Hold hold) {
+    /**
+     * @param outcome           REOPENED; RELEASE_REQUESTED when Payroll holds the period; APPROVAL_REQUESTED when the
+     *                          reopen waits for the workflow ({@code att.period_reopen_approval})
+     * @param approvalRequestId the {@code att.change_request} of an approval, else null
+     */
+    public record ReopenOutcome(String outcome, PeriodView period, Hold hold, UUID approvalRequestId) {
+
+        public ReopenOutcome(String outcome, PeriodView period, Hold hold) {
+            this(outcome, period, hold, null);
+        }
     }
 
     private final AttendancePeriodStore periods;
@@ -105,10 +121,14 @@ public class PeriodService {
     private final Notifications notifications;
     private final BusinessClock clock;
     private final ObjectProvider<LeaveSettlements> settlements;
+    private final ChangeRequestStore changeRequests;
+    private final ApprovalCatalogues approvals;
+    private final WorkflowService workflow;
 
     public PeriodService(AttendancePeriodStore periods, AttendanceResultStore results, PeriodLines lines,
             PunchStore employments, AttOutbox outbox, AuthorizationService authz, AuditLog audit,
-            Notifications notifications, BusinessClock clock, ObjectProvider<LeaveSettlements> settlements) {
+            Notifications notifications, BusinessClock clock, ObjectProvider<LeaveSettlements> settlements,
+            ChangeRequestStore changeRequests, ApprovalCatalogues approvals, WorkflowService workflow) {
         this.periods = periods;
         this.results = results;
         this.lines = lines;
@@ -119,6 +139,9 @@ public class PeriodService {
         this.notifications = notifications;
         this.clock = clock;
         this.settlements = settlements;
+        this.changeRequests = changeRequests;
+        this.approvals = approvals;
+        this.workflow = workflow;
     }
 
     // ------------------------------------------------------------------------------------------------ reads
@@ -301,8 +324,10 @@ public class PeriodService {
     }
 
     /**
-     * Reopen CLOSED → OPEN with a reason (BR-ATT-073). When Payroll holds the period the reopen is recorded, the
-     * payroll administrators are notified and it runs once the hold is released (BR-ATT-087).
+     * Reopen CLOSED → OPEN with a reason (BR-ATT-073). When the legal entity requires an approval
+     * ({@code att.period_reopen_approval}) the reopen becomes a request in Core's workflow ({@code att.PERIOD_REOPEN})
+     * and runs on the final approval. When Payroll holds the period the reopen is recorded, the payroll administrators
+     * are notified and it runs once the hold is released (BR-ATT-087).
      */
     @AttTransactional
     public ReopenOutcome reopen(UUID id, String reason) {
@@ -318,9 +343,21 @@ public class PeriodService {
             default -> throw ApiException.conflict("period-not-closed", "Only a CLOSED period is reopened (it is "
                     + p.status() + ")");
         }
+        if (approvals.required(ApprovalCatalogues.SETTING_REOPEN_APPROVAL, p.legalEntityId())) {
+            return requestReopenApproval(p, reason.strip());
+        }
+        return reopenNow(p, reason.strip(), TenantContext.current().userAccountId());
+    }
+
+    /**
+     * The reopen itself, after the permission and status checks (and the approval when one is required): files the
+     * release request to Payroll when the period is held (BR-ATT-087), else reopens at once.
+     */
+    private ReopenOutcome reopenNow(Period p, String reason, UUID by) {
+        UUID id = p.id();
         Optional<Hold> hold = results.activeHold(p.id(), null);
         if (hold.isPresent()) {
-            periods.requestReopen(p.id(), reason.strip());
+            periods.requestReopen(p.id(), reason, by);
             notifications.send(new SendRequest(PeriodNotificationTemplates.RELEASE_REQUESTED, "att",
                     new Recipients(null, List.of(Audience.permission(AttendancePermissions.PERIOD_HOLD,
                             new AuthorizationTarget.LegalEntity(p.legalEntityId())))),
@@ -329,11 +366,74 @@ public class PeriodService {
                     "att.attendance_period", p.id(), "/attendance/periods/" + p.id(),
                     "att-release:" + hold.get().id(), null));
             audit.record(new BusinessAction("REOPEN_REQUEST", "att", "attendance_period", p.id(), p.legalEntityId(),
-                    Map.of("reason", reason.strip(), "payrollRunId", hold.get().payrollRunId().toString())));
+                    Map.of("reason", reason, "payrollRunId", hold.get().payrollRunId().toString())));
             return new ReopenOutcome("RELEASE_REQUESTED", view(periods.find(id).orElseThrow()), hold.get());
         }
-        doReopen(p, reason.strip(), TenantContext.current().userAccountId(), false);
+        doReopen(p, reason, by, false);
         return new ReopenOutcome("REOPENED", view(periods.find(id).orElseThrow()), null);
+    }
+
+    /** ATT-P-11: the reopen waits for Core's approval; one open request per period (a repeat returns it). */
+    private ReopenOutcome requestReopenApproval(Period p, String reason) {
+        Optional<ChangeRequest> open = changeRequests.pendingReopen(p.id());
+        if (open.isPresent()) {
+            return new ReopenOutcome("APPROVAL_REQUESTED", view(p), results.activeHold(p.id(), null).orElse(null),
+                    open.get().id());
+        }
+        UUID requestId = changeRequests.insertReopen(p.id(), p.legalEntityId(), reason);
+        boolean held = results.activeHold(p.id(), null).isPresent();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("periodStart", p.periodStart().toString());
+        summary.put("periodEnd", p.periodEnd().toString());
+        summary.put("currentVersion", p.currentVersion());
+        summary.put("heldByPayroll", held);
+        summary.put("reason", reason);
+        var started = workflow.start(new StartRequest(ApprovalCatalogues.PROCESS_PERIOD_REOPEN,
+                ApprovalCatalogues.SUBJECT_CHANGE_REQUEST, requestId, 0, "att-period-reopen-" + requestId, null, null,
+                p.legalEntityId(), null, null, null, summary, Map.of("heldByPayroll", held), Map.of()));
+        changeRequests.setWorkflow(requestId, started.instanceId());
+        audit.record(new BusinessAction("REOPEN_APPROVAL_REQUEST", "att", "attendance_period", p.id(),
+                p.legalEntityId(), Map.of("reason", reason, "changeRequestId", requestId.toString())));
+        if ("APPROVED".equals(started.status())) { // every step skipped
+            applyReopenOutcome(requestId, "APPROVED", null);
+            Period now = periods.find(p.id()).orElseThrow();
+            ChangeRequest r = changeRequests.find(requestId).orElseThrow();
+            String outcome = "REOPENED".equals(r.outcome()) || "RELEASE_REQUESTED".equals(r.outcome()) ? r.outcome()
+                    : "APPROVAL_REQUESTED";
+            return new ReopenOutcome(outcome, view(now), results.activeHold(p.id(), null).orElse(null), requestId);
+        }
+        return new ReopenOutcome("APPROVAL_REQUESTED", view(periods.find(p.id()).orElseThrow()),
+                results.activeHold(p.id(), null).orElse(null), requestId);
+    }
+
+    /**
+     * The final outcome of an {@code att.PERIOD_REOPEN} approval (workflow listener; idempotent). APPROVED runs the
+     * reopen on behalf of the requester (no new permission check: the approval is the authority), unless the period
+     * is no longer CLOSED (then NOT_APPLIED); a held period gets the release request of BR-ATT-087.
+     */
+    @AttTransactional
+    public Map<String, Object> applyReopenOutcome(UUID requestId, String outcome, UUID decidedBy) {
+        ChangeRequest r = changeRequests.find(requestId)
+                .orElseThrow(() -> ApiException.notFound("Change request", requestId));
+        if (!"PENDING".equals(r.status()) || !ChangeRequestStore.PERIOD_REOPEN.equals(r.requestType())) {
+            return Map.of("status", r.status());
+        }
+        if (!"APPROVED".equals(outcome)) {
+            String status = "REJECTED".equals(outcome) ? "REJECTED" : "CANCELLED";
+            changeRequests.decide(r.id(), status, decidedBy, null, null);
+            return Map.of("status", status);
+        }
+        Period p = periods.forUpdate(r.periodId()).orElseThrow();
+        if (!"CLOSED".equals(p.status())) {
+            String why = "period-" + p.status().toLowerCase(java.util.Locale.ROOT);
+            changeRequests.decide(r.id(), "NOT_APPLIED", decidedBy, why, null);
+            audit.record(new BusinessAction("REOPEN_NOT_APPLIED", "att", "attendance_period", p.id(),
+                    p.legalEntityId(), Map.of("changeRequestId", r.id().toString(), "status", p.status())));
+            return Map.of("status", "NOT_APPLIED", "reason", why);
+        }
+        ReopenOutcome o = reopenNow(p, r.reason(), r.createdBy());
+        changeRequests.decide(r.id(), "APPLIED", decidedBy, o.outcome(), null);
+        return Map.of("status", "APPLIED", "outcome", o.outcome());
     }
 
     /**
