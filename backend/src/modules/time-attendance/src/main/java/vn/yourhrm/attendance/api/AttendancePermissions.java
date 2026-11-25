@@ -169,4 +169,12 @@ public final class AttendancePermissions {
 
     /** Run T&amp;A's nightly job by hand (partitions, review move, recalculation, leave runs, reconciliation). */
     public static final String JOB_RUN = "att.job.run";
+
+    /**
+     * Download the T&amp;A reports as Excel files (BRD 03 §8: R-01 timesheet grid, R-04 overtime summary, R-06 leave
+     * balances); every export is audited. The rows are still limited to the caller's scope of the report's own view
+     * permission ({@code att.timesheet.view}, {@code att.overtime.view}, {@code att.leave_balance.view}). The on-screen
+     * reports need only that view permission.
+     */
+    public static final String REPORT_EXPORT = "att.report.export";
 }

@@ -1,6 +1,7 @@
 package vn.yourhrm.attendance.internal.application;
 
 import static vn.yourhrm.shared.auth.api.PermissionAction.CREATE;
+import static vn.yourhrm.shared.auth.api.PermissionAction.EXPORT;
 import static vn.yourhrm.shared.auth.api.PermissionAction.IMPORT;
 import static vn.yourhrm.shared.auth.api.PermissionAction.UPDATE;
 import static vn.yourhrm.shared.auth.api.PermissionAction.VIEW;
@@ -93,6 +94,8 @@ class AttendancePermissionCatalogue implements PermissionCatalogue {
                 of(AttendancePermissions.TIMESHEET_IMPORT, IMPORT, "Import bảng công ngày", "Import daily timesheets"),
                 of(AttendancePermissions.RESULT_IMPORT, IMPORT, "Import kết quả chấm công kỳ",
                         "Import the attendance result"),
-                of(AttendancePermissions.JOB_RUN, UPDATE, "Chạy job đêm của chấm công", "Run the T&A nightly job"));
+                of(AttendancePermissions.JOB_RUN, UPDATE, "Chạy job đêm của chấm công", "Run the T&A nightly job"),
+                of(AttendancePermissions.REPORT_EXPORT, EXPORT, "Xuất báo cáo chấm công ra Excel",
+                        "Export T&A reports to Excel"));
     }
 }

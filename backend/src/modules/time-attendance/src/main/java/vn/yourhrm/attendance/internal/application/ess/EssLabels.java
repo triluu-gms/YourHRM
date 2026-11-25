@@ -6,15 +6,16 @@ import vn.yourhrm.shared.common.tenancy.TenantContext;
 
 /**
  * Vietnamese / English labels of the fixed T&amp;A vocabularies shown in ESS (BR-ATT-080): day types, day statuses,
- * timesheet exceptions and request statuses. Attendance codes and leave types carry their own tenant labels.
+ * timesheet exceptions and request statuses (also used by the reports, {@code application.report}). Attendance codes
+ * and leave types carry their own tenant labels.
  */
-final class EssLabels {
+public final class EssLabels {
 
     private EssLabels() {
     }
 
     /** {@code vi} or {@code en}: the requested language, else the user's locale, else Vietnamese. */
-    static String lang(String requested) {
+    public static String lang(String requested) {
         String l = requested;
         if (l == null || l.isBlank()) {
             l = TenantContext.optional().map(TenantContext::locale).orElse(null);
@@ -67,27 +68,27 @@ final class EssLabels {
             "OVERTIME", new Label("Đăng ký làm thêm giờ", "Overtime request"),
             "CORRECTION", new Label("Điều chỉnh chấm công", "Attendance correction"));
 
-    static String dayType(String code, String lang) {
+    public static String dayType(String code, String lang) {
         return of(DAY_TYPES, code, lang);
     }
 
-    static String dayStatus(String code, String lang) {
+    public static String dayStatus(String code, String lang) {
         return of(DAY_STATUSES, code, lang);
     }
 
-    static String exception(String code, String lang) {
+    public static String exception(String code, String lang) {
         return of(EXCEPTIONS, code, lang);
     }
 
-    static String status(String code, String lang) {
+    public static String status(String code, String lang) {
         return of(STATUSES, code, lang);
     }
 
-    static String kind(String code, String lang) {
+    public static String kind(String code, String lang) {
         return of(KINDS, code, lang);
     }
 
-    static String pick(String vi, String en, String lang) {
+    public static String pick(String vi, String en, String lang) {
         return "en".equals(lang) && en != null && !en.isBlank() ? en : vi;
     }
 
