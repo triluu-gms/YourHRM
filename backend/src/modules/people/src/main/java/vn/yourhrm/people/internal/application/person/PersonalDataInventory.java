@@ -89,6 +89,8 @@ public final class PersonalDataInventory {
         basic(PiiClass.P1, "EMPLOYMENT", "employment", "employee_no", "hire_type", "hire_date", "original_hire_date",
                 "seniority_date", "probation_end_date", "end_date", "last_working_date", "employment_period",
                 "worker_category_code", "employee_category_code", "working_regime_code", "is_rehire_eligible");
+        basic(PiiClass.P1, "EMPLOYMENT", "employment_classification", "employee_category_code",
+                "working_regime_code");
         basic(PiiClass.P1, "EMPLOYMENT", "primary_employment", "purpose", "reason_code");
         basic(PiiClass.P1, "EMPLOYMENT", "insurance_participation", "insurance_type", "is_participating", "basis_rule",
                 "exemption_reason_code", "legal_pack_version", "is_manual_override", "override_reason");

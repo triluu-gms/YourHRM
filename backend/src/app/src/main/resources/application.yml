@@ -60,6 +60,16 @@ yhrm:
       username: ${YHRM_DB_HR_USER:yhrm_app_hr}
       password: ${YHRM_DB_HR_PASSWORD:}
       maximum-pool-size: ${YHRM_DB_HR_POOL_SIZE:10}
+  attendance:
+    # Time & Attendance's own pool (ADR-0021): login role yhrm_app_att, url defaults to spring.datasource.url.
+    datasource:
+      username: ${YHRM_DB_ATT_USER:yhrm_app_att}
+      password: ${YHRM_DB_ATT_PASSWORD:}
+      maximum-pool-size: ${YHRM_DB_ATT_POOL_SIZE:10}
+    # T&A's scheduler (stand-in for the SaaS job scheduler): partitions + nightly run 01:30, reminders 07:00 (VN).
+    # Enable it on ONE instance only.
+    jobs:
+      enabled: ${YHRM_ATT_JOBS_ENABLED:true}
 
 logging:
   pattern:

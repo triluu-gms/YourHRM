@@ -19,7 +19,7 @@ Event envelope, outbox/inbox and transport are covered in **yhrm-conventions**. 
 | ATT-C-07 | Locations with coordinates, TZ, remote-area flag | core (`core.LocationChanged`) | `att.ext_core_location` | M |
 | ATT-C-08 | Users, roles, permissions, data scope | core | ESS/MSS/admin access | M |
 | ATT-C-09 | Workflow engine: request types, chains, delegation, final-decision callback | core (`core.WorkflowCompleted`, `core.WorkflowStepCompleted`) | Leave, OT, correction, trip, WFH, swap, period reopen | M |
-| ATT-C-10 | Notification service and templates | core | BR-ATT-082 | M |
+| ATT-C-10 | Notification service and templates | core | BR-ATT-082 (built §4.9: `AttendanceNotifications` templates, employee recipients via `Audience.employee`, daily `AttendanceReminderJobs`) | M |
 | ATT-C-11 | Effective-dated config store, audit, documents (core); job scheduler/queue (saas) | core; saas | Policies, audit, attachments, nightly jobs | M |
 | ATT-C-12 | Employee master: id, name, number, gender, DOB, nationality | people | Eligibility, foreigner holidays, minor rules | M |
 | ATT-C-13 | Employment milestones: hire, seniority date, probation end, LWD and termination, suspensions | people | `att.ext_hr_employment`; BR-ATT-039, 057–059, 067 | M |
@@ -66,6 +66,7 @@ Also consumed (catalogue §6): `core.ReorgPackageStatusChanged` (re-evaluate sch
 | `att.AbsenceChanged` | core, payroll, people | Leave approved or cancelled | type, dates, SI data (no P3 in payload), status |
 | `att.BusinessTripApproved` | people | Trip approved/changed (P2) | dates, half-days, destination, cost centre |
 | `att.HolidayCalendarChanged` | core, payroll, rec | Calendar published or changed | calendar, dates, effective |
+| `att.ScheduleAssignmentChanged` (T&A proposal, not in catalogue v1.1) | T&A daily processing, payroll | Schedule of an assignment line changed (rule, manual, People assignment or employment) | employment, assignment key, cause, changed range, scheduled, affected CLOSED/LOCKED periods, retro |
 | `att.AttendancePeriodClosed` | payroll | Close / re-close / unlock | period, pay group, LE, result_version, checksum, cause `CLOSE`/`RECLOSE`/`UNLOCK` |
 | `att.AttendancePeriodReopened` | payroll | `CLOSED → OPEN` (no active hold) | period, withdrawn version, reason |
 | `att.AttendancePeriodHoldGranted` | payroll, core | `acquireHold` succeeded; same tx as hold row | hold id, period, pay group, LE, version, run id |

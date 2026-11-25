@@ -49,6 +49,37 @@
 --       (raw punch, period, result, result line, hold, leave ledger) allows DELETE
 --       when sys.purge_bypass(OLD.tenant_id) is true; UPDATE stays blocked.
 --   Smoke-tested 2026-10-21 on PGlite 0.5.10 (= PostgreSQL 18.6) with 000-003 + 005.
+--
+-- v0.6 (2026-11-19): att.attendance_period.std_day_value (numeric(6,2)), the value of the pay
+--   group's standard-day method copied with it from pay.PayCalendarPublished (26, 24 ... days for
+--   FIXED_DAYS, hours for FIXED_HOURS; NULL for SCHEDULE_DAYS / CALENDAR_DAYS), so STD_DAYS /
+--   STD_HOURS can be computed from the period alone (BR-ATT-016, BR-PAY-009). CHECKs mirror
+--   pay.pay_group; method and value are frozen by att.tg_attendance_period_guard while the
+--   period is CLOSED or LOCKED.
+-- v0.7 (2026-11-19, PM decision D3): att.ext_hr_employment_classification (new projection
+--   of hr.employment_classification, fed by people.EmploymentChanged / EmployeeHired):
+--   dated employee category and working regime used by the schedule rules (BR-ATT-015).
+--   The values on att.ext_hr_assignment stay as the fallback for days without a row.
+-- v0.8 (2026-11-19, period close / retro build, BRD §4.8):
+--   att.attendance_period.reopen_requested_at / _by / reopen_request_reason: a reopen asked
+--     while Payroll holds the period (BR-ATT-087) waits there until the hold is released,
+--     then the period reopens automatically; a lock or a close clears it.
+--   att.retro_request (new): an employment whose days in a LOCKED period changed after the
+--     lock (daily processing found different inputs). The next close of the legal entity x
+--     pay group recomputes those days in memory and attaches the signed differences to its
+--     result as retro lines (BR-ATT-071); the locked snapshot and its days are never touched.
+-- v0.9 (2026-11-20, completion of the Phase-1 backend):
+--   att.attendance_result_import_line (new): staging of the Attendance Result import
+--     (BR-ATT-025, R2-18, US-ATT-019); published per period as one IMPORT version.
+--   att.maintain_partitions(months_ahead) (SECURITY DEFINER, EXECUTE to yhrm_app_att): the
+--     T&A nightly job keeps the monthly partitions of raw_punch / daily_timesheet /
+--     attendance_result_line created ahead (DESIGN §10.2) until the SaaS scheduler exists.
+--   att.job_tenants() (SECURITY DEFINER, EXECUTE to yhrm_app_att): the tenants with T&A data,
+--     iterated by the nightly job (ids only).
+--   yhrm_platform: the release job writes the GLOBAL rows (sentinel tenant) of
+--     att.attendance_code, att.holiday_calendar and att.holiday_date, through policies that
+--     admit the sentinel tenant only, plus INSERT on audit.audit_event for those rows' row
+--     audit. No access to any tenant row (DESIGN §2.3 exception, like Core's master data).
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -985,7 +1016,7 @@ CREATE TABLE att.leave_balance_ledger (
   accrual_month      sys.month_date,                       -- ACCRUE idempotency
   expires_on         date,                                 -- carried days expiry (BR-ATT-060)
   leave_request_id   uuid,
-  ref_type           text,                                 -- LEAVE_REQUEST | ACCRUAL_RUN | CARRY_RUN | TERMINATION | IMPORT | ADMIN
+  ref_type           text,                                 -- LEAVE_REQUEST | ACCRUAL_RUN | CARRY_RUN (rows of the closed year) | CARRY_IN (carried into the next year) | CARRY_EXPIRY | TERMINATION | IMPORT | ADMIN
   ref_id             uuid,
   reason             text,
   import_job_id      uuid,                                 -- -> core.import_job (soft); OB_LEAVE_BALANCE
@@ -1122,6 +1153,7 @@ CREATE TABLE att.attendance_period (
   ot_period_start      date,                               -- separate OT cut-off (BR-ATT-072, BRD §7.3)
   ot_period_end        date,
   std_day_method       text,                               -- copied from pay calendar (BR-ATT-016, ATT-C-18)
+  std_day_value        numeric(6,2),                       -- days (FIXED_DAYS) or hours (FIXED_HOURS) of the method, e.g. 26; NULL otherwise
   close_deadline       date,                               -- T&A close deadline (D + 2 working days)
   status               text NOT NULL DEFAULT 'OPEN',
   current_version      int NOT NULL DEFAULT 0,             -- latest PERIOD-scope result version (0 = none yet)
@@ -1131,6 +1163,9 @@ CREATE TABLE att.attendance_period (
   reopened_at          timestamptz,
   reopened_by          uuid,
   reopen_reason        text,
+  reopen_requested_at  timestamptz,                        -- v0.8: reopen asked while held (BR-ATT-087), pending release
+  reopen_requested_by  uuid,
+  reopen_request_reason text,
   locked_at            timestamptz,
   locked_by_run_id     uuid,                               -- -> pay.payroll_run (soft)
   source_event_id      uuid,                               -- pay.PayCalendarPublished event id
@@ -1143,6 +1178,14 @@ CREATE TABLE att.attendance_period (
   CONSTRAINT attendance_period_start_uq UNIQUE (tenant_id, id, period_start),        -- FK target carrying period_start
   CONSTRAINT attendance_period_uq UNIQUE (tenant_id, legal_entity_id, pay_group_id, period_start),
   CONSTRAINT attendance_period_dates_ck CHECK (period_end >= period_start),
+  -- same values and rule as pay.pay_group (BR-PAY-009); NULL method = not published yet. The explicit
+  -- IS NOT NULL matters: "std_day_value > 0" alone is NULL for a NULL value, and a NULL CHECK passes.
+  CONSTRAINT attendance_period_std_method_ck CHECK (
+    std_day_method IS NULL OR std_day_method IN ('FIXED_DAYS','SCHEDULE_DAYS','CALENDAR_DAYS','FIXED_HOURS')),
+  CONSTRAINT attendance_period_std_value_ck CHECK (coalesce(
+       (std_day_method IS NULL AND std_day_value IS NULL)
+    OR (std_day_method IN ('FIXED_DAYS','FIXED_HOURS') AND std_day_value IS NOT NULL AND std_day_value > 0)
+    OR (std_day_method IN ('SCHEDULE_DAYS','CALENDAR_DAYS') AND std_day_value IS NULL), false)),
   CONSTRAINT attendance_period_ot_ck CHECK ((ot_period_start IS NULL) = (ot_period_end IS NULL)
                                             AND (ot_period_end IS NULL OR ot_period_end >= ot_period_start)),
   CONSTRAINT attendance_period_status_ck CHECK (status IN ('OPEN','IN_REVIEW','CLOSED','LOCKED')),
@@ -1150,6 +1193,9 @@ CREATE TABLE att.attendance_period (
                                                  AND (locked_version IS NULL OR locked_version BETWEEN 1 AND current_version)),
   CONSTRAINT attendance_period_closed_ck CHECK (status NOT IN ('CLOSED','LOCKED') OR current_version >= 1),
   CONSTRAINT attendance_period_locked_ck CHECK (status <> 'LOCKED' OR locked_version = current_version),
+  CONSTRAINT attendance_period_reopen_request_ck CHECK (
+    (reopen_requested_at IS NULL) = (reopen_request_reason IS NULL)
+    AND (reopen_requested_at IS NULL OR status = 'CLOSED')),
   CONSTRAINT attendance_period_ex EXCLUDE USING gist
     (tenant_id WITH =, legal_entity_id WITH =, pay_group_id WITH =, period_range WITH &&)
 );
@@ -1318,6 +1364,94 @@ CREATE UNIQUE INDEX attendance_result_hold_active_uq ON att.attendance_result_ho
   WHERE status = 'ACTIVE';
 CREATE INDEX attendance_result_hold_run_ix ON att.attendance_result_hold (tenant_id, payroll_run_id);
 CREATE INDEX attendance_result_hold_result_ix ON att.attendance_result_hold (tenant_id, result_id);
+-- Retro requests (v0.8, BR-ATT-071, BRD §7.3 rules b/d): daily processing never rewrites a day
+-- of a LOCKED period; when the inputs of such a day changed it records the employment and the
+-- period here. The next close of the same legal entity x pay group recomputes the period's days
+-- of that employment in memory, compares them with the live lines (locked version + retro lines
+-- already issued) and attaches the signed differences as retro lines to its own result.
+-- A request applied to a result that is later withdrawn (reopen) is picked up again at re-close.
+CREATE TABLE att.retro_request (
+  tenant_id            uuid NOT NULL,
+  id                   uuid NOT NULL DEFAULT sys.uuid_v7(),
+  employment_id        uuid NOT NULL,                      -- -> hr.employment (soft)
+  period_id            uuid NOT NULL,                      -- the LOCKED period whose days changed
+  first_date           date NOT NULL,                      -- changed days seen, inclusive
+  last_date            date NOT NULL,
+  reason               text NOT NULL,                      -- RECALCULATION (daily processing) | MANUAL
+  status               text NOT NULL DEFAULT 'PENDING',
+  applied_result_id    uuid,                               -- result that carries the delta lines
+  applied_at           timestamptz,
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  created_by           uuid,
+  updated_at           timestamptz NOT NULL DEFAULT now(),
+  updated_by           uuid,
+  version              int NOT NULL DEFAULT 0,
+  CONSTRAINT retro_request_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT retro_request_period_fk FOREIGN KEY (tenant_id, period_id) REFERENCES att.attendance_period (tenant_id, id),
+  CONSTRAINT retro_request_result_fk FOREIGN KEY (tenant_id, applied_result_id) REFERENCES att.attendance_result (tenant_id, id),
+  CONSTRAINT retro_request_dates_ck CHECK (last_date >= first_date),
+  CONSTRAINT retro_request_reason_ck CHECK (reason IN ('RECALCULATION','MANUAL')),
+  CONSTRAINT retro_request_status_ck CHECK (status IN ('PENDING','APPLIED','NO_CHANGE')),
+  CONSTRAINT retro_request_applied_ck CHECK ((status = 'PENDING') = (applied_at IS NULL)
+                                             AND (status = 'APPLIED') = (applied_result_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX retro_request_pending_uq ON att.retro_request (tenant_id, employment_id, period_id)
+  WHERE status = 'PENDING';
+CREATE INDEX retro_request_result_ix ON att.retro_request (tenant_id, applied_result_id) WHERE applied_result_id IS NOT NULL;
+COMMENT ON TABLE att.retro_request IS
+  'Employment x LOCKED period whose days changed after the lock (BR-ATT-071); applied as retro lines at the next close.';
+
+-- v0.9: staging of the Attendance Result import (BR-ATT-025, R2-18, US-ATT-019). Core's import
+-- engine commits each row on Core's pool, which an att transaction cannot join (ADR-0021), while
+-- a result version needs its header and lines in ONE att transaction (seal). Each committed row
+-- is therefore staged here (idempotent by job x row); after the job committed, the staged rows of
+-- each period become one IMPORT result version in a single transaction (status PUBLISHED). Rows of
+-- a job that never committed (no job_committed_at) stay STAGED and are never published.
+CREATE TABLE att.attendance_result_import_line (
+  tenant_id            uuid NOT NULL,
+  id                   uuid NOT NULL DEFAULT sys.uuid_v7(),
+  import_job_id        uuid NOT NULL,                      -- -> core.import_job (soft)
+  row_no               int NOT NULL,
+  period_id            uuid NOT NULL,
+  period_start         date NOT NULL,
+  employment_id        uuid NOT NULL,                      -- -> hr.employment (soft)
+  assignment_key       uuid,                               -- -> hr.assignment.assignment_key (soft)
+  segment_from         date NOT NULL,
+  segment_to           date NOT NULL,                      -- INCLUSIVE
+  legal_entity_id      uuid NOT NULL,                      -- -> core.legal_entity (soft)
+  org_unit_id          uuid,                               -- -> core.org_unit (soft)
+  pay_group_id         uuid,                               -- -> pay.pay_group (soft)
+  cost_centre_id       uuid,                               -- -> core.cost_centre (soft)
+  category_code        text NOT NULL,
+  unit                 text NOT NULL,
+  quantity             numeric(12,2) NOT NULL,
+  period_quantity      numeric(12,2),
+  status               text NOT NULL DEFAULT 'STAGED',
+  job_committed_at     timestamptz,                        -- core.ImportCommitted seen: only then may it publish
+  result_id            uuid,                               -- the version that carries the line once PUBLISHED
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  created_by           uuid,
+  updated_at           timestamptz NOT NULL DEFAULT now(),
+  updated_by           uuid,
+  CONSTRAINT attendance_result_import_line_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT attendance_result_import_line_row_uq UNIQUE (tenant_id, import_job_id, row_no),
+  CONSTRAINT attendance_result_import_line_period_fk FOREIGN KEY (tenant_id, period_id, period_start)
+    REFERENCES att.attendance_period (tenant_id, id, period_start),
+  CONSTRAINT attendance_result_import_line_result_fk FOREIGN KEY (tenant_id, result_id)
+    REFERENCES att.attendance_result (tenant_id, id),
+  CONSTRAINT attendance_result_import_line_category_ck CHECK (category_code ~ '^[A-Z][A-Z_]*(\.[A-Za-z0-9_-]+)*$'
+                                                              AND category_code NOT LIKE 'RETRO.%'),
+  CONSTRAINT attendance_result_import_line_unit_ck CHECK (unit IN ('DAY','HOUR','MINUTE','COUNT')),
+  CONSTRAINT attendance_result_import_line_qty_ck CHECK (quantity >= 0 AND (period_quantity IS NULL OR period_quantity >= 0)),
+  CONSTRAINT attendance_result_import_line_segment_ck CHECK (segment_to >= segment_from),
+  CONSTRAINT attendance_result_import_line_status_ck CHECK (status IN ('STAGED','PUBLISHED')),
+  CONSTRAINT attendance_result_import_line_published_ck CHECK ((status = 'PUBLISHED') = (result_id IS NOT NULL)
+                                                              AND (status = 'STAGED' OR job_committed_at IS NOT NULL))
+);
+CREATE INDEX attendance_result_import_line_job_ix ON att.attendance_result_import_line (tenant_id, import_job_id);
+COMMENT ON TABLE att.attendance_result_import_line IS
+  'Staged rows of an Attendance Result import (BR-ATT-025, R2-18); published per period as one IMPORT version.';
+
 COMMENT ON TABLE att.attendance_result_hold IS
   'Close hold (BR-ATT-079, ADR-0019, gap §7.1). Never expires; released (REJECTED/WITHDRAWN/CANCELLED/REOPEN_REQUESTED/UNLOCKED) '
   'or consumed (run APPROVED -> LOCKED) only by Payroll actions. UNLOCKED releases a hold that had been consumed.';
@@ -1348,6 +1482,14 @@ BEGIN
     IF OLD.status <> 'OPEN' OR OLD.current_version <> 0 THEN
       RAISE EXCEPTION 'attendance period %: boundaries are immutable once a result exists', OLD.id USING ERRCODE = '55000';
     END IF;
+  END IF;
+
+  -- the standard-day method and value are inputs of the published result (STD_DAYS / STD_HOURS, NFR-ATT-006):
+  -- frozen while a result version is in force; Payroll's change applies after a reopen and re-close
+  IF (NEW.std_day_method IS DISTINCT FROM OLD.std_day_method OR NEW.std_day_value IS DISTINCT FROM OLD.std_day_value)
+     AND OLD.status IN ('CLOSED','LOCKED') THEN
+    RAISE EXCEPTION 'attendance period %: the standard-day method / value are frozen while % (reopen first)', OLD.id, OLD.status
+      USING ERRCODE = '55000';
   END IF;
 
   -- current_version moves only when entering CLOSED (close / re-close), never backwards
@@ -1692,6 +1834,34 @@ COMMENT ON TABLE att.ext_hr_employment IS
 COMMENT ON COLUMN att.ext_hr_employment.person_id IS 'pii:P1';
 COMMENT ON COLUMN att.ext_hr_employment.hire_date IS 'pii:P1';
 
+-- v0.7 (D3): dated employee category and contractual working regime of an employment,
+-- projection of hr.employment_classification. people.EmploymentChanged overwrites
+-- exactly [valid_from, valid_to) (rows overlapping it are trimmed or removed), so a
+-- redelivered or out-of-order event gives the same result. The schedule rules
+-- (BR-ATT-015) use the row covering a day, else the values on att.ext_hr_assignment.
+CREATE TABLE att.ext_hr_employment_classification (
+  tenant_id               uuid NOT NULL,
+  id                      uuid NOT NULL DEFAULT sys.uuid_v7(),
+  employment_id           uuid NOT NULL,                   -- = hr.employment.id (soft)
+  employee_category_code  text,
+  working_regime_code     text,                            -- People contractual regime
+  valid_from              date NOT NULL,
+  valid_to                date,                            -- EXCLUSIVE; NULL = open
+  valid_during            daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
+  source_event_id         uuid,                            -- hr.employment_classification.id of the version
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  updated_at              timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ext_hr_employment_classification_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT ext_hr_employment_classification_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ext_hr_employment_classification_ex EXCLUDE USING gist
+    (tenant_id WITH =, employment_id WITH =, valid_during WITH &&)
+);
+CREATE INDEX ext_hr_employment_classification_employment_ix
+  ON att.ext_hr_employment_classification (tenant_id, employment_id, valid_from);
+COMMENT ON TABLE att.ext_hr_employment_classification IS
+  'v0.7 (D3) projection of hr.employment_classification: employee category / working regime per date for the '
+  'schedule rules (BR-ATT-015).';
+
 -- D5: protected-worker statuses T&A needs (BR-ATT-048 OT ban / consent, night-work and
 -- hazardous-work restrictions, BLLĐ Điều 137/146/160; VN-16 maternity 6th-month rule).
 -- DESIGN CHOICE: a separate effective-dated projection, one row per hr.special_status
@@ -1794,6 +1964,53 @@ BEGIN
 END $$;
 REVOKE EXECUTE ON PROCEDURE att.create_partitions(regclass, date, int) FROM PUBLIC;
 
+-- v0.9: what the nightly job calls (as yhrm_app_att): the previous month to p_months_ahead
+-- months after the current one, for the three partitioned att tables. Idempotent (existing
+-- partitions are skipped). Bounded: 0..12 months ahead, fixed table list, no caller-given name.
+CREATE OR REPLACE FUNCTION att.maintain_partitions(p_months_ahead int DEFAULT 3)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = att, sys, pg_temp
+AS $$
+DECLARE
+  v_from date := (date_trunc('month', current_date) - interval '1 month')::date;
+  v_count int;
+  v_before int;
+  v_after int;
+BEGIN
+  IF p_months_ahead IS NULL OR p_months_ahead < 0 OR p_months_ahead > 12 THEN
+    RAISE EXCEPTION 'months ahead must be 0..12';
+  END IF;
+  v_count := p_months_ahead + 2;                    -- previous month, current month, months ahead
+  SELECT count(*) INTO v_before FROM pg_inherits
+   WHERE inhparent IN ('att.raw_punch'::regclass, 'att.daily_timesheet'::regclass,
+                       'att.attendance_result_line'::regclass);
+  CALL att.create_partitions('att.raw_punch', v_from, v_count);
+  CALL att.create_partitions('att.daily_timesheet', v_from, v_count);
+  CALL att.create_partitions('att.attendance_result_line', v_from, v_count);
+  SELECT count(*) INTO v_after FROM pg_inherits
+   WHERE inhparent IN ('att.raw_punch'::regclass, 'att.daily_timesheet'::regclass,
+                       'att.attendance_result_line'::regclass);
+  RETURN v_after - v_before;                        -- partitions created by this call
+END $$;
+REVOKE EXECUTE ON FUNCTION att.maintain_partitions(int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION att.maintain_partitions(int) TO yhrm_app_att;
+COMMENT ON FUNCTION att.maintain_partitions(int) IS
+  'v0.9: creates the missing monthly partitions of the att partitioned tables up to N months ahead (nightly job).';
+
+-- v0.9: tenants the nightly job runs for (any employee projected into T&A, or any period).
+-- Returns ids only; the job then binds each tenant's context, so RLS applies to all its work.
+CREATE OR REPLACE FUNCTION att.job_tenants()
+RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = att, pg_temp
+AS $$
+  SELECT tenant_id FROM att.ext_hr_employment
+  UNION
+  SELECT tenant_id FROM att.attendance_period
+$$;
+REVOKE EXECUTE ON FUNCTION att.job_tenants() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION att.job_tenants() TO yhrm_app_att;
+COMMENT ON FUNCTION att.job_tenants() IS 'v0.9: tenant ids with T&A data, for the nightly job (ids only, no rows).';
+
 -- previous month (late device-export files), current month and 2 ahead
 CALL att.create_partitions('att.raw_punch',              (date_trunc('month', current_date) - interval '1 month')::date, 4);
 CALL att.create_partitions('att.daily_timesheet',        (date_trunc('month', current_date) - interval '1 month')::date, 4);
@@ -1813,9 +2030,9 @@ BEGIN
     'att.daily_timesheet','att.timesheet_correction','att.overtime_request','att.overtime_result',
     'att.ot_cap_ledger','att.leave_type','att.leave_policy','att.leave_request','att.leave_balance_ledger',
     'att.business_trip','att.remote_work_request','att.attendance_period','att.attendance_result',
-    'att.attendance_result_line','att.attendance_result_hold',
-    'att.ext_core_location','att.ext_hr_assignment','att.ext_pay_pay_group_assignment',
-    'att.ext_hr_employment','att.ext_hr_special_status']
+    'att.attendance_result_line','att.attendance_result_hold','att.retro_request',
+    'att.attendance_result_import_line','att.ext_core_location','att.ext_hr_assignment','att.ext_pay_pay_group_assignment',
+    'att.ext_hr_employment','att.ext_hr_employment_classification','att.ext_hr_special_status']
   LOOP
     CALL sys.enable_tenant_rls(t::regclass);
   END LOOP;
@@ -1834,8 +2051,9 @@ BEGIN
     'att.device','att.enrolment_mapping','att.attendance_code','att.daily_timesheet','att.timesheet_correction',
     'att.overtime_request','att.overtime_result','att.ot_cap_ledger','att.leave_type','att.leave_policy',
     'att.leave_request','att.business_trip','att.remote_work_request','att.attendance_period',
-    'att.attendance_result_hold','att.ext_core_location','att.ext_hr_assignment','att.ext_pay_pay_group_assignment',
-    'att.ext_hr_special_status']
+    'att.attendance_result_hold','att.retro_request','att.attendance_result_import_line',
+    'att.ext_core_location','att.ext_hr_assignment',
+    'att.ext_pay_pay_group_assignment','att.ext_hr_employment_classification','att.ext_hr_special_status']
   LOOP
     CALL sys.attach_touch_trigger(t::regclass);
   END LOOP;
@@ -1862,9 +2080,9 @@ GRANT SELECT, INSERT, UPDATE ON
   att.roster, att.roster_line, att.device, att.enrolment_mapping, att.attendance_code,
   att.daily_timesheet, att.timesheet_correction, att.overtime_request, att.overtime_result, att.ot_cap_ledger,
   att.leave_type, att.leave_policy, att.leave_request, att.business_trip, att.remote_work_request,
-  att.attendance_period, att.attendance_result, att.attendance_result_hold,
-  att.ext_core_location, att.ext_hr_assignment, att.ext_pay_pay_group_assignment,
-  att.ext_hr_employment, att.ext_hr_special_status
+  att.attendance_period, att.attendance_result, att.attendance_result_hold, att.retro_request,
+  att.attendance_result_import_line, att.ext_core_location, att.ext_hr_assignment, att.ext_pay_pay_group_assignment,
+  att.ext_hr_employment, att.ext_hr_employment_classification, att.ext_hr_special_status
 TO yhrm_app_att;
 -- att.ext_hr_employment has no trg_touch (key is employment_id, there is no id column):
 -- the projection handler sets updated_at/synced_at; tenant_id is pinned by RLS WITH CHECK.
@@ -1878,12 +2096,37 @@ GRANT DELETE ON
   att.holiday_date, att.shift_break, att.schedule_pattern_day, att.roster_line, att.timesheet_correction,
   att.overtime_request, att.overtime_result, att.leave_request, att.business_trip, att.remote_work_request,
   att.attendance_period, att.ext_core_location, att.ext_hr_assignment, att.ext_pay_pay_group_assignment,
-  att.ext_hr_employment, att.ext_hr_special_status
+  att.ext_hr_employment, att.ext_hr_employment_classification, att.ext_hr_special_status
 TO yhrm_app_att;
 REVOKE EXECUTE ON FUNCTION att.active_hold_for(uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION att.active_hold_for(uuid, uuid) TO yhrm_app_att;
 REVOKE EXECUTE ON FUNCTION att.protected_flags(uuid, date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION att.protected_flags(uuid, date) TO yhrm_app_att;
+
+-- v0.9: the platform release job writes the GLOBAL rows (sentinel tenant) of the national holiday
+-- template and the default attendance codes (DESIGN §3.5, ADR-0035), like Core's global master
+-- data. yhrm_platform is not a member of yhrm_app, so the tenant policies never admit it; these
+-- policies admit the sentinel tenant ONLY, so it sees and writes no tenant row. The row audit of
+-- these tables (audit.tg_row_audit, invoker rights) records the release job's changes under the
+-- sentinel tenant.
+GRANT USAGE ON SCHEMA att TO yhrm_platform;
+GRANT SELECT, INSERT, UPDATE ON att.attendance_code, att.holiday_calendar, att.holiday_date TO yhrm_platform;
+GRANT DELETE ON att.holiday_date TO yhrm_platform;            -- a corrected template date is replaced
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['att.attendance_code','att.holiday_calendar','att.holiday_date'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS platform_global ON %s', t);
+    EXECUTE format($p$
+      CREATE POLICY platform_global ON %s AS PERMISSIVE FOR ALL TO yhrm_platform
+        USING (tenant_id = sys.global_tenant_id()) WITH CHECK (tenant_id = sys.global_tenant_id())$p$, t);
+  END LOOP;
+END $$;
+GRANT USAGE ON SCHEMA audit TO yhrm_platform;
+GRANT INSERT ON audit.audit_event TO yhrm_platform;
+DROP POLICY IF EXISTS platform_global_insert ON audit.audit_event;
+CREATE POLICY platform_global_insert ON audit.audit_event AS PERMISSIVE FOR INSERT TO yhrm_platform
+  WITH CHECK (tenant_id = sys.global_tenant_id());
 
 -- Outbox / inbox for T&A (att.AttendancePeriodClosed, att.AttendancePeriodHoldGranted/Released,
 -- att.AttendancePeriodLocked, att.AttendancePeriodReopened, att.LeaverAttendanceClosed,

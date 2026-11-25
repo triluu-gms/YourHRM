@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import vn.yourhrm.people.api.AssignmentJobs;
+import vn.yourhrm.people.internal.application.employment.EmploymentClassificationService;
 import vn.yourhrm.people.internal.application.integration.HireApprovalGate;
 import vn.yourhrm.people.internal.application.salary.SalaryService;
 import vn.yourhrm.people.internal.infra.HrDb;
@@ -35,10 +36,13 @@ public class AssignmentDueJob implements AssignmentJobs {
     private final AssignmentService assignments;
     private final SalaryService salaries;
     private final HireApprovalGate hireGate;
+    private final EmploymentClassificationService classifications;
 
     public AssignmentDueJob(HrDb db, AssignmentStore store, ProcessedMarkers markers, EmploymentFacts employments,
-            AssignmentService assignments, SalaryService salaries, HireApprovalGate hireGate) {
+            AssignmentService assignments, SalaryService salaries, HireApprovalGate hireGate,
+            EmploymentClassificationService classifications) {
         this.hireGate = hireGate;
+        this.classifications = classifications;
         this.db = db;
         this.store = store;
         this.markers = markers;
@@ -97,7 +101,8 @@ public class AssignmentDueJob implements AssignmentJobs {
             ended++;
         }
         int salary = salaries.publishDueChanges(today, LOOKBACK_DAYS);
-        return new DueChanges(changed, started, ended, salary);
+        int classification = classifications.publishDueChanges(today, LOOKBACK_DAYS);
+        return new DueChanges(changed, started, ended, salary, classification);
     }
 
     /**

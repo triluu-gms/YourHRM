@@ -24,6 +24,8 @@ import vn.yourhrm.support.TestFixtures.TestUser;
         "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:1/unused-in-tests",
         "spring.datasource.hikari.maximum-pool-size=5",
         "yhrm.people.datasource.maximum-pool-size=5",
+        "yhrm.attendance.datasource.maximum-pool-size=3",
+        "yhrm.attendance.jobs.enabled=false",
         "yhrm.authz.cache-ttl=60s"
 })
 @AutoConfigureMockMvc
@@ -43,6 +45,8 @@ public abstract class IntegrationTest {
         registry.add("spring.datasource.password", () -> PostgresTestDatabase.APP_PASSWORD);
         registry.add("yhrm.people.datasource.username", () -> PostgresTestDatabase.HR_ROLE);
         registry.add("yhrm.people.datasource.password", () -> PostgresTestDatabase.HR_PASSWORD);
+        registry.add("yhrm.attendance.datasource.username", () -> PostgresTestDatabase.ATT_ROLE);
+        registry.add("yhrm.attendance.datasource.password", () -> PostgresTestDatabase.ATT_PASSWORD);
     }
 
     /** A bearer token of {@code user} (subject = identity, tenant_id claim = user's tenant). */

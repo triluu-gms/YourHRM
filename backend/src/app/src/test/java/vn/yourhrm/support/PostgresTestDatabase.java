@@ -25,6 +25,12 @@ public final class PostgresTestDatabase {
     /** People's own pool (ADR-0021). */
     public static final String HR_ROLE = "yhrm_app_hr";
     public static final String HR_PASSWORD = "test-only-app-hr";
+    /** Time & Attendance's own pool (ADR-0021). */
+    public static final String ATT_ROLE = "yhrm_app_att";
+    public static final String ATT_PASSWORD = "test-only-app-att";
+    /** The release job's role: writes only the global (sentinel-tenant) rows it is granted. */
+    public static final String PLATFORM_ROLE = "yhrm_platform";
+    public static final String PLATFORM_PASSWORD = "test-only-platform";
 
     private static final PostgreSQLContainer CONTAINER = start();
 
@@ -43,6 +49,11 @@ public final class PostgresTestDatabase {
     public static JdbcTemplate admin() {
         return new JdbcTemplate(new DriverManagerDataSource(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(),
                 CONTAINER.getPassword()));
+    }
+
+    /** Connection as {@code yhrm_platform}, the role of the real release job (RLS applies). */
+    public static JdbcTemplate platform() {
+        return new JdbcTemplate(new DriverManagerDataSource(CONTAINER.getJdbcUrl(), PLATFORM_ROLE, PLATFORM_PASSWORD));
     }
 
     @SuppressWarnings("resource")
@@ -70,6 +81,8 @@ public final class PostgresTestDatabase {
             }
             psql(pg, "-c", "ALTER ROLE " + APP_ROLE + " PASSWORD '" + APP_PASSWORD + "'");
             psql(pg, "-c", "ALTER ROLE " + HR_ROLE + " PASSWORD '" + HR_PASSWORD + "'");
+            psql(pg, "-c", "ALTER ROLE " + ATT_ROLE + " PASSWORD '" + ATT_PASSWORD + "'");
+            psql(pg, "-c", "ALTER ROLE " + PLATFORM_ROLE + " PASSWORD '" + PLATFORM_PASSWORD + "'");
             psql(pg, "-f", "/yhrm-seed/seed-dev-tenant.sql");
         } catch (IOException | InterruptedException e) {
             throw new IllegalStateException("Could not load the DDL baseline", e);

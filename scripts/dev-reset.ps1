@@ -33,9 +33,23 @@ if (-not $Force) {
 }
 
 Write-Host '== 1/4 Recreating Docker stack (DDL + Keycloak realm)'
+
+# Preflight. On a fresh machine a stopped Docker Desktop (or a missing WSL2 backend) is the usual reason
+# 'compose up' fails, and the raw docker error used to scroll away behind a generic throw.
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw 'docker CLI not found on PATH. Install Docker Desktop, then open a new shell and re-run this script.'
+}
+docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    $info = (docker info 2>&1 | Out-String) -split "`r?`n"
+    $hint = (($info | Where-Object { $_ -match 'ERROR|cannot find|daemon|npipe|permission denied' }) | Select-Object -First 4) -join "`n  "
+    throw "Docker daemon not reachable. Start Docker Desktop, wait until it reports 'Running', then re-run this script.`n  $hint"
+}
+
 docker compose -f $compose down -v
-docker compose -f $compose up -d
-if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
+$up = (docker compose -f $compose up -d 2>&1 | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw "docker compose up failed:`n`n$up" }
+if ($up) { Write-Host $up }
 
 Write-Host '   waiting for the DDL load...'
 $deadline = (Get-Date).AddMinutes(5)

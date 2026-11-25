@@ -10,13 +10,14 @@ public interface AssignmentJobs {
 
     /** What one run published. */
     record DueChanges(int assignmentChanges, int temporaryTransfersStarted, int temporaryTransfersEnded,
-            int salaryChanges) {
+            int salaryChanges, int employmentChanges) {
     }
 
     /**
      * Publishes the events of approved future-dated changes whose effective date has come (in effective-date order,
      * so overlapping future changes apply in sequence): {@code people.AssignmentChanged},
-     * {@code people.TemporaryTransferChanged} (STARTED / ENDED) and {@code people.SalaryChanged}.
+     * {@code people.TemporaryTransferChanged} (STARTED / ENDED), {@code people.SalaryChanged} and
+     * {@code people.EmploymentChanged} (dated employee category / working regime, D3).
      */
     DueChanges publishDueChanges(LocalDate today);
 }

@@ -25,6 +25,7 @@ import vn.yourhrm.people.api.PeoplePermissions;
 import vn.yourhrm.people.internal.application.DecisionService;
 import vn.yourhrm.people.internal.application.integration.HireApprovalGate;
 import vn.yourhrm.people.internal.application.EmployeeAccess;
+import vn.yourhrm.people.internal.application.employment.EmploymentClassificationService;
 import vn.yourhrm.people.internal.application.assignment.EmploymentFacts.Employment;
 import vn.yourhrm.people.internal.application.assignment.RetroFlags.Retro;
 import vn.yourhrm.people.internal.domain.assignment.ChangeReason;
@@ -110,11 +111,15 @@ public class AssignmentService {
     private final BusinessClock clock;
     /** Integration fix F1: holds the first events of a hire that is not approved yet. */
     private final HireApprovalGate hireGate;
+    /** D3: the employee category / working regime in force on a version's start, carried by AssignmentChanged v2. */
+    private final EmploymentClassificationService classifications;
 
     public AssignmentService(HrDb db, AssignmentStore store, ProcessedMarkers markers, EmploymentFacts employments,
             EmployeeAccess access, ChangeReasonCatalogue reasons, AssignmentReferences references,
             TemporaryTransferPolicy transfers, DecisionService decisions, WorkflowService workflow, HrOutbox outbox,
-            RetroFlags retro, AuditLog audit, BusinessClock clock, HireApprovalGate hireGate) {
+            RetroFlags retro, AuditLog audit, BusinessClock clock, HireApprovalGate hireGate,
+            EmploymentClassificationService classifications) {
+        this.classifications = classifications;
         this.hireGate = hireGate;
         this.db = db;
         this.store = store;
@@ -557,12 +562,13 @@ public class AssignmentService {
         String decisionNo = row.decisionId() == null ? null
                 : decisions.find(row.decisionId()).map(DecisionService.Decision::decisionNo).orElse(null);
         TenantContext ctx = TenantContext.current();
+        var values = classifications.valuesOn(emp.id(), row.validFrom());
         outbox.publish(new AssignmentChanged(ctx.tenantId(), emp.legalEntityId(), emp.personId(), emp.id(),
                 row.validFrom(), kind, row.id(), row.assignmentKey(), row.assignmentType(), row.actionCode(),
                 row.reasonCode(), row.orgUnitId(), row.positionId(), row.jobTitleId(), row.gradeId(),
                 row.managerEmploymentId(), previousManager, row.locationId(), row.costCentreId(), row.costSplit(),
                 row.fte(), row.validFrom(), row.validTo(), row.decisionId(), decisionNo, appendix, r.retro(),
-                r.earliestAffectedPeriod(), initialLoad));
+                r.earliestAffectedPeriod(), initialLoad, values.employeeCategoryCode(), values.workingRegimeCode()));
         return r;
     }
 
