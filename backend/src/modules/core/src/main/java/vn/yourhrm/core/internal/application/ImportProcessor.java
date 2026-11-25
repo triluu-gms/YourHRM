@@ -184,7 +184,13 @@ public class ImportProcessor {
         Layout[] layout = {null};
         List<Object[]> batch = new ArrayList<>();
         int[] count = {0};
-        parser.parse(file, job.xlsx(), Set.of(ImportWorkbooks.DATA), (sheet, rowNo, cells) -> {
+        String[] firstSheet = {null};
+        ImportFileParser.RowSink sink = (sheet, rowNo, cells) -> {
+            if (firstSheet[0] == null) {
+                firstSheet[0] = sheet;
+            } else if (!firstSheet[0].equals(sheet)) {
+                return;
+            }
             if (layout[0] == null) {
                 layout[0] = layout(columns, cells, metaKeys);
                 return;
@@ -213,7 +219,13 @@ public class ImportProcessor {
             if (batch.size() >= CHUNK) {
                 flush(job.id(), batch, count[0]);
             }
-        });
+        };
+        parser.parse(file, job.xlsx(), Set.of(ImportWorkbooks.DATA), sink);
+        if (layout[0] == null && job.xlsx()) {
+            // a file exported by another program (e.g. device software, US-ATT-017) has no DATA sheet: read its first
+            firstSheet[0] = null;
+            parser.parse(file, true, null, sink);
+        }
         if (layout[0] == null) {
             throw ApiException.unprocessable("empty-file", "The file has no header row");
         }

@@ -28,6 +28,9 @@ public final class AssignmentEvents {
      * @param retro                 the effective date falls into a locked pay period of the legal entity (US-PPL-039)
      * @param earliestAffectedPeriod {@code yyyy-MM} of the earliest affected pay period when {@code retro}
      * @param contractAppendixId    the appendix that carries changed contract terms, when one was given
+     * @param employeeCategoryCode  the employment's employee category in force on {@code validFrom} (v2, D3)
+     * @param workingRegimeCode     the employment's working regime in force on {@code validFrom} (v2, D3); later
+     *                              changes inside the version come as {@code people.EmploymentChanged}
      */
     public record AssignmentChanged(UUID tenantId, UUID legalEntityId, UUID personId, UUID employmentId,
             LocalDate effectiveDate, String changeKind, UUID assignmentId, UUID assignmentKey, String assignmentType,
@@ -35,11 +38,17 @@ public final class AssignmentEvents {
             UUID managerEmploymentId, UUID previousManagerEmploymentId, UUID locationId, UUID costCentreId,
             List<CostShare> costSplit, BigDecimal fte, LocalDate validFrom, LocalDate validTo, UUID decisionId,
             String decisionNo, UUID contractAppendixId, boolean retro, String earliestAffectedPeriod,
-            boolean initialLoad) implements PeopleEvent {
+            boolean initialLoad, String employeeCategoryCode, String workingRegimeCode) implements PeopleEvent {
 
         @Override
         public String eventType() {
             return "people.AssignmentChanged";
+        }
+
+        /** v2 (2026-11-19, D3): + employeeCategoryCode, workingRegimeCode. */
+        @Override
+        public int schemaVersion() {
+            return 2;
         }
     }
 

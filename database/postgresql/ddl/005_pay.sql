@@ -64,6 +64,12 @@
 --   D9  tenant purge bypass (sys.purge_bypass) on the DELETE path of every
 --       append-only / immutability trigger of this file; UPDATE stays blocked.
 --   Smoke-tested 2026-10-21 on PGlite 0.5.10 (= PostgreSQL 18.6) with 000-004.
+--
+-- v0.6 (2026-11-19): standard-day value checks.
+--   pay_group_std_value_ck: FIXED_DAYS / FIXED_HOURS with a NULL value passed (a CHECK
+--   whose result is NULL is satisfied); the value is now required to be NOT NULL.
+--   pay_period_std_value_ck: new, same rule on the copy published to T&A
+--   (att.attendance_period.std_day_value, 004_att v0.6).
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -131,7 +137,7 @@ CREATE TABLE pay.pay_group (
   CONSTRAINT pay_group_offsets_ck CHECK (att_close_offset_wd >= 0 AND approval_offset_wd > att_close_offset_wd),
   CONSTRAINT pay_group_std_method_ck CHECK (std_day_method IN ('FIXED_DAYS','SCHEDULE_DAYS','CALENDAR_DAYS','FIXED_HOURS')),
   CONSTRAINT pay_group_std_value_ck CHECK (
-       (std_day_method IN ('FIXED_DAYS','FIXED_HOURS') AND std_day_value > 0)
+       (std_day_method IN ('FIXED_DAYS','FIXED_HOURS') AND std_day_value IS NOT NULL AND std_day_value > 0)
     OR (std_day_method IN ('SCHEDULE_DAYS','CALENDAR_DAYS') AND std_day_value IS NULL)),
   CONSTRAINT pay_group_status_ck CHECK (status IN ('ACTIVE','INACTIVE'))
 );
@@ -222,6 +228,9 @@ CREATE TABLE pay.pay_period (
   CONSTRAINT pay_period_dates_ck CHECK (period_end >= period_start AND pay_date >= period_start),
   CONSTRAINT pay_period_seq_ck CHECK (period_seq IN (1, 2)),
   CONSTRAINT pay_period_std_method_ck CHECK (std_day_method IN ('FIXED_DAYS','SCHEDULE_DAYS','CALENDAR_DAYS','FIXED_HOURS')),
+  CONSTRAINT pay_period_std_value_ck CHECK (
+       (std_day_method IN ('FIXED_DAYS','FIXED_HOURS') AND std_day_value IS NOT NULL AND std_day_value > 0)
+    OR (std_day_method IN ('SCHEDULE_DAYS','CALENDAR_DAYS') AND std_day_value IS NULL)),
   CONSTRAINT pay_period_status_ck CHECK (status IN ('OPEN','INPUT_CUTOFF','CLOSED')),
   CONSTRAINT pay_period_cutoff_ck CHECK (status = 'OPEN' OR input_cutoff_at IS NOT NULL),
   CONSTRAINT pay_period_closed_ck CHECK (status <> 'CLOSED' OR closed_at IS NOT NULL),

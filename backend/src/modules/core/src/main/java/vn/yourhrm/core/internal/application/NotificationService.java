@@ -311,6 +311,10 @@ public class NotificationService implements Notifications, NotificationDeliveryS
                 ids.addAll(authz.usersWhoCan(a.permission(), a.target(), today));
             } else if (a.roleCode() != null) {
                 ids.addAll(authz.usersWithRoleCovering(a.roleCode(), a.target(), today));
+            } else if (a.employmentId() != null) {
+                ids.addAll(jdbc.sql("""
+                                select id from core.user_account where tenant_id = :t and employment_id = :e""")
+                        .param("t", tenant).param("e", a.employmentId()).query(UUID.class).list());
             }
         }
         if (ids.isEmpty()) {

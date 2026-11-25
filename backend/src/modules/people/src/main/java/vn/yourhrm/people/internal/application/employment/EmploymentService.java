@@ -50,26 +50,46 @@ public class EmploymentService {
             LocalDate hireDate, LocalDate endDate, LocalDate lastWorkingDate, boolean live) {
     }
 
-    /** PUT of HR-maintained attributes (hire date and legal entity are not editable: cancel and re-hire). */
+    /**
+     * PUT of HR-maintained attributes (hire date and legal entity are not editable: cancel and re-hire).
+     * {@code classificationFrom}: the date from which a changed employee category / working regime applies (D3);
+     * null = today, or the hire date while the hire lies ahead.
+     */
     public record Attributes(String workerCategoryCode, String employeeCategoryCode, String workingRegimeCode,
-            LocalDate originalHireDate, LocalDate seniorityDate, LocalDate probationEndDate) {
+            LocalDate originalHireDate, LocalDate seniorityDate, LocalDate probationEndDate,
+            LocalDate classificationFrom) {
+    }
+
+    /** One dated employee category / working regime version (D3); {@code validTo} EXCLUSIVE. */
+    public record ClassificationView(UUID id, String employeeCategoryCode, String workingRegimeCode,
+            LocalDate validFrom, LocalDate validTo, String source) {
     }
 
     private final HrDb db;
     private final EmploymentStore store;
     private final EmployeeAccess access;
     private final PrimaryEmploymentService primaries;
+    private final EmploymentClassificationService classifications;
     private final AuditLog audit;
     private final BusinessClock clock;
 
     public EmploymentService(HrDb db, EmploymentStore store, EmployeeAccess access, PrimaryEmploymentService primaries,
-            AuditLog audit, BusinessClock clock) {
+            EmploymentClassificationService classifications, AuditLog audit, BusinessClock clock) {
         this.db = db;
         this.store = store;
         this.access = access;
         this.primaries = primaries;
+        this.classifications = classifications;
         this.audit = audit;
         this.clock = clock;
+    }
+
+    @HrTransactional(readOnly = true)
+    public List<ClassificationView> classifications(UUID employmentId) {
+        access.require(PeoplePermissions.EMPLOYEE_VIEW, employmentId, clock.today());
+        store.find(employmentId).orElseThrow(() -> ApiException.notFound("Employment", employmentId));
+        return classifications.history(employmentId).stream().map(c -> new ClassificationView(c.id(),
+                c.employeeCategoryCode(), c.workingRegimeCode(), c.validFrom(), c.validTo(), c.source())).toList();
     }
 
     private static UUID tenant() {
@@ -143,16 +163,26 @@ public class EmploymentService {
         if (a.probationEndDate() != null && a.probationEndDate().isBefore(r.hireDate())) {
             throw ApiException.unprocessable("invalid-probation-end", "The probation end is before the hire date");
         }
-        if (!store.updateAttributes(employmentId, version, a.workerCategoryCode(), a.employeeCategoryCode(),
-                a.workingRegimeCode(), a.originalHireDate(), a.seniorityDate(), a.probationEndDate(),
+        if (r.version() != version) {
+            throw ApiException.conflict("stale-version", "Employment " + r.employeeNo() + " was changed (version "
+                    + r.version() + "); reload and retry");
+        }
+        // D3: a changed employee category / working regime is a new dated version; hr.employment keeps today's values
+        LocalDate from = a.classificationFrom() != null ? a.classificationFrom()
+                : clock.today().isBefore(r.hireDate()) ? r.hireDate() : clock.today();
+        var changed = classifications.change(r, from, a.employeeCategoryCode(), a.workingRegimeCode());
+        var current = classifications.currentValues(r);
+        if (!store.updateAttributes(employmentId, version, a.workerCategoryCode(), current.employeeCategoryCode(),
+                current.workingRegimeCode(), a.originalHireDate(), a.seniorityDate(), a.probationEndDate(),
                 TenantContext.current().userAccountId())) {
             throw ApiException.conflict("stale-version", "Employment " + r.employeeNo() + " was changed (version "
                     + r.version() + "); reload and retry");
         }
         audit.record(new BusinessAction("UPDATE_EMPLOYMENT", "hr", "employment", employmentId, r.legalEntityId(),
                 PrimaryEmploymentService.details("workerCategory", a.workerCategoryCode(), "employeeCategory",
-                        a.employeeCategoryCode(), "workingRegime", a.workingRegimeCode(), "originalHireDate",
-                        a.originalHireDate(), "seniorityDate", a.seniorityDate())));
+                        a.employeeCategoryCode(), "workingRegime", a.workingRegimeCode(), "classificationFrom",
+                        changed.isPresent() ? from : null, "originalHireDate", a.originalHireDate(),
+                        "seniorityDate", a.seniorityDate())));
         return view(store.find(employmentId).orElseThrow());
     }
 

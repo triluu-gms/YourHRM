@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import vn.yourhrm.core.api.AuditLog;
 import vn.yourhrm.people.api.OnboardingEvents.InitialEmployeeHired;
+import vn.yourhrm.people.internal.application.employment.EmploymentClassificationService;
 import vn.yourhrm.people.internal.application.employment.EmploymentService;
 import vn.yourhrm.people.internal.application.employment.InsuranceParticipationService;
 import vn.yourhrm.people.internal.application.employment.PrimaryEmploymentService;
@@ -39,6 +40,10 @@ import vn.yourhrm.shared.common.id.Ids;
  * go-live date, else PRE_HIRE activated by the daily job), no workflow and no decision; {@code people.EmployeeHired}
  * with {@code initialLoad = true} is published once, when the employment is created; insurance participation is
  * re-derived for the person.
+ *
+ * <p>Employee category and working regime are required (PM decision D3, 2026-11-19): a row without one of them is
+ * rejected so it is fixed before go-live; the employment's classification history becomes one version from the hire
+ * date ({@code hr.employment_classification}, source OPENING_LOAD).
  */
 @Component
 class EmployeeMasterImport extends OpeningBalanceImport {
@@ -47,15 +52,18 @@ class EmployeeMasterImport extends OpeningBalanceImport {
     private final EmploymentStore store;
     private final EmploymentService employments;
     private final PrimaryEmploymentService primaries;
+    private final EmploymentClassificationService classifications;
     private final InsuranceParticipationService insurance;
     private final PiiCipher cipher;
     private final HrOutbox outbox;
     private final AuditLog audit;
 
     EmployeeMasterImport(OnboardingSupport support, PersonService persons, EmploymentStore store,
-            EmploymentService employments, PrimaryEmploymentService primaries, InsuranceParticipationService insurance,
+            EmploymentService employments, PrimaryEmploymentService primaries,
+            EmploymentClassificationService classifications, InsuranceParticipationService insurance,
             PiiCipher cipher, HrOutbox outbox, AuditLog audit) {
         super(support);
+        this.classifications = classifications;
         this.persons = persons;
         this.store = store;
         this.employments = employments;
@@ -98,8 +106,10 @@ class EmployeeMasterImport extends OpeningBalanceImport {
                         date("seniority_date", "Ngày tính thâm niên", "Seniority date", false),
                         date("probation_end_date", "Ngày kết thúc thử việc", "Probation end date", false),
                         text("worker_category", "Loại người lao động", "Worker category", true),
-                        text("employee_category", "Nhóm nhân viên", "Employee category", false),
-                        text("working_regime", "Chế độ làm việc", "Working regime", false),
+                        text("employee_category", "Nhóm nhân viên", "Employee category", true,
+                                "Bắt buộc (dùng cho quy tắc lịch làm việc)", "Required (used by schedule rules)"),
+                        text("working_regime", "Chế độ làm việc", "Working regime", true,
+                                "Bắt buộc (dùng cho quy tắc lịch làm việc)", "Required (used by schedule rules)"),
                         bool("pit_primary", "Nơi giảm trừ gia cảnh chính", "PIT primary employment",
                                 "Có/Không - chỉ cho người làm việc tại nhiều pháp nhân",
                                 "Yes/No - only for persons employed by several legal entities"),
@@ -234,6 +244,8 @@ class EmployeeMasterImport extends OpeningBalanceImport {
                             : r.seniorityDate(), row.date("probation_end_date"), OnboardingSupport.actor())) {
                 throw ApiException.conflict("stale-version", "Employment " + employeeNo + " changed meanwhile");
             }
+            classifications.replaceForLoad(r, row.text("employee_category"), row.text("working_regime"),
+                    OnboardingKeys.SOURCE);
             designatePrimary(personId, r.id(), row, state, asOf, warnings);
             return Written.updated("hr.employment", r.id(), warnings);
         }
@@ -309,6 +321,8 @@ class EmployeeMasterImport extends OpeningBalanceImport {
                 .param("a", OnboardingSupport.actor()).param("t", OnboardingSupport.tenant()).param("id", r.id())
                 .update();
         Row now = store.find(r.id()).orElseThrow();
+        classifications.replaceForLoad(now, row.text("employee_category"), row.text("working_regime"),
+                OnboardingKeys.SOURCE);
         designatePrimary(personId, r.id(), row, state, asOf, warnings);
         if (!dryRun) {
             s.tryRun("Insurance participation after opening load " + now.employeeNo(),
@@ -451,6 +465,7 @@ class EmployeeMasterImport extends OpeningBalanceImport {
                             update hr.primary_employment set status = 'CANCELLED', version = version + 1
                              where tenant_id = :t and employment_id in (:ids) and status = 'ACTIVE'""")
                     .param("t", t).param("ids", ids).update();
+            classifications.cancelForLoad(ids);
             j.sql("""
                             update hr.employment set status = 'CANCELLED', version = version + 1, updated_by = :a,
                                    updated_at = now()

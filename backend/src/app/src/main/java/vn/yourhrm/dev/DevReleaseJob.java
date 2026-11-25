@@ -62,5 +62,13 @@ public class DevReleaseJob {
         } catch (RuntimeException e) {
             log.warn("DEV release job failed ({}); catalogues are only verified", e.getMessage());
         }
+        try {
+            // T&A platform default attendance codes (sentinel tenant rows, BR-ATT-033)
+            new JdbcTemplate(new DriverManagerDataSource(url, username, password)).execute(
+                    vn.yourhrm.attendance.internal.application.timesheet.TimesheetCatalogues.defaultCodesUpsertSql());
+        } catch (RuntimeException e) {
+            log.warn("DEV release job: T&A default attendance codes not written ({}); the platform role needs"
+                    + " write access to att.attendance_code platform rows", e.getMessage());
+        }
     }
 }

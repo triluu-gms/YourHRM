@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":shared:workflow"))
     implementation(project(":modules:core"))
     implementation(project(":modules:people"))
+    implementation(project(":modules:time-attendance"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")

@@ -55,15 +55,26 @@ public interface Notifications {
         }
     }
 
-    /** Holders of {@code permission}, or of role {@code roleCode}, whose scope covers {@code target}. */
-    record Audience(String permission, String roleCode, AuthorizationTarget target) {
+    /**
+     * Holders of {@code permission}, or of role {@code roleCode}, whose scope covers {@code target}; or, with
+     * {@code employmentId}, the user account linked to that employment ({@code core.user_account.employment_id}),
+     * i.e. the employee themself (ESS reminders). A permission audience cannot express "the employee only": every
+     * TENANT-scoped holder of the permission would receive it too, and the derived ESS role has no assignment row.
+     */
+    record Audience(String permission, String roleCode, AuthorizationTarget target, UUID employmentId) {
 
         public static Audience permission(String permission, AuthorizationTarget target) {
-            return new Audience(permission, null, target);
+            return new Audience(permission, null, target, null);
         }
 
         public static Audience role(String roleCode, AuthorizationTarget target) {
-            return new Audience(null, roleCode, target);
+            return new Audience(null, roleCode, target, null);
+        }
+
+        /** The employee: the user linked to {@code employmentId} (nobody when no user is linked). */
+        public static Audience employee(UUID employmentId) {
+            Objects.requireNonNull(employmentId, "employmentId");
+            return new Audience(null, null, null, employmentId);
         }
     }
 

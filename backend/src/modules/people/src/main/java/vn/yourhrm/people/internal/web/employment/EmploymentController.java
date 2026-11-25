@@ -21,6 +21,7 @@ import vn.yourhrm.people.internal.application.employment.ConcurrentEmploymentRep
 import vn.yourhrm.people.internal.application.employment.ConcurrentEmploymentReport.Report;
 import vn.yourhrm.people.internal.application.employment.EmploymentService;
 import vn.yourhrm.people.internal.application.employment.EmploymentService.Attributes;
+import vn.yourhrm.people.internal.application.employment.EmploymentService.ClassificationView;
 import vn.yourhrm.people.internal.application.employment.EmploymentService.EmploymentView;
 import vn.yourhrm.people.internal.application.employment.EmploymentService.StatusView;
 import vn.yourhrm.people.internal.application.employment.InsuranceParticipationService;
@@ -74,15 +75,27 @@ class EmploymentController {
 
     record UpdateBody(@NotNull Integer version, @NotBlank @Size(max = 64) String workerCategoryCode,
             @Size(max = 64) String employeeCategoryCode, @Size(max = 64) String workingRegimeCode,
-            LocalDate originalHireDate, LocalDate seniorityDate, LocalDate probationEndDate) {
+            LocalDate originalHireDate, LocalDate seniorityDate, LocalDate probationEndDate,
+            LocalDate classificationFrom) {
     }
 
+    /**
+     * {@code classificationFrom}: the date from which a changed employee category / working regime applies (D3);
+     * default today, or the hire date of a pre-hire. Past and future dates are allowed inside the employment period.
+     */
     @PutMapping("/employments/{employmentId}")
     @RequiresPermission(PeoplePermissions.EMPLOYMENT_UPDATE)
     EmploymentView update(@PathVariable UUID employmentId, @Valid @RequestBody UpdateBody b) {
         return employments.update(employmentId, b.version(), new Attributes(b.workerCategoryCode(),
                 b.employeeCategoryCode(), b.workingRegimeCode(), b.originalHireDate(), b.seniorityDate(),
-                b.probationEndDate()));
+                b.probationEndDate(), b.classificationFrom()));
+    }
+
+    /** Dated employee category / working regime versions of the employment, oldest first (D3). */
+    @GetMapping("/employments/{employmentId}/classifications")
+    @RequiresPermission(PeoplePermissions.EMPLOYEE_VIEW)
+    List<ClassificationView> classifications(@PathVariable UUID employmentId) {
+        return employments.classifications(employmentId);
     }
 
     // ------------------------------------------------------------------------------------- primary employment

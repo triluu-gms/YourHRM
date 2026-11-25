@@ -98,6 +98,13 @@
 --         work_permit, plus the projections. NOT on hr.person / hr.employment /
 --         hr.separation: labour records kept for the legal retention period are
 --         anonymised or set CANCELLED instead.
+-- v0.7 (2026-11-19, PM decision D3 of the T&A increment):
+--   * hr.employment_classification (new, Pattern A): employee category and working regime
+--         of an employment from a date. hr.employment.employee_category_code /
+--         working_regime_code keep the value in force today (synced by the People service
+--         and the daily job). An employment without rows uses the hr.employment values.
+--         People publishes people.EmploymentChanged per version; people.AssignmentChanged
+--         carries the values in force on its valid_from.
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -548,6 +555,48 @@ COMMENT ON TABLE hr.primary_employment IS
   'R2-16: primary employment per person for the PIT family deduction, effective-dated. '
   'A person with a single employment needs no row (that employment is primary by default). '
   'Insurance participation is NOT designated here (v0.4, H1): see hr.insurance_participation.';
+
+-- =============================================================================
+-- 2a'. EMPLOYMENT CLASSIFICATION  (v0.7, PM decision D3; Pattern A)
+-- Employee category and contractual working regime of an employment from a date
+-- (T&A schedule rules match on them, BR-ATT-015). At most one ACTIVE row per
+-- employment and day. A change from date D closes the row in force on D and the new
+-- row runs until the next later row (or open). hr.employment holds the values in force
+-- today; an employment without rows (older data) uses those values for every date.
+-- =============================================================================
+CREATE TABLE hr.employment_classification (
+  tenant_id               uuid NOT NULL,
+  id                      uuid NOT NULL DEFAULT sys.uuid_v7(),
+  employment_id           uuid NOT NULL,
+  employee_category_code  text,                             -- tenant code list (core.employee_category)
+  working_regime_code     text,                             -- contractual regime only; schedule assignment is T&A
+  valid_from              date NOT NULL,
+  valid_to                date,                             -- EXCLUSIVE; NULL = open
+  valid_during            daterange GENERATED ALWAYS AS (daterange(valid_from, valid_to, '[)')) STORED,
+  status                  text NOT NULL DEFAULT 'ACTIVE',
+  source                  text NOT NULL DEFAULT 'APP',
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  created_by              uuid,
+  updated_at              timestamptz NOT NULL DEFAULT now(),
+  updated_by              uuid,
+  version                 int NOT NULL DEFAULT 0,
+  CONSTRAINT employment_classification_pk PRIMARY KEY (tenant_id, id),
+  CONSTRAINT employment_classification_employment_fk FOREIGN KEY (tenant_id, employment_id)
+    REFERENCES hr.employment (tenant_id, id),
+  CONSTRAINT employment_classification_status_ck CHECK (status IN ('ACTIVE','CANCELLED')),
+  CONSTRAINT employment_classification_source_ck CHECK (source IN ('APP','OPENING_LOAD','IMPORT')),
+  CONSTRAINT employment_classification_period_ck CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT employment_classification_ex EXCLUDE USING gist
+    (tenant_id WITH =, employment_id WITH =, valid_during WITH &&)
+    WHERE (status = 'ACTIVE')
+);
+CREATE INDEX employment_classification_employment_ix
+  ON hr.employment_classification (tenant_id, employment_id, valid_from);
+COMMENT ON TABLE hr.employment_classification IS
+  'v0.7 (D3): employee category and working regime of an employment from a date; '
+  'source of people.EmploymentChanged and of the values carried by people.AssignmentChanged.';
+COMMENT ON COLUMN hr.employment_classification.employee_category_code IS 'pii:P1 employee category code';
+COMMENT ON COLUMN hr.employment_classification.working_regime_code IS 'pii:P1 contractual working regime code';
 
 -- =============================================================================
 -- 2b. INSURANCE PARTICIPATION  (H1; R3-03, R2-16, BR-PPL-004; Pattern A)
@@ -1796,7 +1845,7 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['hr.person','hr.person_identity_doc','hr.person_address','hr.person_contact',
                            'hr.tax_residency','hr.vn_presence_period','hr.education_qualification',
-                           'hr.employment','hr.primary_employment','hr.insurance_participation','hr.decision',
+                           'hr.employment','hr.employment_classification','hr.primary_employment','hr.insurance_participation','hr.decision',
                            'hr.assignment','hr.salary_record','hr.salary_record_allowance',
                            'hr.contract','hr.contract_appendix','hr.contract_suspension',
                            'hr.family_member','hr.pit_dependant','hr.emergency_contact','hr.bank_account',
@@ -1815,7 +1864,7 @@ BEGIN
   -- mutable tables
   FOREACH t IN ARRAY ARRAY['hr.person','hr.person_identity_doc','hr.person_address','hr.person_contact',
                            'hr.tax_residency','hr.vn_presence_period','hr.education_qualification',
-                           'hr.employment','hr.primary_employment','hr.insurance_participation','hr.decision',
+                           'hr.employment','hr.employment_classification','hr.primary_employment','hr.insurance_participation','hr.decision',
                            'hr.contract','hr.contract_appendix','hr.contract_suspension',
                            'hr.family_member','hr.pit_dependant','hr.emergency_contact','hr.bank_account',
                            'hr.special_status','hr.work_permit','hr.separation','hr.separation_service_period',
@@ -1845,7 +1894,8 @@ END $$;
 GRANT SELECT, INSERT, UPDATE ON
   hr.person, hr.person_identity_doc, hr.person_address, hr.person_contact, hr.tax_residency,
   hr.vn_presence_period, hr.education_qualification,
-  hr.employment, hr.primary_employment, hr.insurance_participation, hr.decision, hr.assignment, hr.salary_record,
+  hr.employment, hr.employment_classification, hr.primary_employment, hr.insurance_participation, hr.decision,
+  hr.assignment, hr.salary_record,
   hr.contract, hr.contract_appendix, hr.contract_suspension,
   hr.family_member, hr.pit_dependant, hr.emergency_contact, hr.bank_account,
   hr.special_status, hr.work_permit, hr.separation, hr.separation_service_period, hr.hr_document, hr.statutory_report,

@@ -57,6 +57,24 @@ public final class EmploymentEvents {
     }
 
     /**
+     * {@code people.EmploymentChanged} (PM decision D3, 2026-11-19): the employee category or the contractual working
+     * regime of an employment changed from {@code validFrom} ({@code validTo} exclusive, null = open; it runs until the
+     * next later version). Each change is a new version ({@code classificationId}). Published when the change is
+     * saved if its date has come, otherwise by the daily job on that date. Consumers (T&amp;A schedule rules,
+     * BR-ATT-015) overwrite exactly {@code [validFrom, validTo)} with these values.
+     */
+    public record EmploymentChanged(UUID tenantId, UUID legalEntityId, UUID personId, UUID employmentId,
+            LocalDate effectiveDate, UUID classificationId, String employeeCategoryCode, String workingRegimeCode,
+            String previousEmployeeCategoryCode, String previousWorkingRegimeCode, LocalDate validFrom,
+            LocalDate validTo, boolean retro, String earliestAffectedPeriod) implements PeopleEvent {
+
+        @Override
+        public String eventType() {
+            return "people.EmploymentChanged";
+        }
+    }
+
+    /**
      * {@code people.PrimaryEmploymentChanged} (OUT-36, US-PPL-022): the PIT family-deduction primary employment of a
      * person from {@code validFrom} ({@code validTo} exclusive, null = open). Purpose is always
      * {@code PIT_FAMILY_DEDUCTION} (DDL CHECK). {@code employmentId} is the new primary; {@code previousEmploymentId}

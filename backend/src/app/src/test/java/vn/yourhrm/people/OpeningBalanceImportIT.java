@@ -41,7 +41,7 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
     static final String BANK = "OBBANK";
     static final List<String> MASTER_COLS = List.of("employee_no", "legal_entity", "family_name", "given_name",
             "birth_date", "gender", "national_id_type", "national_id", "tax_code", "si_number", "hire_date",
-            "worker_category", "pit_primary", "custom_attributes");
+            "worker_category", "employee_category", "working_regime", "pit_primary", "custom_attributes");
 
     @Autowired
     DocumentScanResults scans;
@@ -191,8 +191,8 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
 
     static List<String> master(String no, String le, String family, String given, String nid, LocalDate hire,
             String primary) {
-        return List.of(no, le, family, given, "01/02/1990", "M", "CCCD", nid, "", "", d(hire), "EMPLOYEE", primary,
-                "");
+        return List.of(no, le, family, given, "01/02/1990", "M", "CCCD", nid, "", "", d(hire), "EMPLOYEE", "STAFF",
+                "FULL_TIME", primary, "");
     }
 
     static List<List<String>> headcount(int n) {
@@ -215,16 +215,21 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
         List<String> twoA = master("OB002", "LE", "Phạm", "Hai", "001090000102", hire, "");
         List<String> twoB = master("OB003", "LE2", "Phạm", "Hai", "001090000102", hire.plusMonths(5), "Có");
         List<String> six = List.of("OB006", "LE", "Võ", "Sáu", "03/04/1992", "F", "CCCD", "001092000106",
-                "8001234567", "0123456789", d(hire), "EMPLOYEE", "", "nhom_mau=O; so_the_cu=12");
+                "8001234567", "0123456789", d(hire), "EMPLOYEE", "WORKER", "SHIFT", "", "nhom_mau=O; so_the_cu=12");
+        // D3: employee category and working regime are required in the history load
+        List<String> noCategory = List.of("OB007", "LE", "Võ", "Bảy", "03/04/1992", "F", "CCCD", "001092000107", "",
+                "", d(hire), "EMPLOYEE", "", "FULL_TIME", "", "");
+        List<String> noRegime = List.of("OB008", "LE", "Võ", "Tám", "03/04/1992", "F", "CCCD", "001092000108", "",
+                "", d(hire), "EMPLOYEE", "STAFF", "", "", "");
         List<List<String>> bad = List.of(one, twoA, twoB,
                 master("OB004", "LE", "Lỗi", "Bốn", "12345", hire, ""),
-                master("OB005", "LE", "Phạm", "Một", "001090000101", hire, ""), six);
+                master("OB005", "LE", "Phạm", "Một", "001090000101", hire, ""), six, noCategory, noRegime);
 
         // dry run: nothing is written, the stream rules decide
         String checked = dryRun(w.hr(), "OB_EMPLOYEE_MASTER", xlsx(MASTER_COLS, bad, null));
         UUID job = id(checked);
         assertThat(errors(w.hr(), job)).containsExactlyInAnyOrder("5:invalid-national-id",
-                "6:duplicate-person-in-legal-entity");
+                "6:duplicate-person-in-legal-entity", "8:required", "9:required");
         assertThat(warnings(w.hr(), job)).contains("unmapped-custom-attribute");
         assertThat(count("select count(*) from hr.employment where tenant_id = ? and source = 'OPENING_LOAD'",
                 w.tenant())).isZero();
@@ -250,6 +255,16 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
                 .containsEntry("employment_id", employmentId(w.tenant(), "OB003"))
                 .containsEntry("valid_from", java.sql.Date.valueOf(hire.plusMonths(5)))
                 .containsEntry("source", "OPENING_LOAD");
+        // D3: one classification version per employment from its hire date, from the load
+        assertThat(ADMIN.queryForList("""
+                select e.employee_no || ':' || c.employee_category_code || ':' || c.working_regime_code || ':'
+                       || c.valid_from || ':' || coalesce(c.valid_to::text, '-') || ':' || c.source
+                  from hr.employment_classification c join hr.employment e on e.id = c.employment_id
+                 where c.tenant_id = ? and c.status = 'ACTIVE' order by e.employee_no""", String.class, w.tenant()))
+                .containsExactly("OB001:STAFF:FULL_TIME:2024-01-01:-:OPENING_LOAD",
+                        "OB002:STAFF:FULL_TIME:2024-01-01:-:OPENING_LOAD",
+                        "OB003:STAFF:FULL_TIME:2024-06-01:-:OPENING_LOAD",
+                        "OB006:WORKER:SHIFT:2024-01-01:-:OPENING_LOAD");
         // one EmployeeHired per employment, flagged initial load, no P3
         List<Map<String, Object>> hired = ADMIN.queryForList("""
                 select payload::text as payload, headers::text as headers from hr.outbox_event
@@ -270,6 +285,8 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
         assertThat(count("select count(*) from hr.employment where tenant_id = ? and source = 'OPENING_LOAD'",
                 w.tenant())).isEqualTo(4);
         assertThat(count("select count(*) from hr.outbox_event where tenant_id = ? and event_type = 'people.EmployeeHired'",
+                w.tenant())).isEqualTo(4);
+        assertThat(count("select count(*) from hr.employment_classification where tenant_id = ? and status = 'ACTIVE'",
                 w.tenant())).isEqualTo(4);
     }
 
@@ -475,12 +492,16 @@ class OpeningBalanceImportIT extends EmploymentTestSupport {
         // rolled back = CANCELLED (People's role cannot delete employments); a re-load re-activates it
         assertThat(ADMIN.queryForObject("select status from hr.employment where tenant_id = ? and employee_no = 'OB030'",
                 String.class, w.tenant())).isEqualTo("CANCELLED");
+        assertThat(count("select count(*) from hr.employment_classification where tenant_id = ? and status = 'ACTIVE'",
+                w.tenant())).isZero();
         String reloaded = load(w.hr(), "OB_EMPLOYEE_MASTER", MASTER_COLS, rows, headcount(1));
         assertThat(ADMIN.queryForObject("select commit_action from core.import_row where import_job_id = ?",
                 String.class, id(reloaded))).isEqualTo("CREATED");
         assertThat(ADMIN.queryForObject("select status from hr.employment where tenant_id = ? and employee_no = 'OB030'",
                 String.class, w.tenant())).isEqualTo("ACTIVE");
         assertThat(count("select count(*) from hr.person where tenant_id = ? and source = 'OPENING_LOAD'",
+                w.tenant())).isEqualTo(1);
+        assertThat(count("select count(*) from hr.employment_classification where tenant_id = ? and status = 'ACTIVE'",
                 w.tenant())).isEqualTo(1);
     }
 }

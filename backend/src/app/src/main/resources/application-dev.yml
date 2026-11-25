@@ -19,6 +19,10 @@ yhrm:
     datasource:
       username: yhrm_app_hr
       password: ${YHRM_DB_HR_PASSWORD:${YHRM_DB_PASSWORD:yhrm_dev}}
+  attendance:
+    datasource:
+      username: yhrm_app_att
+      password: ${YHRM_DB_ATT_PASSWORD:${YHRM_DB_PASSWORD:yhrm_dev}}
   # Stand-ins for SaaS platform services that do not exist yet (package vn.yourhrm.dev, profile dev only):
   # DevReleaseJob, DevTenantProvisioner, DevLegalParameters (dev/legal-parameters.json), DevKeys, DevObjectStorage.
   dev:

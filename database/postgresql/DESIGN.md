@@ -145,7 +145,7 @@ SELECT set_config('app.tenant_id', :tenantId, true),   -- true = transaction-loc
 | `yhrm_migrator` | có | không (kế thừa qua `SET ROLE`) | Flyway. Thành viên của `yhrm_owner`. Chỉ CI/CD pipeline sử dụng. |
 | `yhrm_app` | không | **không** | Group role mà mọi RLS policy nhắm tới. |
 | `yhrm_app_{saas,core,hr,att,pay,rec}` | có | không | Mỗi module một login role, là thành viên của `yhrm_app`. Grant theo §2.3. |
-| `yhrm_platform` | có | không | Back-office của operator. Có quyền DML trên các bảng platform trong `saas`, và **không** có grant nào trên các schema nghiệp vụ của tenant. Truy cập hỗ trợ của operator đi qua ứng dụng dưới một support grant (BR-SAAS-033) và được che dữ liệu tại đó. |
+| `yhrm_platform` | có | không | Back-office của operator. Có quyền DML trên các bảng platform trong `saas`, và **không** có grant nào trên dữ liệu tenant trong các schema nghiệp vụ. Ngoại lệ duy nhất là dữ liệu toàn cục (sentinel tenant) do release job ghi: master data của Core (002), và từ 004_att v0.9 các dòng toàn cục của `att.attendance_code`, `att.holiday_calendar`, `att.holiday_date` qua policy `platform_global` chỉ chấp nhận sentinel tenant, cùng `INSERT` vào `audit.audit_event` cho chính các dòng đó. Truy cập hỗ trợ của operator đi qua ứng dụng dưới một support grant (BR-SAAS-033) và được che dữ liệu tại đó. |
 | `yhrm_relay` | có | không | Outbox polling relay (SA ADR-0004 rev. 2). Có thể `SELECT` và cập nhật `published_at` trên các bảng outbox (policy `TO yhrm_relay USING (true)`). Phase 1: `EXECUTE` trên `saas.enqueue_event_delivery()` (SECURITY DEFINER) để phân phối event thành các delivery job; Phase 2: publish lên Kafka thay vào đó. Không phải role module, nên nằm ngoài danh sách X-02. |
 | `yhrm_cdc` | có | không | `REPLICATION`. **Chỉ dùng để cấp dữ liệu cho reporting store** (sửa đổi SA ADR-0012): Phase 1 dùng native logical replication với publication liệt kê cột (cột P3 không bao giờ được publish); Debezium trên standby là phương án cho Phase 2. |
 | `yhrm_audit_sealer` | có | không | Niêm phong (seal) hash chain của audit (chỉ UPDATE các cột seal). |
@@ -1933,6 +1933,8 @@ erDiagram
     uuid pay_period_id "soft pay"
     date period_start UK "unique per legal entity and pay group"
     date period_end
+    text std_day_method "copied from pay calendar"
+    numeric std_day_value "26, 24 ... for FIXED_DAYS or FIXED_HOURS"
     text status "OPEN IN_REVIEW CLOSED LOCKED"
     int current_version
     int locked_version "= current_version when LOCKED"

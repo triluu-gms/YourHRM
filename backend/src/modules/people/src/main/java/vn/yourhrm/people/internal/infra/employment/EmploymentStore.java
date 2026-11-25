@@ -83,6 +83,119 @@ public class EmploymentStore {
                 .param("wr", r.workingRegimeCode()).param("re", r.rehireEligible())
                 .param("prev", r.previousEmploymentId()).param("src", r.source()).param("actor", actor)
                 .update();
+        // D3: the employment's first classification version runs from the hire date
+        insertClassification(r.id(), r.employeeCategoryCode(), r.workingRegimeCode(), r.hireDate(), null,
+                classificationSource(r.source()), actor);
+    }
+
+    // ------------------------------------------------------------------------------------------------ D3 classification
+
+    /**
+     * One ACTIVE {@code hr.employment_classification} version; {@code validTo} EXCLUSIVE, {@code recordedOn} the
+     * business date (Asia/Ho_Chi_Minh) on which it was written.
+     */
+    public record ClassificationRow(UUID id, UUID employmentId, String employeeCategoryCode,
+            String workingRegimeCode, LocalDate validFrom, LocalDate validTo, String source, LocalDate recordedOn) {
+
+        public boolean covers(LocalDate d) {
+            return !d.isBefore(validFrom) && (validTo == null || d.isBefore(validTo));
+        }
+    }
+
+    /** {@code hr.employment.source} → {@code hr.employment_classification.source}. */
+    public static String classificationSource(String employmentSource) {
+        return "OPENING_LOAD".equals(employmentSource) || "IMPORT".equals(employmentSource) ? employmentSource : "APP";
+    }
+
+    /** ACTIVE versions of an employment, oldest first. */
+    public List<ClassificationRow> classifications(UUID employmentId) {
+        return db.jdbc().sql("""
+                        select * from hr.employment_classification
+                         where tenant_id = :t and employment_id = :e and status = 'ACTIVE' order by valid_from""")
+                .param("t", tenant()).param("e", employmentId).query(EmploymentStore::mapClassification).list();
+    }
+
+    public Optional<ClassificationRow> classification(UUID id) {
+        return db.jdbc().sql("select * from hr.employment_classification where tenant_id = :t and id = :id")
+                .param("t", tenant()).param("id", id).query(EmploymentStore::mapClassification).optional();
+    }
+
+    public UUID insertClassification(UUID employmentId, String employeeCategory, String workingRegime,
+            LocalDate validFrom, LocalDate validTo, String source, UUID actor) {
+        UUID id = vn.yourhrm.shared.common.id.Ids.newId();
+        db.jdbc().sql("""
+                        insert into hr.employment_classification (tenant_id, id, employment_id, employee_category_code,
+                               working_regime_code, valid_from, valid_to, source, created_by, updated_by)
+                        values (:t, :id, :e, :ec, :wr, :vf, :vt, :src, :a, :a)""")
+                .param("t", tenant()).param("id", id).param("e", employmentId).param("ec", employeeCategory)
+                .param("wr", workingRegime).param("vf", validFrom).param("vt", validTo).param("src", source)
+                .param("a", actor).update();
+        return id;
+    }
+
+    /** Ends a version at {@code validTo} (exclusive). */
+    public void endClassification(UUID id, LocalDate validTo, UUID actor) {
+        db.jdbc().sql("""
+                        update hr.employment_classification set valid_to = :vt, version = version + 1,
+                               updated_by = :a, updated_at = now()
+                         where tenant_id = :t and id = :id""")
+                .param("vt", validTo).param("a", actor).param("t", tenant()).param("id", id).update();
+    }
+
+    /** CANCELS the ACTIVE versions of the employments (replaced history, opening-load rollback). */
+    public void cancelClassifications(List<UUID> employmentIds, UUID actor) {
+        if (employmentIds.isEmpty()) {
+            return;
+        }
+        db.jdbc().sql("""
+                        update hr.employment_classification set status = 'CANCELLED', version = version + 1,
+                               updated_by = :a, updated_at = now()
+                         where tenant_id = :t and employment_id in (:ids) and status = 'ACTIVE'""")
+                .param("a", actor).param("t", tenant()).param("ids", employmentIds).update();
+    }
+
+    public void cancelClassification(UUID id, UUID actor) {
+        db.jdbc().sql("""
+                        update hr.employment_classification set status = 'CANCELLED', version = version + 1,
+                               updated_by = :a, updated_at = now()
+                         where tenant_id = :t and id = :id""")
+                .param("a", actor).param("t", tenant()).param("id", id).update();
+    }
+
+    /**
+     * ACTIVE versions that start in {@code (from, today]} and after the business date on which they were recorded
+     * (earlier ones had their event when recorded): the daily job publishes them. Effective-date order.
+     */
+    public List<ClassificationRow> dueClassifications(LocalDate from, LocalDate today) {
+        return db.jdbc().sql("""
+                        select * from hr.employment_classification
+                         where tenant_id = :t and status = 'ACTIVE' and valid_from <= :today and valid_from > :from
+                           and valid_from > cast((created_at at time zone 'Asia/Ho_Chi_Minh') as date)
+                         order by valid_from, created_at, id""")
+                .param("t", tenant()).param("today", today).param("from", from)
+                .query(EmploymentStore::mapClassification).list();
+    }
+
+    /** Sets the values in force today on {@code hr.employment} (the row's version moves on). */
+    public void setCurrentClassification(UUID employmentId, String employeeCategory, String workingRegime,
+            UUID actor) {
+        db.jdbc().sql("""
+                        update hr.employment set employee_category_code = :ec, working_regime_code = :wr,
+                               version = version + 1, updated_by = :a, updated_at = now()
+                         where tenant_id = :t and id = :id
+                           and (employee_category_code is distinct from :ec
+                                or working_regime_code is distinct from :wr)""")
+                .param("ec", employeeCategory).param("wr", workingRegime).param("a", actor).param("t", tenant())
+                .param("id", employmentId).update();
+    }
+
+    static ClassificationRow mapClassification(ResultSet rs, int n) throws SQLException {
+        java.time.OffsetDateTime created = rs.getObject("created_at", java.time.OffsetDateTime.class);
+        return new ClassificationRow(rs.getObject("id", UUID.class), rs.getObject("employment_id", UUID.class),
+                rs.getString("employee_category_code"), rs.getString("working_regime_code"),
+                rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
+                rs.getString("source"), created == null ? null
+                        : created.atZoneSameInstant(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate());
     }
 
     /** Status transition guarded by the expected current status; returns false when the row was not in {@code from}. */
@@ -95,7 +208,10 @@ public class EmploymentStore {
                 .update() == 1;
     }
 
-    /** PUT of the HR-maintained attributes with optimistic version; false when stale. */
+    /**
+     * PUT of the HR-maintained attributes with optimistic version; false when stale. {@code employeeCategory} and
+     * {@code workingRegime} are the values in force today (D3: the dated history is {@code hr.employment_classification}).
+     */
     public boolean updateAttributes(UUID id, int version, String workerCategory, String employeeCategory,
             String workingRegime, LocalDate originalHireDate, LocalDate seniorityDate, LocalDate probationEndDate,
             UUID actor) {
