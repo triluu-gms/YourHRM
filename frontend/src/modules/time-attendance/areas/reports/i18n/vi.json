@@ -1,0 +1,284 @@
+{
+  "common": {
+    "applyFilters": "Chọn điều kiện lọc rồi bấm Tìm kiếm để xem báo cáo.",
+    "noRows": "Không có dữ liệu",
+    "export": "Xuất Excel",
+    "exported": "Đã tải tệp Excel"
+  },
+  "pager": {
+    "rows": "Dòng {first, number} – {last, number}",
+    "previous": "Trang trước",
+    "next": "Trang sau",
+    "pageSize": "Số dòng mỗi trang",
+    "perPage": "{count, number} / trang"
+  },
+  "index": {
+    "title": "Báo cáo chấm công",
+    "intro": "Các báo cáo chấm công, làm thêm giờ, nghỉ phép và chốt công trong phạm vi dữ liệu của bạn.",
+    "none": "Bạn chưa được cấp quyền xem báo cáo chấm công nào.",
+    "excel": "Có thể xuất Excel"
+  },
+  "catalog": {
+    "timesheet-grid": {
+      "title": "Bảng chấm công",
+      "description": "Ký hiệu chấm công theo nhân viên × ngày của một kỳ hoặc khoảng ngày (tối đa 62 ngày), kèm tổng theo nhóm công."
+    },
+    "daily-exceptions": {
+      "title": "Ngoại lệ chấm công theo ngày",
+      "description": "Các ngày đi muộn, về sớm, thiếu dữ liệu chấm công hoặc vắng mặt (tối đa 62 ngày)."
+    },
+    "punch-log": {
+      "title": "Nhật ký dữ liệu chấm công",
+      "description": "Dữ liệu chấm công gốc theo máy và nhân viên, nguồn và trạng thái đối chiếu (việc xem được ghi nhật ký)."
+    },
+    "overtime-summary": {
+      "title": "Tổng hợp làm thêm giờ",
+      "description": "Giờ làm thêm theo tháng và lũy kế năm so với giới hạn, chi tiết theo loại làm thêm."
+    },
+    "overtime-cap-overrides": {
+      "title": "Làm thêm vượt giới hạn",
+      "description": "Đăng ký làm thêm vượt giới hạn có phê duyệt ngoại lệ: người duyệt, lý do và mức sử dụng giới hạn."
+    },
+    "leave-balances": {
+      "title": "Số dư phép",
+      "description": "Số dư phép tại một ngày theo sổ phép: đầu kỳ, chuyển sang, cộng phép, đã nghỉ, điều chỉnh, hết hạn, thanh toán."
+    },
+    "leave-taken": {
+      "title": "Tình hình nghỉ phép",
+      "description": "Số ngày nghỉ đã duyệt theo tháng × đơn vị × loại nghỉ (tối đa 366 ngày, theo ngày bắt đầu)."
+    },
+    "si-leave-register": {
+      "title": "Sổ theo dõi nghỉ hưởng BHXH",
+      "description": "Các kỳ nghỉ hưởng chế độ BHXH (ốm đau, thai sản…) kèm thông tin hồ sơ đã che (việc xem được ghi nhật ký)."
+    },
+    "period-close-status": {
+      "title": "Tình trạng chốt công",
+      "description": "Trạng thái chốt công theo pháp nhân × nhóm trả lương và các mục còn tồn đọng trong danh sách kiểm tra."
+    },
+    "retro-adjustments": {
+      "title": "Điều chỉnh hồi tố",
+      "description": "Các dòng điều chỉnh hồi tố và tổng theo kỳ gốc."
+    }
+  },
+  "filter": {
+    "range": "Khoảng ngày",
+    "rangeRequired": "Chọn khoảng ngày.",
+    "periodOrRange": "Chọn kỳ hoặc khoảng ngày",
+    "periodOrRangeRequired": "Chọn kỳ chấm công hoặc khoảng ngày.",
+    "exceptionType": "Loại ngoại lệ",
+    "device": "Máy chấm công",
+    "month": "Tháng",
+    "monthRequired": "Chọn tháng.",
+    "leaveType": "Loại nghỉ",
+    "asOf": "Tại ngày"
+  },
+  "col": {
+    "employeeNo": "Mã NV",
+    "fullName": "Họ và tên",
+    "employment": "Mã việc làm",
+    "orgUnit": "Đơn vị",
+    "workedHours": "Giờ làm",
+    "overtimeHours": "Giờ làm thêm",
+    "nightHours": "Giờ đêm",
+    "lateMin": "Phút đi muộn",
+    "earlyMin": "Phút về sớm",
+    "exceptionDays": "Ngày ngoại lệ",
+    "missingDays": "Ngày thiếu chấm công",
+    "dayStatus": "Tình trạng ngày",
+    "code": "Ký hiệu",
+    "firstIn": "Giờ vào",
+    "lastOut": "Giờ ra",
+    "scheduledHours": "Giờ theo lịch",
+    "absentHours": "Giờ vắng",
+    "exceptions": "Ngoại lệ",
+    "punchAt": "Thời điểm chấm",
+    "device": "Máy",
+    "enrolId": "Mã chấm công",
+    "direction": "Chiều",
+    "source": "Nguồn",
+    "importRow": "Dòng import",
+    "receivedAt": "Thời điểm nhận"
+  },
+  "grid": {
+    "pageTotals": "Tổng trang này",
+    "legend": "Ký hiệu"
+  },
+  "exceptionTypes": {
+    "LATE": "Đi muộn",
+    "EARLY": "Về sớm",
+    "MISSING_PUNCH": "Thiếu dữ liệu chấm công",
+    "ABSENT": "Vắng mặt"
+  },
+  "punchStatuses": {
+    "PENDING": "Chờ xử lý",
+    "VALID": "Hợp lệ",
+    "QUARANTINED": "Chưa khớp",
+    "QUARANTINED_UNMAPPED": "Chưa khớp – chưa gán mã chấm công",
+    "QUARANTINED_EXPIRED": "Chưa khớp – mã chấm công hết hiệu lực",
+    "QUARANTINED_UNKNOWN_DEVICE": "Chưa khớp – máy không xác định",
+    "IGNORED": "Bỏ qua"
+  },
+  "requestStatuses": {
+    "PENDING": "Chờ duyệt",
+    "APPROVED": "Đã duyệt",
+    "REJECTED": "Từ chối",
+    "CANCELLED": "Đã hủy"
+  },
+  "ot": {
+    "month": "Tháng (đã dùng / giới hạn, giờ)",
+    "year": "Năm (đã dùng / giới hạn, giờ)",
+    "capTooltip": "Đầu kỳ {opening} · đã duyệt {approved} · chờ duyệt {pending} · đã trả {paid} · vượt có phê duyệt {override}",
+    "regime": "Chế độ giới hạn",
+    "monthYtd": "Tháng / lũy kế năm (giờ)",
+    "plannedHours": "Giờ đăng ký",
+    "reason": "Lý do làm thêm",
+    "overrideReason": "Lý do vượt giới hạn",
+    "protected": "Đối tượng bảo vệ",
+    "protectedWorker": "Lao động được bảo vệ",
+    "consent": "Hình thức đồng ý",
+    "decidedAt": "Thời điểm quyết định"
+  },
+  "leave": {
+    "asOf": "Số dư tại ngày {date}",
+    "type": "Loại nghỉ",
+    "year": "Năm phép",
+    "movements": {
+      "opening": "Đầu kỳ",
+      "carriedIn": "Chuyển sang",
+      "accrued": "Cộng phép",
+      "taken": "Đã nghỉ",
+      "adjusted": "Điều chỉnh",
+      "carriedOut": "Chuyển năm sau",
+      "expired": "Hết hạn",
+      "encashed": "Thanh toán",
+      "closing": "Còn lại"
+    },
+    "category": "Nhóm nghỉ",
+    "paidBy": "Bên chi trả",
+    "requests": "Số đơn",
+    "employees": "Số nhân viên",
+    "days": "Số ngày",
+    "hours": "Số giờ",
+    "period": "Thời gian nghỉ",
+    "actualReturn": "Ngày đi làm lại thực tế",
+    "siMaskedNotice": "Số giấy tờ chỉ hiển thị 4 ký tự cuối; việc xem sổ này được ghi nhật ký kiểm toán.",
+    "certificateType": "Loại giấy chứng nhận",
+    "certificateNo": "Số giấy chứng nhận",
+    "certificateDate": "Ngày cấp",
+    "treatmentType": "Hình thức điều trị",
+    "longTermIllness": "Bệnh dài ngày",
+    "childBirthDate": "Ngày sinh con",
+    "childId": "Mã định danh của con",
+    "confinementDate": "Ngày sinh/nhận nuôi",
+    "childrenBorn": "Số con",
+    "caesarean": "Sinh mổ",
+    "claimData": "Hồ sơ BHXH",
+    "claimRecorded": "Đã có",
+    "claimMissing": "Chưa có"
+  },
+  "periodStatuses": {
+    "OPEN": "Đang mở",
+    "IN_REVIEW": "Đang rà soát",
+    "CLOSED": "Đã chốt",
+    "LOCKED": "Đã khóa"
+  },
+  "period": {
+    "payGroup": "Nhóm trả lương",
+    "held": "Đang giữ cho tính lương",
+    "deadline": "Hạn chốt công",
+    "overdue": "quá hạn",
+    "version": "Phiên bản kết quả",
+    "versionLocked": "v{current} / khóa v{locked}",
+    "canClose": "Có thể chốt",
+    "ready": "Sẵn sàng",
+    "notReady": "Chưa sẵn sàng",
+    "outstanding": "Mục tồn đọng",
+    "waivable": "Có thể bỏ qua khi chốt (ghi lý do)",
+    "notWaivable": "Bắt buộc xử lý trước khi chốt",
+    "pendingRetro": "Hồi tố chờ xử lý"
+  },
+  "retro": {
+    "originalPeriod": "Kỳ gốc",
+    "includeWithdrawn": "Gồm cả kết quả đã thu hồi",
+    "totals": "Tổng theo kỳ gốc",
+    "category": "Nhóm công",
+    "quantity": "Số lượng",
+    "lines": "Số dòng",
+    "employments": "Số nhân viên",
+    "segment": "Giai đoạn",
+    "originalVersion": "Phiên bản gốc",
+    "reason": "Lý do hồi tố",
+    "carryingPeriod": "Kỳ ghi nhận",
+    "result": "Kết quả",
+    "createdAt": "Thời điểm tạo"
+  },
+  "inbox": {
+    "title": "Hộp tích hợp chấm công",
+    "intro": "Các sự kiện từ phân hệ khác mà phân hệ Chấm công đã nhận, trạng thái xử lý và các sự kiện lỗi.",
+    "repairHint": "Sự kiện Nhân sự bị lỗi: tạo lại lịch làm việc của nhân viên. Địa điểm của Core: dùng nút Đồng bộ lại địa điểm.",
+    "resync": "Đồng bộ lại địa điểm",
+    "resyncConfirm": "Đồng bộ lại toàn bộ địa điểm từ Core?",
+    "resyncHint": "Dựng lại bản sao địa điểm của phân hệ Chấm công (khi go-live hoặc sửa sự kiện lỗi).",
+    "resynced": "Đã đồng bộ lại địa điểm",
+    "resyncResult": "Đã đồng bộ {locations, number} địa điểm ({versions, number} phiên bản).",
+    "status": "Trạng thái",
+    "allStatuses": "Tất cả trạng thái",
+    "statuses": {
+      "RECEIVED": "Đã nhận",
+      "PROCESSED": "Đã xử lý",
+      "SKIPPED": "Bỏ qua",
+      "FAILED": "Lỗi"
+    },
+    "consumer": "Bộ xử lý",
+    "consumerPlaceholder": "Lọc theo bộ xử lý",
+    "limit": "Số dòng",
+    "receivedAt": "Thời điểm nhận",
+    "eventType": "Loại sự kiện",
+    "attempts": "Số lần thử",
+    "lastError": "Lỗi gần nhất",
+    "processedAt": "Thời điểm xử lý",
+    "eventId": "Mã sự kiện"
+  },
+  "jobs": {
+    "title": "Tác vụ & nhắc nhở",
+    "intro": "Chạy thủ công tác vụ hằng đêm và nhắc nhở hằng ngày của phân hệ Chấm công cho toàn bộ doanh nghiệp.",
+    "today": "Ngày chạy",
+    "todayPlaceholder": "Mặc định: hôm nay",
+    "step": "Bước",
+    "count": "Số lượng",
+    "failures": "Lỗi",
+    "ok": "Thành công",
+    "steps": {
+      "PERIOD_REVIEW": "Chuyển kỳ sang rà soát",
+      "RECALCULATION": "Tính lại bảng công",
+      "LEAVE_CARRY_EXPIRY": "Hết hạn phép chuyển năm",
+      "LEAVE_ACCRUAL": "Cộng phép tháng",
+      "LEAVE_YEAR_END": "Kết chuyển năm phép",
+      "HOLD_RECONCILIATION": "Đối soát giữ kết quả công"
+    },
+    "nightly": {
+      "title": "Tác vụ hằng đêm",
+      "description": "Tạo phân vùng dữ liệu, chuyển kỳ đã kết thúc sang rà soát, tính lại bảng công, cộng phép/chuyển năm và đối soát giữ kết quả công.",
+      "run": "Chạy tác vụ hằng đêm",
+      "confirmTitle": "Chạy tác vụ hằng đêm?",
+      "confirmText": "Tác vụ chạy cho toàn bộ doanh nghiệp và có thể mất vài phút. Kết quả đã chốt hoặc khóa không bị thay đổi.",
+      "done": "Đã chạy tác vụ cho ngày {day}.",
+      "doneWithFailures": "Đã chạy tác vụ cho ngày {day}, một số bước có lỗi."
+    },
+    "reminders": {
+      "title": "Nhắc nhở hằng ngày",
+      "description": "Gửi nhắc thiếu dữ liệu chấm công (ngày hôm trước), phép chuyển năm sắp hết hạn và hạn chốt công theo cài đặt của từng pháp nhân.",
+      "run": "Gửi nhắc nhở",
+      "confirmTitle": "Gửi nhắc nhở hằng ngày?",
+      "confirmText": "Thông báo sẽ được gửi tới nhân viên và người phụ trách chốt công liên quan.",
+      "done": "Đã gửi nhắc nhở cho ngày {day}.",
+      "missingPunch": "Nhắc thiếu dữ liệu chấm công",
+      "carryExpiry": "Nhắc phép sắp hết hạn",
+      "closeDue": "Nhắc hạn chốt công"
+    }
+  },
+  "errors": {
+    "invalid-range": "Khoảng ngày không hợp lệ: chọn từ ngày và đến ngày (đến ngày không trước từ ngày).",
+    "range-too-long": "Khoảng ngày vượt quá giới hạn cho phép."
+  }
+}
