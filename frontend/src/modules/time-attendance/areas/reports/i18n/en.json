@@ -1,0 +1,284 @@
+{
+  "common": {
+    "applyFilters": "Choose the filters and press Search to run the report.",
+    "noRows": "No data",
+    "export": "Export Excel",
+    "exported": "Excel file downloaded"
+  },
+  "pager": {
+    "rows": "Rows {first, number} – {last, number}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "pageSize": "Rows per page",
+    "perPage": "{count, number} / page"
+  },
+  "index": {
+    "title": "Attendance reports",
+    "intro": "Timesheet, overtime, leave and period close reports within your data scope.",
+    "none": "You have not been granted any attendance report.",
+    "excel": "Excel export available"
+  },
+  "catalog": {
+    "timesheet-grid": {
+      "title": "Timesheet grid",
+      "description": "Attendance codes per employee × day for a period or a date range (≤ 62 days), with totals per payroll category."
+    },
+    "daily-exceptions": {
+      "title": "Daily exceptions",
+      "description": "Late arrivals, early departures, missing punches and absences (≤ 62 days)."
+    },
+    "punch-log": {
+      "title": "Punch log",
+      "description": "Raw punches by device and employee with source and validation status (audited read)."
+    },
+    "overtime-summary": {
+      "title": "Overtime summary",
+      "description": "Overtime hours of the month and year to date against the caps, per overtime category."
+    },
+    "overtime-cap-overrides": {
+      "title": "Overtime cap overrides",
+      "description": "Overtime submitted above the cap with an authorised override: who, why and the cap usage."
+    },
+    "leave-balances": {
+      "title": "Leave balances",
+      "description": "Leave balances as of a date from the ledger: opening, carried in, accrued, taken, adjusted, expired, encashed."
+    },
+    "leave-taken": {
+      "title": "Leave taken",
+      "description": "Approved leave per month × org unit × leave type (≤ 366 days, by start date)."
+    },
+    "si-leave-register": {
+      "title": "SI-paid leave register",
+      "description": "Leave paid by social insurance (sickness, maternity…) with masked claim data (audited read)."
+    },
+    "period-close-status": {
+      "title": "Period close status",
+      "description": "Close status per legal entity × pay group with the outstanding checklist items."
+    },
+    "retro-adjustments": {
+      "title": "Retro adjustments",
+      "description": "Retro adjustment lines and totals by original period."
+    }
+  },
+  "filter": {
+    "range": "Date range",
+    "rangeRequired": "Choose a date range.",
+    "periodOrRange": "Choose a period or a date range",
+    "periodOrRangeRequired": "Choose an attendance period or a date range.",
+    "exceptionType": "Exception type",
+    "device": "Device",
+    "month": "Month",
+    "monthRequired": "Choose a month.",
+    "leaveType": "Leave type",
+    "asOf": "As of"
+  },
+  "col": {
+    "employeeNo": "Emp. no.",
+    "fullName": "Full name",
+    "employment": "Employment",
+    "orgUnit": "Org unit",
+    "workedHours": "Worked h",
+    "overtimeHours": "Overtime h",
+    "nightHours": "Night h",
+    "lateMin": "Late min",
+    "earlyMin": "Early min",
+    "exceptionDays": "Exception days",
+    "missingDays": "Missing-punch days",
+    "dayStatus": "Day status",
+    "code": "Code",
+    "firstIn": "First in",
+    "lastOut": "Last out",
+    "scheduledHours": "Scheduled h",
+    "absentHours": "Absent h",
+    "exceptions": "Exceptions",
+    "punchAt": "Punched at",
+    "device": "Device",
+    "enrolId": "Enrol ID",
+    "direction": "Direction",
+    "source": "Source",
+    "importRow": "Import row",
+    "receivedAt": "Received at"
+  },
+  "grid": {
+    "pageTotals": "Totals of this page",
+    "legend": "Codes"
+  },
+  "exceptionTypes": {
+    "LATE": "Late",
+    "EARLY": "Early departure",
+    "MISSING_PUNCH": "Missing punch",
+    "ABSENT": "Absent"
+  },
+  "punchStatuses": {
+    "PENDING": "Pending",
+    "VALID": "Valid",
+    "QUARANTINED": "Quarantined",
+    "QUARANTINED_UNMAPPED": "Quarantined – no enrolment mapping",
+    "QUARANTINED_EXPIRED": "Quarantined – mapping expired",
+    "QUARANTINED_UNKNOWN_DEVICE": "Quarantined – unknown device",
+    "IGNORED": "Ignored"
+  },
+  "requestStatuses": {
+    "PENDING": "Pending",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected",
+    "CANCELLED": "Cancelled"
+  },
+  "ot": {
+    "month": "Month (used / cap, h)",
+    "year": "Year (used / cap, h)",
+    "capTooltip": "Opening {opening} · approved {approved} · pending {pending} · paid {paid} · authorised override {override}",
+    "regime": "Cap regime",
+    "monthYtd": "Month / year to date (h)",
+    "plannedHours": "Planned h",
+    "reason": "Overtime reason",
+    "overrideReason": "Override reason",
+    "protected": "Protected",
+    "protectedWorker": "Protected worker",
+    "consent": "Consent method",
+    "decidedAt": "Decided at"
+  },
+  "leave": {
+    "asOf": "Balances as of {date}",
+    "type": "Leave type",
+    "year": "Leave year",
+    "movements": {
+      "opening": "Opening",
+      "carriedIn": "Carried in",
+      "accrued": "Accrued",
+      "taken": "Taken",
+      "adjusted": "Adjusted",
+      "carriedOut": "Carried out",
+      "expired": "Expired",
+      "encashed": "Encashed",
+      "closing": "Balance"
+    },
+    "category": "Category",
+    "paidBy": "Paid by",
+    "requests": "Requests",
+    "employees": "Employees",
+    "days": "Days",
+    "hours": "Hours",
+    "period": "Leave period",
+    "actualReturn": "Actual return",
+    "siMaskedNotice": "Document numbers show only their last 4 characters; reading this register is audited.",
+    "certificateType": "Certificate type",
+    "certificateNo": "Certificate no.",
+    "certificateDate": "Certificate date",
+    "treatmentType": "Treatment",
+    "longTermIllness": "Long-term illness",
+    "childBirthDate": "Child's birth date",
+    "childId": "Child ID",
+    "confinementDate": "Confinement date",
+    "childrenBorn": "Children",
+    "caesarean": "Caesarean",
+    "claimData": "SI claim data",
+    "claimRecorded": "Recorded",
+    "claimMissing": "Missing"
+  },
+  "periodStatuses": {
+    "OPEN": "Open",
+    "IN_REVIEW": "In review",
+    "CLOSED": "Closed",
+    "LOCKED": "Locked"
+  },
+  "period": {
+    "payGroup": "Pay group",
+    "held": "Held by payroll",
+    "deadline": "Close deadline",
+    "overdue": "overdue",
+    "version": "Result version",
+    "versionLocked": "v{current} / locked v{locked}",
+    "canClose": "Can close",
+    "ready": "Ready",
+    "notReady": "Not ready",
+    "outstanding": "Outstanding",
+    "waivable": "Can be waived at close (with a reason)",
+    "notWaivable": "Must be resolved before closing",
+    "pendingRetro": "Pending retro"
+  },
+  "retro": {
+    "originalPeriod": "Original period",
+    "includeWithdrawn": "Include withdrawn results",
+    "totals": "Totals by original period",
+    "category": "Category",
+    "quantity": "Quantity",
+    "lines": "Lines",
+    "employments": "Employees",
+    "segment": "Segment",
+    "originalVersion": "Original version",
+    "reason": "Retro reason",
+    "carryingPeriod": "Carrying period",
+    "result": "Result",
+    "createdAt": "Created at"
+  },
+  "inbox": {
+    "title": "Attendance integration inbox",
+    "intro": "Events of other modules consumed by Time & Attendance, their processing status and dead letters.",
+    "repairHint": "Failed People event: regenerate the employee's schedule. Core locations: use Resync locations.",
+    "resync": "Resync locations",
+    "resyncConfirm": "Resync every location from Core?",
+    "resyncHint": "Rebuilds the attendance copy of Core's locations (go-live, repair of a dead letter).",
+    "resynced": "Locations resynced",
+    "resyncResult": "{locations, number} locations resynced ({versions, number} versions).",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "statuses": {
+      "RECEIVED": "Received",
+      "PROCESSED": "Processed",
+      "SKIPPED": "Skipped",
+      "FAILED": "Failed"
+    },
+    "consumer": "Consumer",
+    "consumerPlaceholder": "Filter by consumer",
+    "limit": "Rows",
+    "receivedAt": "Received at",
+    "eventType": "Event type",
+    "attempts": "Attempts",
+    "lastError": "Last error",
+    "processedAt": "Processed at",
+    "eventId": "Event ID"
+  },
+  "jobs": {
+    "title": "Jobs & reminders",
+    "intro": "Runs the Time & Attendance nightly job and daily reminders by hand for the whole tenant.",
+    "today": "Run date",
+    "todayPlaceholder": "Default: today",
+    "step": "Step",
+    "count": "Count",
+    "failures": "Failures",
+    "ok": "OK",
+    "steps": {
+      "PERIOD_REVIEW": "Move ended periods to review",
+      "RECALCULATION": "Recalculate timesheets",
+      "LEAVE_CARRY_EXPIRY": "Expire carried leave",
+      "LEAVE_ACCRUAL": "Monthly leave accrual",
+      "LEAVE_YEAR_END": "Leave year end",
+      "HOLD_RECONCILIATION": "Close-hold reconciliation"
+    },
+    "nightly": {
+      "title": "Nightly job",
+      "description": "Creates partitions, moves ended periods to review, recalculates timesheets, runs leave accrual / year end and reconciles the close holds.",
+      "run": "Run nightly job",
+      "confirmTitle": "Run the nightly job?",
+      "confirmText": "The job runs for the whole tenant and may take a few minutes. Closed or locked results are not changed.",
+      "done": "Nightly job ran for {day}.",
+      "doneWithFailures": "Nightly job ran for {day}; some steps failed."
+    },
+    "reminders": {
+      "title": "Daily reminders",
+      "description": "Sends missing-punch reminders (previous day), carried-leave expiry and close-deadline reminders as set per legal entity.",
+      "run": "Send reminders",
+      "confirmTitle": "Send the daily reminders?",
+      "confirmText": "Notifications go to the employees and the close owners concerned.",
+      "done": "Reminders sent for {day}.",
+      "missingPunch": "Missing-punch reminders",
+      "carryExpiry": "Leave expiry reminders",
+      "closeDue": "Close-deadline reminders"
+    }
+  },
+  "errors": {
+    "invalid-range": "Invalid date range: give a from and a to date (to on or after from).",
+    "range-too-long": "The date range is longer than allowed."
+  }
+}
