@@ -1,9 +1,10 @@
 import type { Me } from '@/shared/auth';
+import { AttendancePermissions } from '@/modules/time-attendance/permissions';
 
 export const TENANT_ID = '018f0000-0000-7000-8000-000000000001';
 export const USER_ID = '018f0000-0000-7000-8000-000000000002';
 
-/** A tenant admin holding every Core and People permission tenant-wide. */
+/** A tenant admin holding every Core, People and T&A permission tenant-wide. */
 export const meFixture: Me = {
   user: { id: USER_ID, login: 'admin', email: 'admin@example.test', status: 'ACTIVE', employmentId: null, identityId: null },
   tenant: { id: TENANT_ID, slug: 'demo', name: 'Demo Company', state: 'ACTIVE', defaultLocale: 'vi-VN', timeZone: 'Asia/Ho_Chi_Minh' },
@@ -50,6 +51,8 @@ export const meFixture: Me = {
     'hr.special_status.update', 'hr.work_permit.update', 'hr.separation.view', 'hr.separation.create',
     'hr.separation.update', 'hr.statutory_report.view', 'hr.statutory_report.execute', 'hr.import.run',
     'hr.dsr.execute', 'hr.ess.view', 'hr.ess.request',
+    // Time & Attendance (backend AttendancePermissions)
+    ...Object.values(AttendancePermissions),
   ].map((code) => ({ code, scopes: [{ scopeType: 'TENANT' as const, scopeIds: [], includeSubtree: true, fieldMaskLevel: 'NONE' }] })),
 };
 

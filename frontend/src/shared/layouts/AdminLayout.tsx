@@ -6,6 +6,10 @@ import {
   BankOutlined,
   BellOutlined,
   BarChartOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
+  LockOutlined,
+  ThunderboltOutlined,
   CheckSquareOutlined,
   FileTextOutlined,
   GlobalOutlined,
@@ -45,6 +49,10 @@ const ICONS: Record<string, React.ReactNode> = {
   idcard: <IdcardOutlined />,
   solution: <SolutionOutlined />,
   chart: <BarChartOutlined />,
+  clock: <ClockCircleOutlined />,
+  calendar: <CalendarOutlined />,
+  thunderbolt: <ThunderboltOutlined />,
+  lock: <LockOutlined />,
 };
 
 function toItems(entries: MenuEntry[], t: (k: string) => string): ItemType[] {

@@ -1,0 +1,18 @@
+{
+  "common": {
+    "searchEmployee": "Search employee by number or name",
+    "noEmployee": "No matching employee",
+    "employee": "Employee",
+    "legalEntity": "Legal entity",
+    "orgUnit": "Org unit",
+    "location": "Location",
+    "period": "Period",
+    "workDate": "Work date",
+    "fromDate": "From",
+    "toDate": "To",
+    "status": "Status",
+    "hours": "{value, number} h",
+    "days": "{value, number} d",
+    "selectEmployeeFirst": "Select an employee to see their data."
+  }
+}

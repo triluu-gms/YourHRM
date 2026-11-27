@@ -6,13 +6,14 @@ import { changeLanguage, toUiLanguage } from '@/shared/i18n';
 import { mergeRegistries, ShellRegistryProvider } from '@/shared/navigation';
 import { coreRegistry } from '@/modules/core';
 import { peopleRegistry } from '@/modules/people';
+import { attendanceRegistry } from '@/modules/time-attendance';
 import { AppProviders } from './providers';
 import { createAppRouter } from './router';
 
 export function App() {
   const queryClient = useMemo(() => createQueryClient(), []);
   const router = useMemo(() => createAppRouter(queryClient), [queryClient]);
-  const registry = useMemo(() => mergeRegistries([coreRegistry, peopleRegistry]), []);
+  const registry = useMemo(() => mergeRegistries([coreRegistry, peopleRegistry, attendanceRegistry]), []);
 
   useEffect(() => {
     // Session expired mid-work: drop the cached /me and send the user to the login page.

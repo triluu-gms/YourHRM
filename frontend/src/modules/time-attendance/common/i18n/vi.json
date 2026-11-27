@@ -1,0 +1,18 @@
+{
+  "common": {
+    "searchEmployee": "Tìm nhân viên theo mã hoặc tên",
+    "noEmployee": "Không tìm thấy nhân viên",
+    "employee": "Nhân viên",
+    "legalEntity": "Pháp nhân",
+    "orgUnit": "Đơn vị",
+    "location": "Địa điểm",
+    "period": "Kỳ",
+    "workDate": "Ngày công",
+    "fromDate": "Từ ngày",
+    "toDate": "Đến ngày",
+    "status": "Trạng thái",
+    "hours": "{value, number} giờ",
+    "days": "{value, number} ngày",
+    "selectEmployeeFirst": "Chọn nhân viên để xem dữ liệu."
+  }
+}

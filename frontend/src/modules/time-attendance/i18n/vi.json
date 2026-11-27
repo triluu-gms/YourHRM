@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "att": {
+      "setupGroup": "Thiết lập chấm công",
+      "holidayCalendars": "Lịch ngày lễ",
+      "shifts": "Ca làm việc",
+      "schedulePatterns": "Mẫu lịch làm việc",
+      "scheduleRules": "Quy tắc xếp lịch",
+      "attendanceCodes": "Ký hiệu chấm công",
+      "leaveTypes": "Loại nghỉ",
+      "leavePolicies": "Chính sách nghỉ phép",
+      "devices": "Máy chấm công",
+      "timeGroup": "Chấm công",
+      "scheduleAssignments": "Phân lịch làm việc",
+      "unscheduled": "Nhân viên chưa có lịch",
+      "enrolmentMappings": "Mã chấm công nhân viên",
+      "punchQuarantine": "Dữ liệu chấm công chưa khớp",
+      "timesheets": "Bảng công",
+      "employeeTimesheet": "Bảng công nhân viên",
+      "leaveGroup": "Nghỉ phép",
+      "leaveRequests": "Đơn nghỉ",
+      "leaveBalances": "Số dư phép",
+      "leaveJobs": "Cộng phép & chuyển năm",
+      "overtimeGroup": "Làm thêm giờ",
+      "overtimeRequests": "Đăng ký làm thêm",
+      "overtimeCaps": "Giới hạn làm thêm",
+      "periodsGroup": "Chốt công",
+      "periods": "Kỳ chấm công",
+      "resultImports": "Import kết quả công",
+      "reportsGroup": "Báo cáo chấm công",
+      "reports": "Báo cáo",
+      "integrationInbox": "Hộp tích hợp",
+      "jobs": "Tác vụ & nhắc nhở",
+      "essGroup": "Chấm công của tôi",
+      "myTimesheet": "Bảng công của tôi",
+      "mySchedule": "Lịch làm việc của tôi",
+      "myLeave": "Nghỉ phép của tôi",
+      "myOvertime": "Làm thêm của tôi",
+      "myRequests": "Yêu cầu của tôi"
+    }
+  }
+}

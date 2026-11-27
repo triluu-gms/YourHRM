@@ -3,10 +3,11 @@ import type { QueryClient } from '@tanstack/react-query';
 import { adminRoute, forbiddenRoute, loginRoute, rootRoute } from '@/shared/routing';
 import { coreRoutes } from '@/modules/core';
 import { peopleRoutes } from '@/modules/people';
+import { attendanceRoutes } from '@/modules/time-attendance';
 
 /** Composes the route tree: every module's routes hang under the admin shell. */
 export function buildRouteTree() {
-  return rootRoute.addChildren([loginRoute, adminRoute.addChildren([forbiddenRoute, ...coreRoutes, ...peopleRoutes])]);
+  return rootRoute.addChildren([loginRoute, adminRoute.addChildren([forbiddenRoute, ...coreRoutes, ...peopleRoutes, ...attendanceRoutes])]);
 }
 
 export function createAppRouter(queryClient: QueryClient) {

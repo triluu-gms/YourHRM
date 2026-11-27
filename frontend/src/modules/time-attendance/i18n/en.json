@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "att": {
+      "setupGroup": "Attendance setup",
+      "holidayCalendars": "Holiday calendars",
+      "shifts": "Shifts",
+      "schedulePatterns": "Schedule patterns",
+      "scheduleRules": "Schedule rules",
+      "attendanceCodes": "Attendance codes",
+      "leaveTypes": "Leave types",
+      "leavePolicies": "Leave policies",
+      "devices": "Time clocks",
+      "timeGroup": "Time & attendance",
+      "scheduleAssignments": "Schedule assignments",
+      "unscheduled": "Unscheduled employees",
+      "enrolmentMappings": "Enrolment mappings",
+      "punchQuarantine": "Unmatched punches",
+      "timesheets": "Timesheets",
+      "employeeTimesheet": "Employee timesheet",
+      "leaveGroup": "Leave",
+      "leaveRequests": "Leave requests",
+      "leaveBalances": "Leave balances",
+      "leaveJobs": "Accrual & year-end",
+      "overtimeGroup": "Overtime",
+      "overtimeRequests": "Overtime requests",
+      "overtimeCaps": "Overtime caps",
+      "periodsGroup": "Period close",
+      "periods": "Attendance periods",
+      "resultImports": "Result imports",
+      "reportsGroup": "Attendance reports",
+      "reports": "Reports",
+      "integrationInbox": "Integration inbox",
+      "jobs": "Jobs & reminders",
+      "essGroup": "My attendance",
+      "myTimesheet": "My timesheet",
+      "mySchedule": "My schedule",
+      "myLeave": "My leave",
+      "myOvertime": "My overtime",
+      "myRequests": "My requests"
+    }
+  }
+}
